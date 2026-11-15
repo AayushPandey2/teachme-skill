@@ -107,15 +107,14 @@ teachme-skill/
 ├── README.md
 ├── LICENSE
 ├── install.sh
-└── skills/
-    └── teachme/
-        ├── SKILL.md                       # Master router, operating laws & 6-phase state machine
-        └── references/
-            ├── MISSION-AND-GRILL.md       # Frontier grilling protocol & 00-MISSION.md template
-            ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
-            ├── STUDY-AND-GLOSSARY.md      # Formula anatomy, MOC index, Cornell guide, derivations & flashcards
-            ├── RETENTION-AND-RECORDS.md   # Teach-before-test Socratic loop, wait-what & ADR learning records
-            └── SUBCOMMANDS.md             # Workflows & templates for ingest, distill, review, feynman, drill, compare & audit
+└── teachme/
+    ├── SKILL.md                       # Master router, operating laws & 6-phase state machine
+    └── references/
+        ├── MISSION-AND-GRILL.md       # Frontier grilling protocol & 00-MISSION.md template
+        ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
+        ├── STUDY-AND-GLOSSARY.md      # Formula anatomy, MOC index, Cornell guide, derivations & flashcards
+        ├── RETENTION-AND-RECORDS.md   # Teach-before-test Socratic loop, wait-what & ADR learning records
+        └── SUBCOMMANDS.md             # Workflows & templates for ingest, distill, review, feynman, drill, compare & audit
 ```
 
 ---
