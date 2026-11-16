@@ -1,6 +1,6 @@
 ---
 name: teachme-compare
-description: Build a primary-source structural trade-off matrix contrasting two concepts, algorithms, or architectures. Usage: /teachme-compare <A> vs <B>
+description: "Build a primary-source structural trade-off matrix contrasting two concepts, algorithms, or architectures. Usage: /teachme-compare <A> vs <B>"
 ---
 
 # `/teachme-compare` — Cross-Vault Structural Trade-Off Synthesis

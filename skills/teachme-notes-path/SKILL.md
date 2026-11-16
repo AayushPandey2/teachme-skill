@@ -1,6 +1,6 @@
 ---
 name: teachme-notes-path
-description: View, change, or reset the folder path where /teachme saves your notes vault. Usage: /teachme-notes-path <folder-path>
+description: "View, change, or reset the folder path where /teachme saves your notes vault. Usage: /teachme-notes-path <folder-path>"
 ---
 
 # `/teachme-notes-path` — Configure Vault Root Directory

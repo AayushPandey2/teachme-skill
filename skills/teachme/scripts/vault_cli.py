@@ -430,6 +430,196 @@ def strip_escaped_dollars(line: str) -> str:
     return line.replace(r"\$", "")
 
 
+YAML_SPECIAL_RE = re.compile(r"[:\[\]{}|<>*&#?\\]")
+
+
+def is_properly_quoted(val: str) -> bool:
+    return (len(val) >= 2 and val[0] == '"' and val[-1] == '"') or (
+        len(val) >= 2 and val[0] == "'" and val[-1] == "'"
+    )
+
+
+def has_unclosed_quote(val: str) -> bool:
+    if not val:
+        return False
+    if val[0] == '"':
+        # Must end with unescaped "
+        if len(val) < 2 or val[-1] != '"':
+            return True
+        escapes = 0
+        i = len(val) - 2
+        while i >= 0 and val[i] == "\\":
+            escapes += 1
+            i -= 1
+        return escapes % 2 == 1
+    if val[0] == "'":
+        return len(val) < 2 or val[-1] != "'"
+    return False
+
+
+def strip_yaml_comment(val: str) -> str:
+    """Strip unquoted trailing `# comment` from a YAML value."""
+    in_single = False
+    in_double = False
+    i = 0
+    while i < len(val):
+        ch = val[i]
+        if ch == "\\" and in_double:
+            i += 2
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch == "'" and not in_double:
+            in_single = not in_single
+        elif ch == "#" and not in_single and not in_double:
+            if i == 0 or val[i - 1].isspace():
+                return val[:i].rstrip()
+        i += 1
+    return val.strip()
+
+
+def validate_yaml_frontmatter(
+    rel_path: str, text: str, errors: list[dict[str, Any]]
+) -> None:
+    """Validate GitHub-compatible YAML frontmatter in pure stdlib Python."""
+    raw_lines = text.lstrip("\ufeff").splitlines()
+    if not raw_lines or raw_lines[0].strip() != "---":
+        return
+
+    end_idx = -1
+    for i in range(1, len(raw_lines)):
+        if raw_lines[i].strip() == "---":
+            end_idx = i
+            break
+    if end_idx == -1:
+        errors.append(
+            {
+                "file": rel_path,
+                "line": 1,
+                "type": "yaml_unclosed_frontmatter",
+                "detail": "Opening '---' frontmatter block is not closed",
+            }
+        )
+        return
+
+    current_key: str | None = None
+    expecting_list = False
+    for offset, raw_line in enumerate(raw_lines[1:end_idx], start=2):
+        if "\t" in raw_line[: len(raw_line) - len(raw_line.lstrip())]:
+            errors.append(
+                {
+                    "file": rel_path,
+                    "line": offset,
+                    "type": "yaml_bad_indent",
+                    "detail": "Tab character used in YAML indentation",
+                }
+            )
+            continue
+
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if stripped.startswith("- ") or stripped == "-":
+            if not expecting_list and current_key is None:
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": offset,
+                        "type": "yaml_syntax_error",
+                        "detail": "List item without preceding YAML key",
+                    }
+                )
+                continue
+            item_val = strip_yaml_comment(stripped[1:].strip())
+            if has_unclosed_quote(item_val):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": offset,
+                        "type": "yaml_unclosed_quote",
+                        "detail": f"Unclosed quote in list item: {item_val}",
+                    }
+                )
+            elif item_val and not is_properly_quoted(item_val) and YAML_SPECIAL_RE.search(item_val):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": offset,
+                        "type": "yaml_unquoted_special_char",
+                        "detail": f"Unquoted special char in list item: {item_val}",
+                    }
+                )
+            continue
+
+        if raw_line[0].isspace():
+            errors.append(
+                {
+                    "file": rel_path,
+                    "line": offset,
+                    "type": "yaml_bad_indent",
+                    "detail": f"Unexpected indentation: {raw_line}",
+                }
+            )
+            continue
+
+        if ":" not in raw_line:
+            errors.append(
+                {
+                    "file": rel_path,
+                    "line": offset,
+                    "type": "yaml_syntax_error",
+                    "detail": f"Missing ':' in YAML mapping line: {stripped}",
+                }
+            )
+            continue
+
+        key_part, val_part = raw_line.split(":", 1)
+        key = key_part.strip()
+        current_key = key
+        val = strip_yaml_comment(val_part.strip())
+        if not val:
+            expecting_list = True
+            continue
+        expecting_list = False
+
+        if has_unclosed_quote(val):
+            errors.append(
+                {
+                    "file": rel_path,
+                    "line": offset,
+                    "type": "yaml_unclosed_quote",
+                    "detail": f"Unclosed quote for key '{key}'",
+                }
+            )
+            continue
+
+        if is_properly_quoted(val):
+            continue
+
+        if val.startswith("[") or val.endswith("]"):
+            if not (val.startswith("[") and val.endswith("]")):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": offset,
+                        "type": "yaml_malformed_list",
+                        "detail": f"Malformed inline list for key '{key}': {val}",
+                    }
+                )
+            continue
+
+        if YAML_SPECIAL_RE.search(val) or (key == "checkpoint" and "/" in val):
+            errors.append(
+                {
+                    "file": rel_path,
+                    "line": offset,
+                    "type": "yaml_unquoted_special_char",
+                    "detail": f"Value for '{key}' must be double-quoted: {val}",
+                }
+            )
+
+
 def scan_latex_in_file(
     rel_path: str, text: str, errors: list[dict[str, Any]]
 ) -> None:
@@ -593,8 +783,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
         text = text_cache[p]
         lines = text.splitlines()
 
-        # LaTeX checks
-        before_err = len(errors)
+        # YAML frontmatter & LaTeX checks
+        validate_yaml_frontmatter(rel_path, text, errors)
         scan_latex_in_file(rel_path, text, errors)
         # Check section markers for topics/*.md and atomic/*.md
         parts = p.relative_to(vault).parts
@@ -764,6 +954,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                     }
                 )
 
+    broken_yaml = sum(1 for e in errors if e["type"].startswith("yaml_"))
     broken_latex = sum(
         1
         for e in errors
@@ -780,6 +971,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "warnings": warnings,
         "summary": {
             "files": len(all_md),
+            "broken_yaml": broken_yaml,
             "broken_links": broken_links,
             "broken_latex": broken_latex,
             "missing_sections": missing_sections,

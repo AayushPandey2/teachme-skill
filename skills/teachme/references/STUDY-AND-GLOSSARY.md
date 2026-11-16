@@ -226,14 +226,14 @@ For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no a
 
 ````markdown
 ---
-id: topic-<nn>
-title: <Subtopic Title>
-status: unstarted # unstarted | in-progress | mastered
-checkpoint: 0/4
-depends_on: [topic-<prev>-<slug>]
-unlocks: [topic-<next>-<slug>]
-contrasts_with: [topic-<lookalike>-<slug>]
-fixes_failure_of: [topic-<broken-method>-<slug>]
+id: "topic-<nn>"
+title: "<Subtopic Title>"
+status: "unstarted"
+checkpoint: "0/4"
+depends_on: ["topic-<prev>-<slug>"]
+unlocks: ["topic-<next>-<slug>"]
+contrasts_with: ["topic-<lookalike>-<slug>"]
+fixes_failure_of: ["topic-<broken-method>-<slug>"]
 key_equations:
   - "<clean LaTeX equation>"
 ---
@@ -371,6 +371,7 @@ Before writing any generated or expanded `topics/<nn>-<subtopic-slug>.md` file t
 4. Includes an ASCII diagram, Contrastive "Is vs. Is Not" table, and `> [!warning] Where the Analogy Breaks Down` callout.
 5. Includes a valid, runnable 10–18 line Python/NumPy `assert` verification snippet in Block 5.
 6. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, and Block 7 links) resolve to valid vault files on disk (or `[]` where none apply).
+7. **Strict YAML Frontmatter Check:** Double-quote `"..."` all `description`, `title`, `checkpoint`, `key_equations`, and any YAML string value containing `:`, `|`, `[`, `]`, `{`, `}`, `<`, `>`, `*`, `&`, `#`, `?`, or `\` (plus clean list syntax) so GitHub and Obsidian parse frontmatter with zero warnings.
 
 ---
 
@@ -494,10 +495,10 @@ Create standalone Markdown cards inside `<VAULT_ROOT>/<topic-slug>/atomic/<conce
 ```markdown
 ---
 tags:
-  - <topic-slug>
-  - evergreen
-created: <YYYY-MM-DD>
-status: evergreen
+  - "<topic-slug>"
+  - "evergreen"
+created: "<YYYY-MM-DD>"
+status: "evergreen"
 parent: "[[03-CORNELL-STUDY-GUIDE]]"
 ---
 

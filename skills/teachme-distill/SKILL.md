@@ -1,6 +1,6 @@
 ---
 name: teachme-distill
-description: Compress a /teachme vault into a high-density 1-page 09-CHEAT-SHEET.md and update the 08-FLASHCARDS.md spaced-repetition deck. Usage: /teachme-distill <topic>
+description: "Compress a /teachme vault into a high-density 1-page 09-CHEAT-SHEET.md and update the 08-FLASHCARDS.md spaced-repetition deck. Usage: /teachme-distill <topic>"
 ---
 
 # `/teachme-distill` — Executive Cheat Sheet & Flashcard Roll-Up

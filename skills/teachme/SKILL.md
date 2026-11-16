@@ -1,6 +1,6 @@
 ---
 name: teachme
-description: Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with `/teachme <topic>` or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (`<VAULT_ROOT>/<topic-slug>/`, defaulting to `~/notes`).
+description: "Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with /teachme <topic> or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (<VAULT_ROOT>/<topic-slug>/, defaulting to ~/notes)."
 ---
 
 # Unified `/teachme` Master Pipeline
@@ -18,7 +18,7 @@ Do NOT dump everything in a single wall of chat text. Write clean, pure Markdown
    - **Step 2:** If `~/.teachme-config.json` does not exist or `notes_root` is unset, default `<VAULT_ROOT>` to `~/notes` (expanding `~` to the user's home directory).
    - **Never hardcode `<VAULT_ROOT>/`** when `notes_root` is configured; use `/teachme-notes-path <path>` to view, change, or reset `<VAULT_ROOT>`.
 2. **Always Start with Frontier Grilling:** Every new `/teachme <topic>` session MUST begin with Phase 1 (Frontier Grilling Round with `❓` questions and `➡️` defaults: `No prior knowledge` + `Absolute mastery covering all topics`) before running research—unless the user explicitly passes `--auto` or replies `"auto"`, `"defaults"`, or `"go"`.
-3. **Pure Markdown Output:** Produce 100% pure Markdown (`.md`) files across the entire vault (no HTML wrappers, no PDFs). Keep formatting clean for Obsidian, Git, and standard Markdown viewers.
+3. **Pure Markdown & Strict YAML Frontmatter Output:** Produce 100% pure Markdown (`.md`) files across the entire vault (no HTML wrappers, no PDFs). Whenever writing YAML frontmatter (`--- ... ---`), double-quote `"..."` all `description`, `title`, `checkpoint`, `key_equations`, and string values containing `:`, `|`, `[`, `]`, `{`, `}`, `<`, `>`, `*`, `&`, `#`, `?`, or `\` so GitHub and Obsidian parse them with zero warnings.
 4. **Never Trust Parametric Knowledge Alone:** Treat pre-trained knowledge as untrusted until grounded in primary sources during Phase 2.
 5. **Progressive Reference Loading:** Read supporting files in `references/` only for the active phase or subcommand:
    - Phase 1: `references/MISSION-AND-GRILL.md` | Phase 2: `references/RESEARCH-TOOLCHAIN.md`

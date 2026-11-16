@@ -1,6 +1,6 @@
 ---
 name: teachme-ingest
-description: Absorb new PDFs, URLs, lecture notes, or raw dumps into an existing /teachme vault without overwriting mastered checkpoints. Usage: /teachme-ingest <topic> <source>
+description: "Absorb new PDFs, URLs, lecture notes, or raw dumps into an existing /teachme vault without overwriting mastered checkpoints. Usage: /teachme-ingest <topic> <source>"
 ---
 
 # `/teachme-ingest` — Source Ingestion & Non-Destructive Vault Merge

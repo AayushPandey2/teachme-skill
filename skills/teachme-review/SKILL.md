@@ -1,6 +1,6 @@
 ---
 name: teachme-review
-description: Launch an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in a /teachme vault. Usage: /teachme-review <topic>
+description: "Launch an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in a /teachme vault. Usage: /teachme-review <topic>"
 ---
 
 # `/teachme-review` — Interleaved Spaced-Repetition Coaching

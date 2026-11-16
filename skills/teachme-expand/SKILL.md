@@ -1,6 +1,6 @@
 ---
 name: teachme-expand
-description: Deepen pre-existing /teachme notes in place to the 8-Block Mastery Standard and generate dedicated files for missing related subtopics. Usage: /teachme-expand <topic>
+description: "Deepen pre-existing /teachme notes in place to the 8-Block Mastery Standard and generate dedicated files for missing related subtopics. Usage: /teachme-expand <topic>"
 ---
 
 # `/teachme-expand` — Vault Expansion & 8-Block Deepening

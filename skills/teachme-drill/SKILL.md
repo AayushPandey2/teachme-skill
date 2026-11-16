@@ -1,6 +1,6 @@
 ---
 name: teachme-drill
-description: Generate and grade Tier 1 (recall), Tier 2 (multi-step), or Tier 3 (adversarial edge-case) practice problems for a /teachme topic. Usage: /teachme-drill <topic> [1|2|3]
+description: "Generate and grade Tier 1 (recall), Tier 2 (multi-step), or Tier 3 (adversarial edge-case) practice problems for a /teachme topic. Usage: /teachme-drill <topic> [1|2|3]"
 ---
 
 # `/teachme-drill` — Tiered Practice Generator & Grader

@@ -1,6 +1,6 @@
 ---
 name: teachme-feynman
-description: Test plain-English mastery of any concept by explaining it back with zero unstated jargon under Socratic probing. Usage: /teachme-feynman <concept>
+description: "Test plain-English mastery of any concept by explaining it back with zero unstated jargon under Socratic probing. Usage: /teachme-feynman <concept>"
 ---
 
 # `/teachme-feynman` — Reverse-Teaching Mastery Audit

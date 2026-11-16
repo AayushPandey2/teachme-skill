@@ -1,6 +1,6 @@
 ---
 name: teachme-verify
-description: Multi-pass audit and auto-repair of broken wikilinks, typed YAML edges, orphaned files, and malformed LaTeX across a /teachme vault. Usage: /teachme-verify <topic>
+description: "Multi-pass audit and auto-repair of broken wikilinks, typed YAML edges, orphaned files, and malformed LaTeX across a /teachme vault. Usage: /teachme-verify <topic>"
 ---
 
 # `/teachme-verify` — Vault Integrity Audit & Auto-Repair
