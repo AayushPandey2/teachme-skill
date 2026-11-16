@@ -1,4 +1,4 @@
-# Phase 4B & Formula Reference: Formula Anatomy, 8-Block Subtopic Notes & 8-Point Critic Audit
+# Phase 4B & Formula Reference: Formula Anatomy, 7-Section Subtopic Notes & 8-Point Critic Audit
 
 ---
 
@@ -20,14 +20,14 @@ Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and every `topics/<nn
 
 Never write bare `[Author, Year]` text citations or link to a bare domain homepage.
 - **Inline Deep-Link Citation Format:** Wherever a theorem, historical motivation, benchmark, or formula is introduced, cite as:
-  `([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]])`
+  `([Author, Year](<direct-doi-or-url>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Research]])`
   Always link to the exact paper DOI/arXiv URL, RFC `#section-X`, or official documentation anchor.
 
 ---
 
-## 3. Detailed Subtopic Notes — 8-Block Standard (`topics/<nn>-<subtopic-slug>.md`)
+## 3. Learner-Centric 7-Section Subtopic Blueprint (`topics/<nn>-<subtopic-slug>.md`)
 
-Partition every `topics/*.md` file with the 5 strict HTML markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) and number top-level `##` headings **strictly `1.` through `8.` with zero duplicate section numbers**:
+Partition every `topics/*.md` file with the 5 invisible HTML markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) for `vault_cli.py slice`, using these exact **7 learner-centric headings (`1.` through `7.`, zero duplicate numbers)**:
 
 ````markdown
 ---
@@ -46,28 +46,28 @@ key_equations:
 # <nn>. <Subtopic Title>
 
 <!-- SECTION: L1-ANCHOR -->
-## 1. The 30-Second Executive Anchor
+## 1. The Core Idea (30-Second Anchor)
 - **Core Thesis:** <2–3 sentences: problem solved, mechanism, unbreakable invariant.>
 - **One-Line Mental Hook:** <1-sentence vivid recall hook.>
 
 <!-- SECTION: L2-PREREQS-AND-MOTIVATION -->
-## 2. Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation
+## 2. Building Blocks & Why This Exists
 
 > [!note] Zero-Baseline Prerequisites
 > Define every new symbol/operator/term from scratch before use (wrapping all math in `$...$`):
 > - **<Term 1> (`$x_i$`):** <2–3 plain-English lines + 2-number example.>
 
-### Engineering Motivation ("Why This Had to Be Invented")
-<3–4 sentences on what failed or scaled poorly previously ([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]]).>
+### Historical & Engineering Motivation
+<3–4 sentences on what failed or scaled poorly previously ([Author, Year](<direct-doi-or-url>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Research]]).>
 
 <!-- SECTION: L3-FOUR-LAYER-THEORY -->
-## 3. 4-Layer Deep Theory Stack
+## 3. How It Works: Intuition to Formal Math
 
-### Layer 1 — Daily-Life Intuition
+### Daily-Life Analogy
 <Thorough physical/human analogy with zero jargon.>
 
-### Layer 2 — Theoretical Mechanism, Visual Diagram & Contrastive Boundaries
-- **Causal Mechanism (`Input → Transformation → Output`):** <Step-by-step causal walkthrough using **bolded** `04-GLOSSARY.md` terms ([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]]).>
+### Step-by-Step Mechanism & Visuals
+- **Causal Flow (`Input → Transformation → Output`):** <Step-by-step walkthrough using **bolded** `04-GLOSSARY.md` terms ([Author, Year](<direct-doi-or-url>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Research]]).>
 
 ```text
 <Mandatory ASCII geometry/pipeline/state diagram>
@@ -81,12 +81,12 @@ key_equations:
 | **Failure Mode** | <Real edge behavior> | <Lookalike trap> |
 
 > [!warning] Where the Analogy Breaks Down
-> <Where Layer 1's everyday analogy diverges from true mechanics.>
+> <Where the everyday analogy diverges from true mechanics.>
 
-### Layer 3 — Mathematical Intuition (Before Symbols)
+### Mathematical Intuition
 <Plain-English geometric, scaling, directional & limiting behavior before formal symbols.>
 
-### Layer 4 — Formal Governing Mathematics & Complete Formula Anatomy
+### Formal Equation & Symbol Breakdown
 *(If purely non-mathematical, state "No formal equations govern this mechanism" and give complexity/invariant bounds.)*
 
 $$
@@ -105,12 +105,12 @@ $$
 - **Directional Sensitivity & Boundary Limits:** Input $\to 0$: <behavior> | $\to 1$/$-1$: <behavior> | Negative/degenerate: <behavior> | $\to \infty$: <behavior>.
 
 <!-- SECTION: L4-DERIVATION-AND-CODE -->
-## 4. Step-by-Step Axiom Derivation
+## 4. Step-by-Step Proof (Zero Skips)
 1. **Step 1 (Axiom):** $$<Start>$$ — *Why:* <1-sentence justification>.
 2. **Step 2 (Transition):** $$<Mid>$$ — *Why:* <1-sentence justification>.
 3. **Step 3 (Final):** $$<Target>$$ — *Why:* <1-sentence justification>.
 
-## 5. Executable "Code-as-Truth" Verification Block
+## 5. Run It Yourself (Python Verification)
 ```python
 import numpy as np
 # 10-18 line self-contained verification matching worked example
@@ -119,10 +119,10 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
 ```
 
 <!-- SECTION: L5-WORKBOOK-AND-GRAPH -->
-## 6. Gradual-Release Practice Workbook (`I Do` → `We Do` → `You Do`)
+## 6. Practice Workbook (I Do → We Do → You Do)
 
 ### `I Do` (Fully Worked 3-Number Trace)
-1. **Inputs:** <3 numbers matching Code-as-Truth> | 2. **Arithmetic:** <Zero skipped steps> | 3. **Result:** <Value + meaning>.
+1. **Inputs:** <3 numbers matching Section 5> | 2. **Arithmetic:** <Zero skipped steps> | 3. **Result:** <Value + meaning>.
 
 ### `We Do` (Faded Multi-Step Boundary Problem)
 <Second problem testing a boundary condition or edge-case interaction—NOT trivial arithmetic identical to `I Do`—with ~60% shown and `[Step 2: ___]`, `[Step 4: ___]` missing.>
@@ -140,27 +140,25 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
   <Complete proof/analysis + 2-sentence Feynman check.>
   </details>
 
-## 7. Common Misconceptions & Bridge to Next Topic
+## 7. Common Traps, Primary Sources & Mastery Graph
 
-> [!caution] Common Misconceptions & Traps
+> [!caution] Common Misconceptions
 > - **_Avoid_:** <Mistake 1> → **True Invariant:** <Correct behavior in `$...$`>.
 > - **_Avoid_:** <Mistake 2> → **True Invariant:** <Correct behavior in `$...$`>.
 
 **Bridge to Next Topic:** <2 sentences explaining the exact limitation that motivates `[[topics/<next-nn>-<next-slug>]]`.>
 
-## 8. Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger
+### Primary Sources & Deep Links
+| Source | Direct External Deep Link | Vault Deep Link | Exact Claim / Equation Verified |
+|---|---|---|---|
+| <Author (Year) — Title> | [<Paper / Docs Section>](https://...) | [[01-RESOURCES#<source-anchor>]] · [[02-DEEP-RESEARCH#<section-anchor>]] | *<Exact claim or equation>* |
 
-### Typed Semantic Links
+### Typed Knowledge Graph
 - **Depends On:** [[topics/<prev>-<slug>|<prev-nn>: <Prev Title>]]
 - **Unlocks:** [[topics/<next>-<slug>|<next-nn>: <Next Title>]]
 - **Contrasts With:** [[topics/<lookalike>-<slug>|<lookalike-nn>: <Title>]]
 - **Fixes Failure Of:** [[topics/<broken>-<slug>|<broken-nn>: <Title>]]
 - **Atomic:** [[atomic/<concept-slug>|<Concept Title>]]
-
-### Primary Sources & Deep Links
-| Source | Direct External Deep Link | Vault Deep Link | Exact Claim / Equation Verified |
-|---|---|---|---|
-| <Author (Year) — Title> | [<Paper / Docs Section>](https://...) | [[01-RESOURCES#<source-anchor>]] · [[02-DEEP-RESEARCH#<section-anchor>]] | *<Exact claim or equation>* |
 
 ### 4-Checkpoint Mastery Ledger
 - [ ] `[1/4]` Discovery Prediction
@@ -175,11 +173,11 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
 ---
 
 ## 4. Mandatory 8-Point Writer -> Critic Audit (Before Saving Any `topics/*.md`)
-1. Every Layer 4 symbol is defined in Block 2 or the Symbol Table; zero bare `\theta`/`\sum`/etc. outside `$...$` and zero trailing space before closing `$`.
-2. Strict sequential `## 1.` through `## 8.` headings with zero duplicate numbers.
-3. Zero skipped algebraic steps in Section 4 (`Step-by-Step Axiom Derivation`).
+1. Every Section 3 symbol is defined in Section 2 or the Symbol Table; zero bare `\theta`/`\sum`/etc. outside `$...$` and zero spaces before closing `$`.
+2. Strict sequential `## 1.` through `## 7.` headings with zero duplicate numbers.
+3. Zero skipped algebraic steps in Section 4 (`Step-by-Step Proof`).
 4. Zero backtick-wrapped LaTeX (`$`/`$$`) and `\mid` used instead of `|` inside every table.
 5. Includes ASCII diagram, Contrastive "Is vs. Is Not" table, `> [!warning] Where the Analogy Breaks Down`, Input-to-Output Behavior Table (where applicable), Section 6 `We Do` boundary + `You Do` Drills A & B, and Section 7 `> [!caution]` + Bridge.
 6. Includes runnable 10–18 line Python/NumPy `assert` snippet in Section 5.
-7. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, Section 8 clickable `[[wikilinks]]`) resolve to existing vault files (`[]` if none), and YAML strings with special chars are double-quoted.
-8. **Primary-Source Deep-Link Verification:** File contains inline dual deep-link citations AND a Section 8 `Primary Sources & Deep Links` table with clickable `https://` direct links + valid `[[01-RESOURCES#<anchor>]]` / `[[02-DEEP-RESEARCH#<anchor>]]` anchors.
+7. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, Section 7 clickable `[[wikilinks]]`) resolve to existing vault files (`[]` if none), and YAML strings with special chars are double-quoted.
+8. **Primary-Source Deep-Link Verification:** File contains inline dual deep-link citations AND a Section 7 `Primary Sources & Deep Links` table with clickable `https://` direct links + valid `[[01-RESOURCES#<anchor>]]` / `[[02-DEEP-RESEARCH#<anchor>]]` anchors.

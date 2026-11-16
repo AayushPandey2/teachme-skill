@@ -987,9 +987,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
                             }
                         )
 
-            # Duplicate ## <N>. section numbers & unlinked Section 8 paths
+            # Sequential ## <N>. section numbers (1..7) & unlinked Section 7 paths
             seen_sec_nums: dict[str, int] = {}
-            in_sec8 = False
+            sec_order: list[int] = []
+            in_sec7 = False
             in_fence_t = False
             fence_char_t = ""
             for idx_t, raw_t in enumerate(lines, start=1):
@@ -1018,8 +1019,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
                         )
                     else:
                         seen_sec_nums[snum] = idx_t
-                    in_sec8 = snum == "8"
-                if in_sec8 and re.match(
+                        sec_order.append(int(snum))
+                    in_sec7 = snum == "7"
+                if in_sec7 and re.match(
                     r"^\s*-\s*\*\*(?:Depends On|Unlocks|Contrasts With|Fixes Failure Of|Atomic):\*\*",
                     raw_t,
                 ):
@@ -1032,9 +1034,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
                                 "file": rel_path,
                                 "line": idx_t,
                                 "type": "unlinked_graph_path",
-                                "detail": f"Unlinked path in Section 8 (wrap in [[...]]): {unlinked_m.group(0)}",
+                                "detail": f"Unlinked path in Section 7 (wrap in [[...]]): {unlinked_m.group(0)}",
                             }
                         )
+            if sec_order and sec_order != list(range(1, len(sec_order) + 1)):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": 1,
+                        "type": "non_sequential_section_numbers",
+                        "detail": f"Section numbers must be sequential 1..N, got: {sec_order}",
+                    }
+                )
 
             if "Primary Sources & Deep Links" not in text:
                 errors.append(
