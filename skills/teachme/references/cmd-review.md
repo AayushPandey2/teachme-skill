@@ -14,4 +14,4 @@ Launch an interleaved spaced-repetition Socratic coaching session targeting weak
    - Never reveal the answer on `"idk"`, `"explain"`, or error—drop down to a 1-number micro-step.
    - On Checkpoints `1`–`3`, record progress solely via `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp <1..3> --status <pass|retry>`.
 4. **Batch Flush on Mastery:**
-   - Only upon passing Checkpoint `[4/4]`, run `vault_cli.py tick ... --cp 4 --status pass`, check off `- [x]` in `00-MOC-INDEX.md`, update the topic's YAML `status: mastered` + Block 7 ledger, log breakthroughs in `learning-records/000N-<slug>.md`, and refresh `00-GRAPH.json`.
+   - Only upon passing Checkpoint `[4/4]`, run `vault_cli.py tick ... --cp 4 --status pass` and `vault_cli.py flush <VAULT_PATH> --topic <nn> --note "<verified invariant>"`, and log breakthroughs in `learning-records/000N-<slug>.md`.

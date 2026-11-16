@@ -9,7 +9,7 @@ Absorb a new PDF, URL, transcript, repo, or raw notes into `<VAULT_ROOT>/<topic-
    - Read `01-RESOURCES.md`, `04-GLOSSARY.md`, and ONLY `L0-L1` slices (`vault_cli.py slice ... --section L0-L1`) of related existing `topics/*.md` files.
 2. **Extract & Verify Claims:**
    - Parse `<source>` (write raw extraction notes to `scratchpad/raw-research.md` first).
-   - Extract every new claim, mechanism, benchmark, and equation with inline `[Source]` citations and full **Formula Anatomy Breakdowns** (`STUDY-AND-GLOSSARY.md` §4).
+   - Extract every new claim, mechanism, benchmark, and equation with inline `[Source]` citations and full **Formula Anatomy Breakdowns** (`subtopic-8block.md` §1).
 3. **Non-Destructive Vault Merge:**
    - Append the source under `## Knowledge` or `## Wisdom` in `01-RESOURCES.md`.
    - Merge findings into `02-DEEP-RESEARCH.md` and `03-CORNELL-STUDY-GUIDE.md`, and add new canonical terms (`1–2` sentences + `_Avoid_:`) to `04-GLOSSARY.md`.

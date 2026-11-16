@@ -12,7 +12,7 @@ Run a deterministic, zero-token multi-pass integrity sweep across `<VAULT_ROOT>/
    - **`table_pipe_in_math`:** Replace raw `|` inside table math with `\mid`, `\lvert`, `\rvert`, `\lVert`, or `\rVert`.
    - **`unmatched_dollar` / `unclosed_display_math`:** Fix unclosed `$` / `$$` or stray currency `$` collisions.
    - **`broken_wikilink` / `broken_md_link` / `broken_anchor` / `placeholder_wikilink` / `broken_typed_edge`:** Strip stray `.md` inside wikilinks, resolve slug/case mismatches, replace `[[none]]` with `[]`, fix `depends_on` / `unlocks` / `contrasts_with` / `fixes_failure_of`, or generate missing target `.md` files if clearly required by the syllabus.
-   - **`missing_section_marker` / Missing 8-Block Items:** Slice or inspect the flagged `topics/*.md` or `atomic/*.md` file and repair missing `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers or 6-Point Writer -> Critic items (`STUDY-AND-GLOSSARY.md` §6).
+   - **`missing_section_marker` / Missing 8-Block Items:** Slice or inspect the flagged `topics/*.md` or `atomic/*.md` file and repair missing `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers or 7-Point Writer -> Critic items (`subtopic-8block.md` §3).
    - **`orphan_file`:** Register unlisted `topics/*.md` or `atomic/*.md` files in `00-MOC-INDEX.md` and `00-SESSION-STATE.md`.
    - **Glossary & Formula Anatomy Check:** Ensure canonical terms align with `04-GLOSSARY.md` and display equations in `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and `topics/*.md` have complete Formula Anatomy breakdowns.
 3. **Re-Verification Loop:**

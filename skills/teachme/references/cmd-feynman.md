@@ -13,4 +13,4 @@ Test plain-English mastery by reversing roles: the learner explains `<concept>` 
    - If gaps exist, **do not give away the full explanation immediately**—ask 1–2 surgical Socratic micro-questions targeting the missing link (`RETENTION-AND-RECORDS.md` §3).
 4. **Persist Outcome:**
    - Save the session summary to `<VAULT_ROOT>/<topic-slug>/learning-records/000N-feynman-<slug>.md`.
-   - If a subtopic passes, run `vault_cli.py tick ... --cp 4 --status pass --note "<verified invariant>"` and flush `- [x]` to `00-MOC-INDEX.md` + `00-GRAPH.json`.
+   - If a subtopic passes, run `vault_cli.py tick ... --cp 4 --status pass --note "<verified invariant>"` and `vault_cli.py flush <VAULT_PATH> --topic <nn> --note "<verified invariant>"`.

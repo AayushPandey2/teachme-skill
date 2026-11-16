@@ -60,7 +60,7 @@ NN. `<nn>-<subtopic-slug>` — <Subtopic Title & scope>
 Never cite a secondary blog post when the primary paper, RFC, or source code is reachable. Trace every claim back to its origin and document exact mechanisms, invariants, benchmarks, and conflicts in `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`.
 
 ### Mandatory Rule: Zero Black-Box Formulas & Pure LaTeX Hygiene
-Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/STUDY-AND-GLOSSARY.md` §4 for the exact schema: Plain-English Intuition, Component & Operator Breakdown Table, Boundary & Limiting Cases, and Worked Numerical Walkthrough).
+Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/subtopic-8block.md` §1 for the exact schema).
 
 ### Template: `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`
 

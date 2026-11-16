@@ -19,7 +19,7 @@
    - On subsequent turns of that lesson, read ONLY `scratchpad/queue-<nn>.json` instead of re-reading the full subtopic `.md` file.
 4. **Append-Only Delta Logging -> Batch Markdown Flush:**
    - During Checkpoints `[1/4]`, `[2/4]`, and `[3/4]`, record progress solely via `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp <1..3> --status <pass|retry> [--note "..."]` (appends 1 line to `scratchpad/events.jsonl` and updates `00-SESSION-STATE.md` in place).
-   - Perform the full Markdown flush (`topics/<nn>-<slug>.md` frontmatter `status: mastered` + Block 7 ledger, `00-MOC-INDEX.md` `- [x]`, and `vault_cli.py graph` refresh of `00-GRAPH.json`) **only once** upon passing Checkpoint `[4/4]`.
+   - Perform the full Markdown flush **only once** upon passing Checkpoint `[4/4]` via `vault_cli.py flush <VAULT_PATH> --topic <nn> --note "<verified invariant>"`.
 5. **Vault Summary & Interleaved Cumulative Recall:**
    - After initial vault build, print a crisp executive overview (<250 words) highlighting `00-SESSION-STATE.md`, `00-GRAPH.json`, `00-MOC-INDEX.md`, and `topics/*.md`.
    - Starting at `Lesson 3` and every 2 lessons thereafter (`Lesson 3`, `5`, `7`...), open with a 1-question warm-up blending a previous lesson's concept (slicing ONLY `--section L0-L1` of that target topic) with the current lesson before Component 1.
@@ -101,8 +101,7 @@ Lesson X/Y: <Lesson Title> | Depth Stage: 3/3 (Solo Execution, Deeper Theory & M
   2. Ask for a **2-sentence plain-English Feynman Teach-Back** with zero unstated jargon.
 - Wait for the user's reply.
 - **Batch Markdown Flush, Auto-Log & Auto-Compaction:** Once `[4/4]` passes:
-  - Run `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp 4 --status pass --note "<verified invariant>"`.
-  - Flush Markdown updates once: check off `- [x]` in `00-MOC-INDEX.md`, set YAML `status: mastered`, `checkpoint: 4/4` and check off Block 7's ledger in `topics/<nn>-<subtopic-slug>.md`, and refresh `00-GRAPH.json` via `vault_cli.py graph <VAULT_PATH>`.
+  - Run `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp 4 --status pass --note "<verified invariant>"` and `vault_cli.py flush <VAULT_PATH> --topic <nn> --note "<verified invariant>"`.
   - Log any struggled concepts, micro-steps needed, or corrected misconceptions into `<VAULT_ROOT>/<topic-slug>/learning-records/000N-<slug>.md`.
   - **Auto-Compaction (Every 3 Completed Subtopics):** Append a 5-line **Cumulative Synthesis Strip** to `00-MOC-INDEX.md` and roll up verified formulas into `09-CHEAT-SHEET.md`.
   - Unlock `Lesson X+1` (opening with an **Interleaved Cumulative Recall** warm-up at `Lesson 3` and every 2 lessons thereafter).

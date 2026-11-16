@@ -13,7 +13,7 @@ description: "Deepen pre-existing /teachme notes in place to the 8-Block Mastery
 Load ONLY these files (checking sibling `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/` or `~/.claude/skills/teachme/`):
 1. `../teachme/SKILL.md`
 2. `../teachme/references/cmd-expand.md`
-3. `../teachme/references/STUDY-AND-GLOSSARY.md` *(for the 8-Block Subtopic Standard & 6-Point Critic Audit §6)*
+3. `../teachme/references/subtopic-8block.md` *(for the 8-Block Subtopic Standard & 7-Point Critic Audit)*
 
 ## 3. Execution Mandate
 - Follow `cmd-expand.md` end-to-end inside `<VAULT_ROOT>/<topic-slug>/`: offload graph/state/verify to `vault_cli.py`, enforce the 8-Block Standard + 6-Point Critic Audit on every saved `topics/*.md` file, preserve `[x]` progress, and verify 0 errors before finishing.

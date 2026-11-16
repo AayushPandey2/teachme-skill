@@ -1,6 +1,6 @@
 # Command: `/teachme-expand <topic>` *(alias: `/teachme expand <topic>`)*
 
-Deepen shallow notes in `<VAULT_ROOT>/<topic-slug>/` to the **8-Block Subtopic Standard** (`references/STUDY-AND-GLOSSARY.md` §6) and add missing subtopics without deleting existing `[x]` progress or `learning-records/`.
+Deepen shallow notes in `<VAULT_ROOT>/<topic-slug>/` to the **8-Block Subtopic Standard** (`references/subtopic-8block.md`) and add missing subtopics without deleting existing `[x]` progress or `learning-records/`.
 
 ## Execution Sequence (Token-Efficient)
 1. **Zero-Token Discovery:**
@@ -14,7 +14,7 @@ Deepen shallow notes in `<VAULT_ROOT>/<topic-slug>/` to the **8-Block Subtopic S
    - Upgrade shallow `topics/*.md` files to full **8-Block Standard** compliance (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`, Contrastive "Is vs. Is Not" table, zero-skip Axiom Derivation, 10–18 line Python/NumPy `assert` verification snippet, `I Do -> We Do -> You Do` workbook, typed YAML edges).
    - Partition `atomic/*.md` cards with `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers.
    - Generate new `topics/<nn>-<slug>.md` and `atomic/<slug>.md` files for uncovered subtopics; update `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`.
-   - Pass the **6-Point Writer -> Critic Audit** (`STUDY-AND-GLOSSARY.md` §6) before saving each `topics/*.md` file.
+   - Pass the **7-Point Writer -> Critic Audit** (`subtopic-8block.md` §3) before saving each `topics/*.md` file.
 4. **Refresh Graph & Verify:**
    - Update `00-MOC-INDEX.md` (preserving `[x]` checkmarks) and run `vault_cli.py graph <VAULT_PATH>` + `vault_cli.py verify <VAULT_PATH>` until `errors` is empty.
    - Print a concise summary of deepened and newly created files.

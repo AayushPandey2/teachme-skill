@@ -13,7 +13,7 @@ description: "Absorb new PDFs, URLs, lecture notes, or raw dumps into an existin
 Load ONLY these files (checking sibling `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/` or `~/.claude/skills/teachme/`):
 1. `../teachme/SKILL.md`
 2. `../teachme/references/cmd-ingest.md`
-3. `../teachme/references/STUDY-AND-GLOSSARY.md` *(for Formula Anatomy & 8-Block Subtopic templates when writing new notes)*
+3. `../teachme/references/subtopic-8block.md` *(for Formula Anatomy & 8-Block Subtopic templates when writing new notes)*
 
 ## 3. Execution Mandate
 - Follow `cmd-ingest.md` end-to-end inside `<VAULT_ROOT>/<topic-slug>/`: flag contradictions, preserve mastered `[x]` checkpoints, sync `00-SESSION-STATE.md`, and run `vault_cli.py graph` + `verify`.

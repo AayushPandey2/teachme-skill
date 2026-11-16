@@ -173,10 +173,14 @@ def build_graph(vault: Path) -> dict[str, Any]:
     return graph
 
 
+def dump_json(data: Any) -> str:
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+
+
 def cmd_graph(args: argparse.Namespace) -> int:
     vault = resolve_vault_path(args.vault_path)
     graph = build_graph(vault)
-    print(json.dumps(graph, ensure_ascii=False))
+    print(dump_json(graph))
     return 0
 
 
@@ -241,7 +245,7 @@ def cmd_state(args: argparse.Namespace) -> int:
         "total_count": total_count,
         "last_invariant": fields.get("last_invariant", ""),
     }
-    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    print(dump_json(summary))
     return 0
 
 
@@ -381,7 +385,7 @@ def cmd_tick(args: argparse.Namespace) -> int:
 
     state_file.write_text("\n".join(updated_lines[:59]) + "\n", encoding="utf-8")
     print(
-        json.dumps(
+        dump_json(
             {
                 "ok": True,
                 "topic": topic_num,
@@ -390,10 +394,123 @@ def cmd_tick(args: argparse.Namespace) -> int:
                 "status": status,
                 "events_file": str(events_path),
                 "state_file": str(state_file),
-            },
-            ensure_ascii=False,
+            }
         )
     )
+    return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    vault = Path(os.path.expandvars(args.vault_path)).expanduser().resolve()
+    for sub in ("topics", "atomic", "learning-records", "scratchpad"):
+        (vault / sub).mkdir(parents=True, exist_ok=True)
+
+    topics = [t.strip() for t in args.topics.split(",") if t.strip()] if args.topics else []
+    nums = [t.split("-", 1)[0].zfill(2) if t.split("-", 1)[0].isdigit() else t for t in topics]
+    first_topic = f"topics/{topics[0]}.md" if topics else "topics/01-overview.md"
+    status_tokens = " ".join(f"`[ ] {n}`" for n in (nums or ["01"]))
+
+    state_lines = [
+        f"# Session State: {args.title}",
+        "",
+        f"- **Active Subtopic:** `{first_topic}`",
+        "- **Live Stage & Checkpoint:** `Depth Stage 1/3 | Checkpoint [1/4]`",
+        "- **Last Verified Invariant:** Vault initialized.",
+        "",
+        "## Compact Subtopic Status Map",
+        status_tokens,
+        "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
+    ]
+    (vault / "00-SESSION-STATE.md").write_text("\n".join(state_lines) + "\n", encoding="utf-8")
+
+    tracker_lines = [
+        f"- [ ] **{n}.** [[topics/{t}]]" for n, t in zip(nums, topics)
+    ] or ["- [ ] **01.** [[topics/01-overview]]"]
+    moc_lines = [
+        f"# Map of Content (MOC): {args.title}",
+        "",
+        "## Vault Navigation",
+        "- [[00-SESSION-STATE]] — Hot-state resume pointer (<60 lines)",
+        "",
+        "## Complete Subtopic Syllabus Tracker (`topics/`)",
+        *tracker_lines,
+        "",
+        "## Cumulative Synthesis Strips (Auto-Compacted Every 3 Subtopics)",
+        "",
+        "## Atomic Zettelkasten Concept Index (`atomic/`)",
+    ]
+    (vault / "00-MOC-INDEX.md").write_text("\n".join(moc_lines) + "\n", encoding="utf-8")
+    graph = build_graph(vault)
+    print(dump_json({"ok": True, "vault_path": str(vault), "topics": len(topics), "graph_nodes": len(graph["nodes"])}))
+    return 0
+
+
+def cmd_flush(args: argparse.Namespace) -> int:
+    vault = resolve_vault_path(args.vault_path)
+    topic_num = str(args.topic).strip().zfill(2) if args.topic.isdigit() else str(args.topic).strip()
+    topics_dir = vault / "topics"
+    target_file: Path | None = None
+    if topics_dir.is_dir():
+        for p in sorted(topics_dir.glob("*.md")):
+            if p.stem.split("-", 1)[0] == topic_num:
+                target_file = p
+                break
+    if target_file is None:
+        print(dump_json({"error": f"Topic {topic_num} not found in {topics_dir}"}), file=sys.stderr)
+        return 1
+
+    # 1. Update topic YAML status/checkpoint & Block 7 checkboxes
+    t_lines = read_utf8(target_file).splitlines()
+    in_fm = bool(t_lines and t_lines[0].strip() == "---")
+    fm_done = False
+    new_t_lines: list[str] = []
+    for idx, line in enumerate(t_lines):
+        if idx > 0 and in_fm and not fm_done:
+            if line.strip() == "---":
+                fm_done = True
+            elif line.startswith("status:"):
+                new_t_lines.append('status: "mastered"')
+                continue
+            elif line.startswith("checkpoint:"):
+                new_t_lines.append('checkpoint: "4/4"')
+                continue
+        if fm_done or not in_fm:
+            if re.match(r"^\s*-\s*\[\s\]\s*`?\[[1-4]/4\]`?", line):
+                new_t_lines.append(re.sub(r"\[\s\]", "[x]", line, count=1))
+                continue
+        new_t_lines.append(line)
+    target_file.write_text("\n".join(new_t_lines) + "\n", encoding="utf-8")
+
+    # 2. Check off in 00-MOC-INDEX.md
+    moc_path = vault / "00-MOC-INDEX.md"
+    if moc_path.is_file():
+        moc_lines = read_utf8(moc_path).splitlines()
+        slug = target_file.stem
+        new_moc = []
+        for line in moc_lines:
+            if f"[[topics/{slug}]]" in line or f"[[{slug}]]" in line:
+                new_moc.append(re.sub(r"^(\s*-\s*)\[\s\]", r"\1[x]", line, count=1))
+            else:
+                new_moc.append(line)
+        moc_path.write_text("\n".join(new_moc) + "\n", encoding="utf-8")
+
+    # 3. Refresh 00-GRAPH.json and 00-SESSION-STATE.md
+    graph = build_graph(vault)
+    state_file = vault / "00-SESSION-STATE.md"
+    if state_file.is_file():
+        s_lines = read_utf8(state_file).splitlines()
+        token_re = re.compile(rf"`\[[ x~]\]\s*{re.escape(topic_num)}`")
+        out_s = []
+        for line in s_lines:
+            if args.note and line.lstrip().startswith("- **Last Verified Invariant:**"):
+                out_s.append(f"- **Last Verified Invariant:** {args.note}")
+            elif token_re.search(line):
+                out_s.append(token_re.sub(f"`[x] {topic_num}`", line))
+            else:
+                out_s.append(line)
+        state_file.write_text("\n".join(out_s[:59]) + "\n", encoding="utf-8")
+
+    print(dump_json({"ok": True, "flushed": target_file.name, "graph_nodes": len(graph["nodes"])}))
     return 0
 
 
@@ -978,7 +1095,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             "orphans": orphans,
         },
     }
-    print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(dump_json(report))
     return 0
 
 
@@ -1011,9 +1128,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_tick.add_argument("--note", default="", help="Optional short invariant/misconception note.")
     p_tick.set_defaults(func=cmd_tick)
 
-    p_verify = sub.add_parser("verify", help="Verify LaTeX, links, typed edges, section markers & orphans.")
+    p_verify = sub.add_parser("verify", help="Verify YAML, LaTeX, links, typed edges, section markers & orphans.")
     p_verify.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
     p_verify.set_defaults(func=cmd_verify)
+
+    p_init = sub.add_parser("init", help="Scaffold vault dirs, 00-SESSION-STATE.md, 00-MOC-INDEX.md & 00-GRAPH.json.")
+    p_init.add_argument("vault_path", help="Target topic vault directory.")
+    p_init.add_argument("--title", required=True, help="Human-readable topic title.")
+    p_init.add_argument("--topics", default="", help="Comma-separated topic slugs (e.g. 01-intro,02-core).")
+    p_init.set_defaults(func=cmd_init)
+
+    p_flush = sub.add_parser("flush", help="Flush [4/4] mastery to topics/*.md, 00-MOC-INDEX.md & 00-GRAPH.json.")
+    p_flush.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_flush.add_argument("--topic", required=True, help="Subtopic number (e.g. 01).")
+    p_flush.add_argument("--note", default="", help="Optional verified invariant note.")
+    p_flush.set_defaults(func=cmd_flush)
 
     return parser
 
