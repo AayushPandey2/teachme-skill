@@ -2,19 +2,27 @@
 
 ---
 
-## 1. Vault Launch, Hot-State Resume & Three-Tier Progressive Disclosure
+## 1. CLI-Backed Spreading Activation, Question Queue & Delta-Flush Protocol
 
-1. **Hot-State Resume Pointer (`00-SESSION-STATE.md` — Strictly `< 60` Lines):**
-   - Whenever resuming an existing vault, read `<VAULT_ROOT>/<topic-slug>/00-SESSION-STATE.md` **FIRST** instead of scanning the entire vault.
-   - `00-SESSION-STATE.md` stores ONLY: (a) active subtopic path (`topics/<nn>-<slug>.md`), (b) current live depth stage & checkpoint (`Depth Stage X/3 | Checkpoint [Y/4]`), (c) compact 1-line status map of all subtopics (`[x] 01`, `[x] 02`, `[~] 03`, `[ ] 04`...), and (d) the last verified invariant.
-   - Update `00-SESSION-STATE.md` (keeping it strictly `< 60` lines) and the active subtopic's frontmatter (`status`, `checkpoint`) + Block 7 checklist as each checkpoint progresses.
-2. **Three-Tier Progressive Disclosure (`L0` / `L1` / `L2`):**
-   - Every `topics/*.md` and `atomic/*.md` file is partitioned with strict HTML markers (`<!-- SECTION: L1-ANCHOR -->`, `<!-- SECTION: L2-PREREQS-AND-MOTIVATION -->`, `<!-- SECTION: L3-FOUR-LAYER-THEORY -->`, `<!-- SECTION: L4-DERIVATION-AND-CODE -->`, `<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->`).
-   - When teaching Subtopic $N$, load ONLY **L0 (YAML Frontmatter) + L1 (`<!-- SECTION: L1-ANCHOR -->`, ~25 lines per file)** of prerequisite Subtopics $1 \dots N-1$, and load the full **L2** body ONLY for active Subtopic $N$.
-3. **Vault Summary:** After generating the vault files at `<VAULT_ROOT>/<topic-slug>/`, present a crisp executive overview (<250 words) and list the generated files (highlighting `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, and `topics/*.md`).
-4. **Interleaved Cumulative Recall (Starting at `Lesson 3` and Every 2 Lessons Thereafter):**
-   - At `Lesson 3`, `Lesson 5`, `Lesson 7`, etc. (starting at Lesson 3 and every 2 lessons thereafter), open with a **quick 1-question warm-up that blends a previous lesson's concept with the current lesson** before starting Component 1.
-   - Wait for the user's reply (applying the **Strict Anti-Spoiler Rule** below if they struggle or say `"idk"`), reinforce concisely, and then begin `Lesson X/Y` Component 1.
+1. **Zero-Token Resume & Graph Lookup:**
+   - On session start or resume, run `scripts/vault_cli.py state <VAULT_PATH>` and `scripts/vault_cli.py graph <VAULT_PATH>` instead of reading multiple Markdown files.
+2. **Spreading-Activation 1-Hop Context Rule:**
+   - When teaching active `topic-<nn>`, load **ONLY**:
+     - Active `topic-<nn>` via `vault_cli.py slice` for the exact current depth stage: `L1-ANCHOR` / `L2-PREREQS-AND-MOTIVATION` for Stage 1; `L3-FOUR-LAYER-THEORY` / `L4-DERIVATION-AND-CODE` for Stage 2; `L5-WORKBOOK-AND-GRAPH` for Stage 3.
+     - Immediate **1-hop neighbors** (`depends_on` and `contrasts_with` from `00-GRAPH.json`) using `vault_cli.py slice <file> --section L0-L1` (~25 lines).
+   - **Strictly forbid** loading mastered nodes $>1$ hop away unless an interleaved warm-up explicitly queries them.
+3. **Pre-Computed Subtopic Question Queue (`scratchpad/queue-<nn>.json`):**
+   - At the start of `Lesson <nn>`, write a compact 4-item JSON queue at `<VAULT_ROOT>/<topic-slug>/scratchpad/queue-<nn>.json` mapping Checkpoints `[1/4]` through `[4/4]`:
+     ```json
+     {"topic": "03", "cp": {"1": "...", "2": "...", "3": "...", "4": "..."}}
+     ```
+   - On subsequent turns of that lesson, read ONLY `scratchpad/queue-<nn>.json` instead of re-reading the full subtopic `.md` file.
+4. **Append-Only Delta Logging -> Batch Markdown Flush:**
+   - During Checkpoints `[1/4]`, `[2/4]`, and `[3/4]`, record progress solely via `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp <1..3> --status <pass|retry> [--note "..."]` (appends 1 line to `scratchpad/events.jsonl` and updates `00-SESSION-STATE.md` in place).
+   - Perform the full Markdown flush (`topics/<nn>-<slug>.md` frontmatter `status: mastered` + Block 7 ledger, `00-MOC-INDEX.md` `- [x]`, and `vault_cli.py graph` refresh of `00-GRAPH.json`) **only once** upon passing Checkpoint `[4/4]`.
+5. **Vault Summary & Interleaved Cumulative Recall:**
+   - After initial vault build, print a crisp executive overview (<250 words) highlighting `00-SESSION-STATE.md`, `00-GRAPH.json`, `00-MOC-INDEX.md`, and `topics/*.md`.
+   - Starting at `Lesson 3` and every 2 lessons thereafter (`Lesson 3`, `5`, `7`...), open with a 1-question warm-up blending a previous lesson's concept (slicing ONLY `--section L0-L1` of that target topic) with the current lesson before Component 1.
 
 ---
 
@@ -92,10 +100,11 @@ Lesson X/Y: <Lesson Title> | Depth Stage: 3/3 (Solo Execution, Deeper Theory & M
   1. Test a tricky boundary/failure input (e.g., zero vector, equal-to-threshold boundary, scaling invariance, or degenerate case).
   2. Ask for a **2-sentence plain-English Feynman Teach-Back** with zero unstated jargon.
 - Wait for the user's reply.
-- **Auto-Log, State Update & Auto-Compaction:** Once `[4/4]` passes:
-  - Check off `- [x]` for this lesson/subtopic in `<VAULT_ROOT>/<topic-slug>/00-MOC-INDEX.md`, mark Block 7's 4-checkpoint ledger and YAML `status: mastered`, `checkpoint: 4/4` in `topics/<nn>-<subtopic-slug>.md`, and update `00-SESSION-STATE.md` (<60 lines) to point to `Lesson X+1`.
-  - Record any struggled concepts, micro-steps needed, or corrected misconceptions into `<VAULT_ROOT>/<topic-slug>/learning-records/000N-<slug>.md`.
-  - **Auto-Compaction (Every 3 Completed Subtopics):** Every 3 completed subtopics, append a 5-line **Cumulative Synthesis Strip** to `<VAULT_ROOT>/<topic-slug>/00-MOC-INDEX.md` and roll up verified formulas into `<VAULT_ROOT>/<topic-slug>/09-CHEAT-SHEET.md`.
+- **Batch Markdown Flush, Auto-Log & Auto-Compaction:** Once `[4/4]` passes:
+  - Run `vault_cli.py tick <VAULT_PATH> --topic <nn> --cp 4 --status pass --note "<verified invariant>"`.
+  - Flush Markdown updates once: check off `- [x]` in `00-MOC-INDEX.md`, set YAML `status: mastered`, `checkpoint: 4/4` and check off Block 7's ledger in `topics/<nn>-<subtopic-slug>.md`, and refresh `00-GRAPH.json` via `vault_cli.py graph <VAULT_PATH>`.
+  - Log any struggled concepts, micro-steps needed, or corrected misconceptions into `<VAULT_ROOT>/<topic-slug>/learning-records/000N-<slug>.md`.
+  - **Auto-Compaction (Every 3 Completed Subtopics):** Append a 5-line **Cumulative Synthesis Strip** to `00-MOC-INDEX.md` and roll up verified formulas into `09-CHEAT-SHEET.md`.
   - Unlock `Lesson X+1` (opening with an **Interleaved Cumulative Recall** warm-up at `Lesson 3` and every 2 lessons thereafter).
 
 ---

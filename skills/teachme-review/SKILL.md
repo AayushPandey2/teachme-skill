@@ -5,19 +5,14 @@ description: Launch an interleaved spaced-repetition Socratic coaching session t
 
 # `/teachme-review` — Interleaved Spaced-Repetition Coaching
 
-Wrapper skill exposing the `review` subcommand as a top-level slash command without duplicating core logic.
-
 ## 1. Argument Parsing
 - Extract `<topic>` from `$ARGUMENTS` (or the text immediately following `/teachme-review`).
-- If `<topic>` is missing, scan `<VAULT_ROOT>/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
+- If missing, run `../teachme/scripts/vault_cli.py state` (or check `<VAULT_ROOT>/*/00-SESSION-STATE.md`) or ask 1 clarifying question.
 
-## 2. Core Reference Resolution
-Load these canonical instructions before starting the review loop (checking local sibling paths first, then global skills directories):
-1. **Core Operating Laws & Progressive Disclosure:** `../teachme/SKILL.md` (fallback: `~/.gemini/antigravity/skills/teachme/SKILL.md` or `~/.claude/skills/teachme/SKILL.md`).
-2. **Subcommand Workflow (`review` §3):** `../teachme/references/SUBCOMMANDS.md` (fallback: `~/.gemini/antigravity/skills/teachme/references/SUBCOMMANDS.md`).
-3. **Hybrid Discovery + `I Do / We Do / You Do` Loop (§1–6):** `../teachme/references/RETENTION-AND-RECORDS.md` (fallback: `~/.gemini/antigravity/skills/teachme/references/RETENTION-AND-RECORDS.md`).
+## 2. Core Reference Resolution (Minimal Load)
+Load ONLY these files (checking sibling `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/` or `~/.claude/skills/teachme/`):
+1. `../teachme/SKILL.md`
+2. `../teachme/references/cmd-review.md`
 
 ## 3. Execution Mandate
-- Read `00-SESSION-STATE.md` (<60 lines) FIRST, then inspect `00-MOC-INDEX.md` and `learning-records/` using `L0 + L1` disclosure for prerequisites and full `L2` content only for the active weak/unchecked subtopic.
-- Run the interleaved spaced-repetition Socratic coaching loop (`I Do / We Do / You Do`, 1 question per turn, **Strict Anti-Spoiler Rule** with drop-down 1-number micro-steps on errors).
-- Persist mastered `[x]` checkboxes in `00-MOC-INDEX.md`, update `00-SESSION-STATE.md`, and log breakthroughs in `learning-records/000N-<slug>.md`.
+- Follow `cmd-review.md` end-to-end inside `<VAULT_ROOT>/<topic-slug>/`: run `vault_cli.py state` & `graph`, load 1-hop neighbors (`--section L0-L1`) + active topic slice, log mid-lesson turns via `vault_cli.py tick`, and flush Markdown updates upon passing `[4/4]`.

@@ -11,7 +11,7 @@ Standard LLM explanations dump a wall of text you forget five minutes later. `/t
 1. **Zero-Baseline & Absolute Mastery Defaults:** Starts every new session with 4 calibrated `❓` questions defaulting to **No prior knowledge** (build from absolute zero) and **Absolute mastery covering all topics** (zero-omission syllabus decomposition)—or jump straight in with `--auto`.
 2. **Primary-Source Research Toolchain:** Separates vetted **Knowledge** (RFCs, papers, official docs, textbooks) from practitioner **Wisdom** (post-mortems, talks, benchmarks), captures rough drafts in `scratchpad/`, and logs unresolved gaps explicitly.
 3. **8-Block Subtopic Notes & 6-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
-4. **Hot-State Resume & Progressive Disclosure (`L0`/`L1`/`L2`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer and `L1-ANCHOR` summaries to resume sessions without context rot, plus auto-compaction strips every 3 completed subtopics.
+4. **Zero-Token CLI, Spreading Activation & Delta-Flush (`scripts/vault_cli.py` + `00-GRAPH.json`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer, `00-GRAPH.json` typed adjacency map, and a standard-library Python CLI (`state`, `graph`, `slice`, `tick`, `verify`) so the agent loads only 1-hop `L0-L1` neighbors + active depth-stage slices, tracks checkpoints via `scratchpad/events.jsonl` + `queue-<nn>.json`, and flushes Markdown updates once on mastery.
 5. **Progressive 7-Component Socratic Loop:** Escalates across 3 depth stages (`1/3`, `2/3`, `3/3`) and 4 checkpoints (`[1/4]` Discovery Hook → `[2/4]` `We Do` → `[3/4]` `You Do` → `[4/4]` Adversarial Edge-Case + Feynman Gate), enforcing a strict **Anti-Spoiler Rule** with drop-down 1-number micro-steps and an inline `wait what` / `simplify` escape hatch.
 6. **Autocomplete Slash-Command Suite & Custom Vault Root:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 10 commands appear immediately in your editor or CLI slash-command dropdown, and lets you redirect where vaults live via `/teachme-notes-path` (`~/.teachme-config.json`).
 
@@ -22,6 +22,7 @@ Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside 
 ```text
 <VAULT_ROOT>/<topic-slug>/
 ├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines), status map & last verified invariant
+├── 00-GRAPH.json                  # Compact typed adjacency map built by scripts/vault_cli.py graph
 ├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid + ASCII dependency graph, synthesis strips & checkboxes
 ├── 00-MISSION.md                  # Target outcome, baseline (0 prior knowledge), scope & success criteria
 ├── 01-RESOURCES.md                # Primary sources (Knowledge), practitioner signal (Wisdom) & Gaps
@@ -36,7 +37,7 @@ Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside 
 ├── topics/                        # Dedicated 8-Block deep-dive .md file for EVERY subtopic (with L1-L5 anchors)
 ├── atomic/                        # Interlinked evergreen Zettelkasten cards ([[wikilinks]] + L1-L5 anchors)
 ├── learning-records/              # ADR-style chronological mastery & misconception logs
-└── scratchpad/                    # Ephemeral working buffer (raw-research.md, derivation-drafts.md)
+└── scratchpad/                    # Ephemeral buffer (raw-research.md, derivation-drafts.md, events.jsonl, queue-<nn>.json)
 ```
 
 ## Installation
@@ -88,14 +89,17 @@ teachme-skill/
 ├── README.md
 ├── LICENSE
 └── skills/
-    ├── teachme/                           # Single source of truth: master router, operating laws & references
+    ├── teachme/                           # Single source of truth: master router, operating laws, CLI & references
     │   ├── SKILL.md
+    │   ├── scripts/
+    │   │   └── vault_cli.py               # Zero-token CLI: state, graph, slice, tick & verify
     │   └── references/
     │       ├── MISSION-AND-GRILL.md       # Frontier grilling (0 prior knowledge + absolute mastery defaults)
     │       ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
     │       ├── STUDY-AND-GLOSSARY.md      # 8-Block subtopic standard, 6-Point Critic Audit, L1-L5 anchors & templates
-    │       ├── RETENTION-AND-RECORDS.md   # 7-Component progressive mastery loop, Anti-Spoiler & ADR records
-    │       └── SUBCOMMANDS.md             # Workflows for notes-path, expand, verify, ingest, distill, review, feynman, drill & compare
+    │       ├── RETENTION-AND-RECORDS.md   # Spreading activation, 7-Component loop, Anti-Spoiler & ADR records
+    │       ├── SUBCOMMANDS.md             # Slim index pointer to atomic cmd-*.md files
+    │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, expand, verify, ingest, distill, review, feynman, drill, compare)
     ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
     ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>
     ├── teachme-verify/SKILL.md            # Wrapper -> /teachme-verify <topic>

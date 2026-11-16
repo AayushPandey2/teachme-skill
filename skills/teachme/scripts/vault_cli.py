@@ -1,0 +1,840 @@
+#!/usr/bin/env python3
+"""Deterministic zero-token CLI for managing /teachme Markdown vaults.
+
+Standard-library only (Python 3). Offloads session state inspection, graph
+indexing, HTML-section slicing, delta event ticking, and vault verification.
+"""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import re
+import sys
+from typing import Any
+
+REQUIRED_TOPIC_SECTIONS = [
+    "L1-ANCHOR",
+    "L2-PREREQS-AND-MOTIVATION",
+    "L3-FOUR-LAYER-THEORY",
+    "L4-DERIVATION-AND-CODE",
+    "L5-WORKBOOK-AND-GRAPH",
+]
+
+TYPED_EDGE_FIELDS = (
+    "depends_on",
+    "unlocks",
+    "contrasts_with",
+    "fixes_failure_of",
+)
+
+SECTION_RE = re.compile(r"^\s*<!--\s*SECTION:\s*([A-Za-z0-9_-]+)\s*-->\s*$")
+WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+MDLINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
+HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*$")
+FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
+
+
+def resolve_vault_root() -> Path:
+    """Resolve <VAULT_ROOT> from ~/.teachme-config.json or default ~/notes."""
+    cfg_path = Path.home() / ".teachme-config.json"
+    if cfg_path.is_file():
+        try:
+            data = json.loads(cfg_path.read_text(encoding="utf-8"))
+            raw = str(data.get("notes_root", "")).strip()
+            if raw:
+                return Path(os.path.expandvars(raw)).expanduser().resolve()
+        except (OSError, json.JSONDecodeError):
+            pass
+    return (Path.home() / "notes").resolve()
+
+
+def resolve_vault_path(raw_path: str | None) -> Path:
+    """Resolve an explicit vault path or auto-select the active vault."""
+    if raw_path:
+        return Path(os.path.expandvars(raw_path)).expanduser().resolve()
+
+    vault_root = resolve_vault_root()
+    if not vault_root.is_dir():
+        raise FileNotFoundError(f"Vault root does not exist: {vault_root}")
+
+    candidates = [
+        p for p in vault_root.iterdir()
+        if p.is_dir() and (p / "00-SESSION-STATE.md").is_file()
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            f"No vault with 00-SESSION-STATE.md found under {vault_root}"
+        )
+    if len(candidates) == 1:
+        return candidates[0]
+
+    # Pick the most recently updated 00-SESSION-STATE.md
+    candidates.sort(
+        key=lambda p: (p / "00-SESSION-STATE.md").stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0]
+
+
+def parse_scalar(val: str) -> str:
+    val = val.split("#", 1)[0].strip() if not (val.startswith('"') or val.startswith("'")) else val.strip()
+    if len(val) >= 2 and ((val[0] == '"' and val[-1] == '"') or (val[0] == "'" and val[-1] == "'")):
+        return val[1:-1]
+    return val
+
+
+def parse_inline_list(raw: str) -> list[str]:
+    inner = raw.strip()[1:-1].strip()
+    if not inner:
+        return []
+    return [parse_scalar(item) for item in inner.split(",") if parse_scalar(item)]
+
+
+def read_utf8(path: Path) -> str:
+    return path.read_text(encoding="utf-8-sig", errors="replace")
+
+
+def parse_frontmatter(text: str) -> tuple[dict[str, Any], int]:
+    """Parse simple YAML frontmatter returning (metadata_dict, body_start_line_idx)."""
+    lines = text.lstrip("\ufeff").splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}, 0
+
+    end_idx = -1
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end_idx = i
+            break
+    if end_idx == -1:
+        return {}, 0
+
+    meta: dict[str, Any] = {}
+    current_key: str | None = None
+    for raw_line in lines[1:end_idx]:
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("- ") and current_key is not None:
+            existing = meta.get(current_key)
+            if not isinstance(existing, list):
+                existing = []
+            existing.append(parse_scalar(stripped[2:].strip()))
+            meta[current_key] = existing
+            continue
+        if ":" in raw_line:
+            key, rest = raw_line.split(":", 1)
+            key = key.strip()
+            val = rest.strip()
+            current_key = key
+            if not val:
+                meta[key] = []
+            elif val.startswith("[") and val.endswith("]"):
+                meta[key] = parse_inline_list(val)
+            else:
+                meta[key] = parse_scalar(val)
+    return meta, end_idx + 1
+
+
+def build_graph(vault: Path) -> dict[str, Any]:
+    """Scan topics/*.md frontmatter and write 00-GRAPH.json."""
+    topics_dir = vault / "topics"
+    nodes: dict[str, Any] = {}
+    order: list[str] = []
+
+    if topics_dir.is_dir():
+        for path in sorted(topics_dir.glob("*.md")):
+            text = read_utf8(path)
+            meta, _ = parse_frontmatter(text)
+            stem_prefix = path.stem.split("-", 1)[0]
+            node_id = str(meta.get("id") or f"topic-{stem_prefix}")
+            node: dict[str, Any] = {
+                "file": f"topics/{path.name}",
+                "title": str(meta.get("title") or meta.get("subtopic") or path.stem),
+                "status": str(meta.get("status") or "unstarted"),
+                "checkpoint": str(meta.get("checkpoint") or "0/4"),
+            }
+            for edge in TYPED_EDGE_FIELDS:
+                raw_edges = meta.get(edge, [])
+                if isinstance(raw_edges, str):
+                    raw_edges = [raw_edges] if raw_edges else []
+                node[edge] = [str(x) for x in raw_edges if str(x).strip()]
+            nodes[node_id] = node
+            order.append(node_id)
+
+    graph = {"nodes": nodes, "order": order}
+    (vault / "00-GRAPH.json").write_text(
+        json.dumps(graph, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return graph
+
+
+def cmd_graph(args: argparse.Namespace) -> int:
+    vault = resolve_vault_path(args.vault_path)
+    graph = build_graph(vault)
+    print(json.dumps(graph, ensure_ascii=False))
+    return 0
+
+
+def parse_session_state_fields(text: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    patterns = {
+        "active_topic": r"^\s*-\s*\*\*Active Subtopic:\*\*\s*`?([^`\r\n]+?)`?\s*$",
+        "stage_cp": r"^\s*-\s*\*\*Live Stage & Checkpoint:\*\*\s*`?([^`\r\n]+?)`?\s*$",
+        "last_invariant": r"^\s*-\s*\*\*Last Verified Invariant:\*\*\s*(.+?)\s*$",
+    }
+    for key, pat in patterns.items():
+        m = re.search(pat, text, flags=re.MULTILINE)
+        if m:
+            fields[key] = m.group(1).strip()
+    return fields
+
+
+def cmd_state(args: argparse.Namespace) -> int:
+    vault = resolve_vault_path(args.vault_path)
+    state_file = vault / "00-SESSION-STATE.md"
+    graph_file = vault / "00-GRAPH.json"
+
+    fields: dict[str, str] = {}
+    state_text = ""
+    if state_file.is_file():
+        state_text = read_utf8(state_file)
+        fields = parse_session_state_fields(state_text)
+
+    stage_cp = fields.get("stage_cp", "")
+    depth_stage = ""
+    checkpoint = ""
+    m_stage = re.search(r"Depth Stage\s*([0-9]+/[0-9]+)", stage_cp)
+    m_cp = re.search(r"Checkpoint\s*\[?([0-9]+/[0-9]+)\]?", stage_cp)
+    if m_stage:
+        depth_stage = m_stage.group(1)
+    if m_cp:
+        checkpoint = m_cp.group(1)
+
+    completed_count = 0
+    total_count = 0
+    if graph_file.is_file():
+        try:
+            graph = json.loads(graph_file.read_text(encoding="utf-8"))
+            nodes = graph.get("nodes", {})
+            total_count = len(nodes)
+            completed_count = sum(
+                1 for n in nodes.values() if n.get("status") == "mastered"
+            )
+        except (OSError, json.JSONDecodeError):
+            pass
+    if total_count == 0 and (vault / "topics").is_dir():
+        topic_files = sorted((vault / "topics").glob("*.md"))
+        total_count = len(topic_files)
+        completed_count = len(re.findall(r"`\[x\]\s*\d+`", state_text))
+
+    summary = {
+        "vault_path": str(vault),
+        "active_topic": fields.get("active_topic", ""),
+        "depth_stage": depth_stage or "1/3",
+        "checkpoint": checkpoint or "1/4",
+        "completed_count": completed_count,
+        "total_count": total_count,
+        "last_invariant": fields.get("last_invariant", ""),
+    }
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    return 0
+
+
+def extract_section(text: str, section_name: str) -> str:
+    lines = text.lstrip("\ufeff").splitlines()
+    target = section_name.strip().upper()
+
+    if target == "L0-L1":
+        out: list[str] = []
+        if lines and lines[0].strip() == "---":
+            out.append(lines[0])
+            for i in range(1, len(lines)):
+                out.append(lines[i])
+                if lines[i].strip() == "---":
+                    break
+        l1_body = extract_section(text, "L1-ANCHOR")
+        if out and l1_body:
+            out.append("")
+        if l1_body:
+            out.append(l1_body)
+        return "\n".join(out).strip()
+
+    capturing = False
+    collected: list[str] = []
+    for line in lines:
+        m = SECTION_RE.match(line)
+        if m:
+            found = m.group(1).strip().upper()
+            if capturing:
+                break
+            if found == target:
+                capturing = True
+                collected.append(line)
+            continue
+        if capturing:
+            collected.append(line)
+
+    if not capturing:
+        raise ValueError(f"Section marker not found: {section_name}")
+    return "\n".join(collected).strip()
+
+
+def cmd_slice(args: argparse.Namespace) -> int:
+    md_path = Path(os.path.expandvars(args.markdown_file)).expanduser().resolve()
+    if not md_path.is_file():
+        print(json.dumps({"error": f"File not found: {md_path}"}), file=sys.stderr)
+        return 1
+    text = read_utf8(md_path)
+    try:
+        sliced = extract_section(text, args.section)
+    except ValueError as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        return 1
+    print(sliced)
+    return 0
+
+
+def infer_depth_stage(cp: int, explicit_stage: int | None) -> int:
+    if explicit_stage is not None:
+        return explicit_stage
+    if cp <= 1:
+        return 1
+    if cp == 2:
+        return 2
+    return 3
+
+
+def cmd_tick(args: argparse.Namespace) -> int:
+    vault = resolve_vault_path(args.vault_path)
+    topic_num = str(args.topic).strip().zfill(2) if args.topic.isdigit() else str(args.topic).strip()
+    cp = int(args.cp)
+    status = args.status
+    stage = infer_depth_stage(cp, args.stage)
+
+    scratchpad = vault / "scratchpad"
+    scratchpad.mkdir(parents=True, exist_ok=True)
+    events_path = scratchpad / "events.jsonl"
+
+    event: dict[str, Any] = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "topic": topic_num,
+        "stage": stage,
+        "cp": cp,
+        "status": status,
+    }
+    if args.note:
+        event["note"] = args.note
+
+    with events_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+    # Resolve matching topic file
+    topics_dir = vault / "topics"
+    matched_file = f"topics/{topic_num}-subtopic.md"
+    all_nums: list[str] = []
+    if topics_dir.is_dir():
+        for p in sorted(topics_dir.glob("*.md")):
+            num_prefix = p.stem.split("-", 1)[0]
+            all_nums.append(num_prefix)
+            if num_prefix == topic_num:
+                matched_file = f"topics/{p.name}"
+
+    state_file = vault / "00-SESSION-STATE.md"
+    mark = "[x]" if (cp == 4 and status == "pass") else "[~]"
+
+    if state_file.is_file():
+        lines = read_utf8(state_file).splitlines()
+    else:
+        status_tokens = " ".join(f"`[ ] {n}`" for n in (all_nums or [topic_num]))
+        lines = [
+            f"# Session State: {vault.name}",
+            "",
+            f"- **Active Subtopic:** `{matched_file}`",
+            f"- **Live Stage & Checkpoint:** `Depth Stage {stage}/3 | Checkpoint [{cp}/4]`",
+            "- **Last Verified Invariant:** Initialized.",
+            "",
+            "## Compact Subtopic Status Map",
+            status_tokens,
+            "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
+        ]
+
+    updated_lines: list[str] = []
+    token_re = re.compile(rf"`\[[ x~]\]\s*{re.escape(topic_num)}`")
+    for line in lines:
+        if line.lstrip().startswith("- **Active Subtopic:**"):
+            updated_lines.append(f"- **Active Subtopic:** `{matched_file}`")
+        elif line.lstrip().startswith("- **Live Stage & Checkpoint:**"):
+            updated_lines.append(
+                f"- **Live Stage & Checkpoint:** `Depth Stage {stage}/3 | Checkpoint [{cp}/4]`"
+            )
+        elif args.note and status == "pass" and line.lstrip().startswith("- **Last Verified Invariant:**"):
+            updated_lines.append(f"- **Last Verified Invariant:** {args.note}")
+        elif token_re.search(line):
+            updated_lines.append(token_re.sub(f"`{mark} {topic_num}`", line))
+        else:
+            updated_lines.append(line)
+
+    state_file.write_text("\n".join(updated_lines[:59]) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "topic": topic_num,
+                "stage": f"{stage}/3",
+                "cp": f"{cp}/4",
+                "status": status,
+                "events_file": str(events_path),
+                "state_file": str(state_file),
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+def heading_slug(heading_text: str) -> str:
+    slug = heading_text.strip().lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"\s+", "-", slug)
+    return slug.strip("-")
+
+
+def extract_headings(text: str) -> set[str]:
+    slugs: set[str] = set()
+    in_fence = False
+    fence_char = ""
+    for line in text.splitlines():
+        fm = FENCE_RE.match(line)
+        if fm:
+            marker = fm.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+            elif marker[0] == fence_char:
+                in_fence = False
+            continue
+        if in_fence:
+            continue
+        hm = HEADING_RE.match(line)
+        if hm:
+            slugs.add(heading_slug(hm.group(1)))
+    return slugs
+
+
+def strip_escaped_dollars(line: str) -> str:
+    return line.replace(r"\$", "")
+
+
+def scan_latex_in_file(
+    rel_path: str, text: str, errors: list[dict[str, Any]]
+) -> None:
+    lines = text.splitlines()
+    in_fence = False
+    fence_char = ""
+    in_display_math = False
+    display_start_line = 0
+
+    for idx, raw_line in enumerate(lines, start=1):
+        fm = FENCE_RE.match(raw_line)
+        if fm:
+            marker = fm.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+            elif marker[0] == fence_char:
+                in_fence = False
+            continue
+        if in_fence:
+            continue
+
+        line = strip_escaped_dollars(raw_line)
+
+        # 1. Backtick-wrapped LaTeX (ignore single-char `$` or `$$` meta-mentions)
+        for m in re.finditer(r"`([^`\r\n]+)`", line):
+            inner = m.group(1)
+            if re.match(r"^\$\$(.+)\$\$$", inner) or (
+                re.match(r"^\$([^$\s].*)\$$", inner) and not re.match(r"^\$[A-Za-z_][A-Za-z0-9_]*$", inner)
+            ):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "backtick_latex",
+                        "detail": f"Backtick-wrapped math: `{inner}`",
+                    }
+                )
+
+        # Remove inline code spans before counting $ delimiters
+        no_code = re.sub(r"`[^`\r\n]*`", "", line)
+
+        # 2. Display math $$ toggling
+        dd_count = no_code.count("$$")
+        if dd_count % 2 == 1:
+            if not in_display_math:
+                in_display_math = True
+                display_start_line = idx
+            else:
+                in_display_math = False
+        no_dd = no_code.replace("$$", "")
+
+        # 3. Single $ parity outside display math
+        if not in_display_math:
+            if no_dd.count("$") % 2 == 1:
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "unmatched_dollar",
+                        "detail": "Odd number of $ delimiters on line",
+                    }
+                )
+
+        # 4. Raw pipe inside math on Markdown table rows
+        stripped = no_code.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            for math_span in re.finditer(r"\$([^$\r\n]+)\$", no_dd):
+                inner_math = math_span.group(1)
+                if "|" in inner_math:
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "table_pipe_in_math",
+                            "detail": f"Raw '|' inside table math: ${inner_math}$",
+                        }
+                    )
+
+    if in_display_math:
+        errors.append(
+            {
+                "file": rel_path,
+                "line": display_start_line,
+                "type": "unclosed_display_math",
+                "detail": "Unclosed $$ display math block",
+            }
+        )
+
+
+def resolve_wikilink_target(
+    raw_target: str, vault: Path, stem_map: dict[str, list[Path]]
+) -> tuple[Path | None, str]:
+    target = raw_target.split("|", 1)[0].strip()
+    anchor = ""
+    if "#" in target:
+        target, anchor = target.split("#", 1)
+        target = target.strip()
+        anchor = anchor.strip()
+
+    if not target:
+        return None, anchor
+    if target.startswith("../"):
+        candidate = (vault / target).resolve()
+        if candidate.suffix != ".md":
+            candidate = candidate.with_suffix(".md")
+        return (candidate if candidate.is_file() else None), anchor
+
+    clean = target[:-3] if target.endswith(".md") else target
+    direct = vault / f"{clean}.md"
+    if direct.is_file():
+        return direct, anchor
+
+    base = Path(clean).name.lower()
+    matches = stem_map.get(base, [])
+    if len(matches) == 1:
+        return matches[0], anchor
+    return None, anchor
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    vault = resolve_vault_path(args.vault_path)
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+
+    all_md = [
+        p for p in sorted(vault.rglob("*.md"))
+        if "scratchpad" not in p.relative_to(vault).parts
+    ]
+
+    stem_map: dict[str, list[Path]] = {}
+    heading_cache: dict[Path, set[str]] = {}
+    text_cache: dict[Path, str] = {}
+
+    for p in all_md:
+        text = read_utf8(p)
+        text_cache[p] = text
+        heading_cache[p] = extract_headings(text)
+        stem_map.setdefault(p.stem.lower(), []).append(p)
+
+    # Build topic ID -> Path lookup
+    topic_id_map: dict[str, Path] = {}
+    topics_dir = vault / "topics"
+    if topics_dir.is_dir():
+        for p in sorted(topics_dir.glob("*.md")):
+            meta, _ = parse_frontmatter(text_cache[p])
+            tid = str(meta.get("id") or f"topic-{p.stem.split('-', 1)[0]}")
+            topic_id_map[tid] = p
+            topic_id_map[p.stem] = p
+
+    atomic_dir = vault / "atomic"
+    if atomic_dir.is_dir():
+        for p in sorted(atomic_dir.glob("*.md")):
+            topic_id_map[p.stem] = p
+
+    broken_links = 0
+    missing_sections = 0
+
+    for p in all_md:
+        rel_path = p.relative_to(vault).as_posix()
+        text = text_cache[p]
+        lines = text.splitlines()
+
+        # LaTeX checks
+        before_err = len(errors)
+        scan_latex_in_file(rel_path, text, errors)
+        # Check section markers for topics/*.md and atomic/*.md
+        parts = p.relative_to(vault).parts
+        if parts[0] in ("topics", "atomic"):
+            found_sections = {
+                m.group(1).strip().upper()
+                for line in lines
+                if (m := SECTION_RE.match(line))
+            }
+            for req in REQUIRED_TOPIC_SECTIONS:
+                if req not in found_sections:
+                    missing_sections += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": 1,
+                            "type": "missing_section_marker",
+                            "detail": f"Missing <!-- SECTION: {req} -->",
+                        }
+                    )
+
+        # Typed YAML edge check for topics/*.md
+        if parts[0] == "topics":
+            meta, _ = parse_frontmatter(text)
+            for edge in TYPED_EDGE_FIELDS:
+                vals = meta.get(edge, [])
+                if isinstance(vals, str):
+                    vals = [vals] if vals else []
+                for val in vals:
+                    v = str(val).strip()
+                    if not v or v.startswith("<"):
+                        continue
+                    if v not in topic_id_map:
+                        broken_links += 1
+                        errors.append(
+                            {
+                                "file": rel_path,
+                                "line": 1,
+                                "type": "broken_typed_edge",
+                                "detail": f"{edge} target not found: {v}",
+                            }
+                        )
+
+        # Wikilinks & Markdown links (outside fenced code blocks)
+        in_fence = False
+        fence_char = ""
+        for idx, raw_line in enumerate(lines, start=1):
+            fm = FENCE_RE.match(raw_line)
+            if fm:
+                marker = fm.group(1)
+                if not in_fence:
+                    in_fence = True
+                    fence_char = marker[0]
+                elif marker[0] == fence_char:
+                    in_fence = False
+                continue
+            if in_fence:
+                continue
+
+            for wm in WIKILINK_RE.finditer(raw_line):
+                raw_link = wm.group(1).strip()
+                if raw_link.lower().startswith("none"):
+                    broken_links += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "placeholder_wikilink",
+                            "detail": f"Placeholder wikilink: [[{raw_link}]]",
+                        }
+                    )
+                    continue
+                target_file, anchor = resolve_wikilink_target(raw_link, vault, stem_map)
+                if raw_link.split("|", 1)[0].strip().startswith("#"):
+                    target_file = p
+                if target_file is None:
+                    broken_links += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "broken_wikilink",
+                            "detail": f"Missing target for [[{raw_link}]]",
+                        }
+                    )
+                elif anchor and heading_slug(anchor) not in heading_cache.get(target_file, set()):
+                    broken_links += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "broken_anchor",
+                            "detail": f"Missing heading #{anchor} in {target_file.name}",
+                        }
+                    )
+
+            for mm in MDLINK_RE.finditer(raw_line):
+                href = mm.group(1).strip()
+                if not href or href.startswith(("http://", "https://", "mailto:")):
+                    continue
+                path_part, _, anchor = href.partition("#")
+                if not path_part:
+                    if anchor and heading_slug(anchor) not in heading_cache.get(p, set()):
+                        broken_links += 1
+                        errors.append(
+                            {
+                                "file": rel_path,
+                                "line": idx,
+                                "type": "broken_anchor",
+                                "detail": f"Missing local heading #{anchor}",
+                            }
+                        )
+                    continue
+                cand = (p.parent / path_part).resolve()
+                if not cand.is_file():
+                    broken_links += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "broken_md_link",
+                            "detail": f"Missing relative link target: {href}",
+                        }
+                    )
+                elif anchor and cand in heading_cache and heading_slug(anchor) not in heading_cache[cand]:
+                    broken_links += 1
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "broken_anchor",
+                            "detail": f"Missing heading #{anchor} in {cand.name}",
+                        }
+                    )
+
+    # Orphan check against 00-MOC-INDEX.md and 00-GRAPH.json
+    moc_text = text_cache.get(vault / "00-MOC-INDEX.md", "")
+    graph_files: set[str] = set()
+    graph_path = vault / "00-GRAPH.json"
+    if graph_path.is_file():
+        try:
+            gdata = json.loads(graph_path.read_text(encoding="utf-8"))
+            graph_files = {
+                str(n.get("file", "")) for n in gdata.get("nodes", {}).values()
+            }
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    orphans = 0
+    for folder_name in ("topics", "atomic"):
+        folder = vault / folder_name
+        if not folder.is_dir():
+            continue
+        for f in sorted(folder.glob("*.md")):
+            rel_no_ext = f"{folder_name}/{f.stem}"
+            rel_full = f"{folder_name}/{f.name}"
+            in_moc = (rel_no_ext in moc_text) or (f.stem in moc_text)
+            in_graph = (not graph_files) or (folder_name != "topics") or (rel_full in graph_files)
+            if not in_moc or not in_graph:
+                orphans += 1
+                warnings.append(
+                    {
+                        "file": rel_full,
+                        "line": 1,
+                        "type": "orphan_file",
+                        "detail": "Missing from 00-MOC-INDEX.md or 00-GRAPH.json",
+                    }
+                )
+
+    broken_latex = sum(
+        1
+        for e in errors
+        if e["type"] in {
+            "backtick_latex",
+            "unmatched_dollar",
+            "table_pipe_in_math",
+            "unclosed_display_math",
+        }
+    )
+
+    report = {
+        "errors": errors,
+        "warnings": warnings,
+        "summary": {
+            "files": len(all_md),
+            "broken_links": broken_links,
+            "broken_latex": broken_latex,
+            "missing_sections": missing_sections,
+            "orphans": orphans,
+        },
+    }
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="vault_cli.py",
+        description="Zero-token deterministic CLI for /teachme Markdown vaults.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_state = sub.add_parser("state", help="Print compact JSON session state summary.")
+    p_state.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_state.set_defaults(func=cmd_state)
+
+    p_graph = sub.add_parser("graph", help="Build/update 00-GRAPH.json from topics/*.md YAML.")
+    p_graph.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_graph.set_defaults(func=cmd_graph)
+
+    p_slice = sub.add_parser("slice", help="Extract a single <!-- SECTION: ... --> or L0-L1 slice.")
+    p_slice.add_argument("markdown_file", help="Path to Markdown file.")
+    p_slice.add_argument("--section", required=True, help="Section name (e.g. L0-L1, L1-ANCHOR, L3-FOUR-LAYER-THEORY).")
+    p_slice.set_defaults(func=cmd_slice)
+
+    p_tick = sub.add_parser("tick", help="Append checkpoint event to events.jsonl and update 00-SESSION-STATE.md.")
+    p_tick.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_tick.add_argument("--topic", required=True, help="Subtopic number (e.g. 03).")
+    p_tick.add_argument("--cp", required=True, type=int, choices=[1, 2, 3, 4], help="Checkpoint 1..4.")
+    p_tick.add_argument("--status", required=True, choices=["pass", "retry"], help="Checkpoint outcome.")
+    p_tick.add_argument("--stage", type=int, choices=[1, 2, 3], default=None, help="Optional depth stage 1..3.")
+    p_tick.add_argument("--note", default="", help="Optional short invariant/misconception note.")
+    p_tick.set_defaults(func=cmd_tick)
+
+    p_verify = sub.add_parser("verify", help="Verify LaTeX, links, typed edges, section markers & orphans.")
+    p_verify.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_verify.set_defaults(func=cmd_verify)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return int(args.func(args))
+    except FileNotFoundError as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
