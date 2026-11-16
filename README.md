@@ -1,6 +1,6 @@
 # `/teachme` — Primary-Source Research & Mastery Agent Skill
 
-An AI agent skill suite (`/teachme` + 8 autocomplete `/teachme-*` subcommands) that deeply researches any topic from primary sources, builds an interlinked Obsidian/Markdown study vault at `~/notes/<topic-slug>/`, and teaches it to you from **Absolute Zero** to **Complete Mastery**.
+An AI agent skill suite (`/teachme` + 9 autocomplete `/teachme-*` subcommands) that deeply researches any topic from primary sources, builds an interlinked Obsidian/Markdown study vault at `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`, customizable via `/teachme-notes-path`), and teaches it to you from **Absolute Zero** to **Complete Mastery**.
 
 Works out of the box with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
 
@@ -13,14 +13,14 @@ Standard LLM explanations dump a wall of text you forget five minutes later. `/t
 3. **8-Block Subtopic Notes & 6-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
 4. **Hot-State Resume & Progressive Disclosure (`L0`/`L1`/`L2`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer and `L1-ANCHOR` summaries to resume sessions without context rot, plus auto-compaction strips every 3 completed subtopics.
 5. **Progressive 7-Component Socratic Loop:** Escalates across 3 depth stages (`1/3`, `2/3`, `3/3`) and 4 checkpoints (`[1/4]` Discovery Hook → `[2/4]` `We Do` → `[3/4]` `You Do` → `[4/4]` Adversarial Edge-Case + Feynman Gate), enforcing a strict **Anti-Spoiler Rule** with drop-down 1-number micro-steps and an inline `wait what` / `simplify` escape hatch.
-6. **Autocomplete Slash-Command Suite:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 9 commands appear immediately in your editor or CLI slash-command dropdown.
+6. **Autocomplete Slash-Command Suite & Custom Vault Root:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 10 commands appear immediately in your editor or CLI slash-command dropdown, and lets you redirect where vaults live via `/teachme-notes-path` (`~/.teachme-config.json`).
 
 ## Generated Vault Architecture
 
-Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside `~/notes/<topic-slug>/`:
+Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`; change or reset anytime with `/teachme-notes-path`):
 
 ```text
-~/notes/<topic-slug>/
+<VAULT_ROOT>/<topic-slug>/
 ├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines), status map & last verified invariant
 ├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid + ASCII dependency graph, synthesis strips & checkboxes
 ├── 00-MISSION.md                  # Target outcome, baseline (0 prior knowledge), scope & success criteria
@@ -67,7 +67,8 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 
 | Autocomplete Command | Space-Separated Alias | What It Does |
 | :--- | :--- | :--- |
-| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `~/notes/<topic-slug>/`, and teaches interactively via the 7-Component Mastery Loop. |
+| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `<VAULT_ROOT>/<topic-slug>/` (default `~/notes/`), and teaches interactively via the 7-Component Mastery Loop. |
+| `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views the active `<VAULT_ROOT>`, redirects vault storage to a custom folder (`~/.teachme-config.json`), or resets back to `~/notes`. |
 | `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 8-Block Standard, creates `.md` files for missing related subtopics, and runs the 6-Point Critic Audit. |
 | `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, and malformed LaTeX across the vault. |
 | `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs new PDFs, URLs, lecture notes, or raw dumps into an existing vault, flags contradictions, and syncs `00-SESSION-STATE.md` without overwriting mastered checkpoints. |
@@ -75,7 +76,7 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 | `/teachme-review <topic>` | `/teachme review <topic>` | Launches an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in `00-SESSION-STATE.md` and `learning-records/`. |
 | `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching mastery audit: explain a concept and its formulas back in plain English with zero unstated jargon under Socratic probing. |
 | `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates and grades Tier 1 (recall), Tier 2 (multi-step), or Tier 3 (adversarial edge-case) practice problems into `07-PRACTICE-PROBLEMS.md`. |
-| `/teachme-compare <A> vs <B>` | `/teachme compare <A> vs <B>` | Builds a primary-source structural trade-off matrix at `~/notes/comparisons/<a-vs-b>.md` contrasting two concepts, algorithms, or architectures. |
+| `/teachme-compare <A> vs <B>` | `/teachme compare <A> vs <B>` | Builds a primary-source structural trade-off matrix at `<VAULT_ROOT>/comparisons/<a-vs-b>.md` contrasting two concepts, algorithms, or architectures. |
 | `wait what` / `simplify` | `/wait-what` | Pauses quizzing during Phase 6, re-explains the sticking point from absolute zero using a scalar trace, and saves the clearer analogy to `05-MENTAL-MODELS.md`. |
 
 *(If your agent does not support `/slash` skill commands natively, prompt: `"Use the teachme skill to research and teach me <topic>."`)*
@@ -94,7 +95,8 @@ teachme-skill/
     │       ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
     │       ├── STUDY-AND-GLOSSARY.md      # 8-Block subtopic standard, 6-Point Critic Audit, L1-L5 anchors & templates
     │       ├── RETENTION-AND-RECORDS.md   # 7-Component progressive mastery loop, Anti-Spoiler & ADR records
-    │       └── SUBCOMMANDS.md             # Workflows for expand, verify, ingest, distill, review, feynman, drill & compare
+    │       └── SUBCOMMANDS.md             # Workflows for notes-path, expand, verify, ingest, distill, review, feynman, drill & compare
+    ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
     ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>
     ├── teachme-verify/SKILL.md            # Wrapper -> /teachme-verify <topic>
     ├── teachme-ingest/SKILL.md            # Wrapper -> /teachme-ingest <topic> <source>

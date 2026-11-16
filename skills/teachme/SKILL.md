@@ -1,19 +1,22 @@
 ---
 name: teachme
-description: Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with `/teachme <topic>` or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (`~/notes/<topic-slug>/`).
+description: Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with `/teachme <topic>` or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (`<VAULT_ROOT>/<topic-slug>/`, defaulting to `~/notes`).
 ---
 
 # Unified `/teachme` Master Pipeline
 
-When invoked as `/teachme <topic>` (or when the user asks to deeply research, learn, and take complete notes on a topic), execute this **6-Phase Stateful Pipeline** inside the user's **central knowledge vault** (`~/notes/<topic-slug>/`).
+When invoked as `/teachme <topic>` (or when the user asks to deeply research, learn, and take complete notes on a topic), execute this **6-Phase Stateful Pipeline** inside the user's **central knowledge vault** (`<VAULT_ROOT>/<topic-slug>/`).
 
-Do NOT dump everything in a single wall of chat text. Write clean, pure Markdown files into `~/notes/<topic-slug>/` while guiding the user interactively in chat.
+Do NOT dump everything in a single wall of chat text. Write clean, pure Markdown files into `<VAULT_ROOT>/<topic-slug>/` while guiding the user interactively in chat.
 
 ---
 
-## Non-Negotiable Operating Laws
+## Non-Negotiable Operating Laws & Path Resolution
 
-1. **Central Vault Only:** Always write all generated files to `~/notes/<topic-slug>/` (expanding `~` to the user's home directory), regardless of which workspace is currently open. Never scatter notes inside random project folders.
+1. **Central Vault Only (Dynamic `<VAULT_ROOT>` Resolution):** Always write all generated files to `<VAULT_ROOT>/<topic-slug>/`, regardless of which workspace is currently open, and never scatter notes inside random project folders. Resolve `<VAULT_ROOT>` dynamically before any read/write in every command (`/teachme`, `/teachme-expand`, `/teachme-verify`, `/teachme-ingest`, `/teachme-distill`, `/teachme-review`, `/teachme-feynman`, `/teachme-drill`, `/teachme-compare`):
+   - **Step 1:** Check `~/.teachme-config.json` (e.g., `{"notes_root": "C:/Users/aayus/OneDrive/Desktop/MyVault"}`) first.
+   - **Step 2:** If `~/.teachme-config.json` does not exist or `notes_root` is unset, default `<VAULT_ROOT>` to `~/notes` (expanding `~` to the user's home directory).
+   - **Never hardcode `<VAULT_ROOT>/`** when `notes_root` is configured; use `/teachme-notes-path <path>` to view, change, or reset `<VAULT_ROOT>`.
 2. **Always Start with Frontier Grilling:** Every new `/teachme <topic>` session MUST begin with Phase 1 (Frontier Grilling Round with `❓` questions and `➡️` defaults: `No prior knowledge` + `Absolute mastery covering all topics`) before running research—unless the user explicitly passes `--auto` or replies `"auto"`, `"defaults"`, or `"go"`.
 3. **Pure Markdown Output:** Produce 100% pure Markdown (`.md`) files across the entire vault (no HTML wrappers, no PDFs). Keep formatting clean for Obsidian, Git, and standard Markdown viewers.
 4. **Never Trust Parametric Knowledge Alone:** Treat pre-trained knowledge as untrusted until grounded in primary sources during Phase 2.
@@ -22,7 +25,7 @@ Do NOT dump everything in a single wall of chat text. Write clean, pure Markdown
    - Phase 2: `references/RESEARCH-TOOLCHAIN.md`
    - Phases 3, 4 & 5: `references/STUDY-AND-GLOSSARY.md`
    - Phase 6: `references/RETENTION-AND-RECORDS.md`
-   - Subcommands (`ingest`, `distill`, `review`, `feynman`, `drill`, `compare`, `expand`, `verify`, `audit`): `references/SUBCOMMANDS.md`
+   - Subcommands (`ingest`, `distill`, `review`, `feynman`, `drill`, `compare`, `expand`, `verify`, `audit`, `notes-path`): `references/SUBCOMMANDS.md`
 6. **Exhaustive Subtopic Coverage (1 Topic / Subtopic = 1 Dedicated `.md` File, No Caps):** Never compress, merge, or skip subtopics or cards to save space. Decompose the subject into an exhaustive syllabus in Phase 2, and generate a full-length, standalone `topics/<nn>-<subtopic-slug>.md` file for **every single topic and subtopic** in that syllabus (following the **8-Block Subtopic Note Standard** and passing the **6-Point Writer -> Critic Audit** before saving), plus as many `atomic/` Zettelkasten cards as needed for full mastery.
 7. **Zero Black-Box Formulas & Progressive 3-Stage Theory Standard:** Every concept in `topics/<nn>-<subtopic-slug>.md` and Phase 6 must progress from **Absolute Zero (zero assumed prerequisites)** to **Complete Mastery** across 3 escalating depth stages: (1) **Zero-Baseline Micro-Bridge & Engineering Motivation** (define every new symbol/term from scratch in 2–3 plain-English lines + 2-number example; explain what failed previously), (2) **Depth Stage 1 — Intuition, Visuals & Mechanism** (daily-life analogy + mental hook, causal walkthrough, ASCII diagram, Contrastive "Is vs. Is Not" table + Where the Analogy Breaks Down), (3) **Depth Stage 2 — Mathematical Intuition, Formal Equation, Axiom Derivation & `I Do` Trace** (plain-English geometry/scaling before symbols, pure display LaTeX, complete Symbol & Operator Anatomy Table, zero-skip step-by-step axiom derivation, runnable Python/NumPy `assert` verification snippet, and step-by-step `I Do` walkthrough), and (4) **Depth Stage 3 — Deeper Nuances, Limiting Behaviors ($0, 1, -1, \infty$, negative/degenerate) & Gradual-Release Workbook**. Across `02-DEEP-RESEARCH.md` and `03-CORNELL-STUDY-GUIDE.md`, **no formula, recurrence, objective/loss function, or complexity bound** may appear without an immediate Formula Anatomy Breakdown.
 8. **7-Component Blueprint & Strict Anti-Spoiler Mastery Rule:** In Phase 6, every lesson must follow the **7-Component Lesson Blueprint** across **3 Escalating Depth Turns** (`Depth Stage 1/3`, `2/3`, `3/3`) and **4 Sequential Checkpoints** (`[1/4]` Discovery Hook, `[2/4]` `We Do` Guided Practice, `[3/4]` `You Do` Cold Solo Execution, `[4/4]` Adversarial Edge-Case + Feynman Gate)—never a 1-paragraph summary + 1 plug-in question, and never skipping foundational concepts. If the user replies `"idk"`, `"explain"`, or makes an error, **NEVER reveal the final answer or general rule immediately**; drop down one rung to a tiny 1-number micro-question so they discover the step themselves.
@@ -35,10 +38,10 @@ Do NOT dump everything in a single wall of chat text. Write clean, pure Markdown
 
 ## Central Vault File Architecture
 
-For any `<topic>`, create and maintain this exact directory tree at `~/notes/<topic-slug>/`:
+For any `<topic>`, create and maintain this exact directory tree at `<VAULT_ROOT>/<topic-slug>/`:
 
 ```text
-~/notes/<topic-slug>/
+<VAULT_ROOT>/<topic-slug>/
 ├── 00-SESSION-STATE.md            # Strictly <60 lines: hot-state resume pointer, status map & last verified invariant
 ├── 00-MISSION.md                  # Concrete goals, success criteria, constraints, out-of-scope
 ├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid+ASCII prereq graph, synthesis strips & checkboxes
@@ -56,7 +59,7 @@ For any `<topic>`, create and maintain this exact directory tree at `~/notes/<to
 ├── learning-records/              # 000N-<slug>.md ADR-style mastery & misconception logs
 └── scratchpad/                    # Ephemeral working buffer (raw-research.md, derivation-drafts.md)
 ```
-*(Cross-vault comparisons are stored at `~/notes/comparisons/<topic-a-slug>-vs-<topic-b-slug>.md`.)*
+*(Cross-vault comparisons are stored at `<VAULT_ROOT>/comparisons/<topic-a-slug>-vs-<topic-b-slug>.md`.)*
 
 ---
 
@@ -66,16 +69,17 @@ Route any subcommand invocation (both top-level `/teachme-<subcommand>` wrapper 
 
 | Autocomplete Command & Space-Separated Alias | Mode | Target Path |
 |---|---|---|
-| `/teachme <topic>` | **Full Pipeline** | `~/notes/<topic-slug>/` (Runs Phases 1–6, starting with Frontier Grilling) |
-| `/teachme <topic> --auto` | **Fast-Track Pipeline** | `~/notes/<topic-slug>/` (Skips Phase 1 grilling with defaults; runs Phases 2–6) |
-| `/teachme-expand <topic>` \| `/teachme expand <topic>` | **Vault Expansion & Deepening** | `~/notes/<topic-slug>/` |
-| `/teachme-verify <topic>` \| `/teachme verify <topic>` *(alias: `/teachme audit <topic>`)* | **Vault Integrity & Auto-Repair** | `~/notes/<topic-slug>/` |
-| `/teachme-ingest <topic> <source>` \| `/teachme ingest <topic> <source>` *(or `<source> into <topic>`)* | **Source Ingestion & Merge** | `~/notes/<topic-slug>/` |
-| `/teachme-distill <topic>` \| `/teachme distill <topic>` | **Executive Cheat Sheet & Flashcards** | `~/notes/<topic-slug>/09-CHEAT-SHEET.md` |
-| `/teachme-review <topic>` \| `/teachme review <topic>` | **Spaced-Repetition Coaching** | `~/notes/<topic-slug>/` |
-| `/teachme-feynman <concept>` \| `/teachme feynman <concept>` | **Reverse-Teaching Audit** | `~/notes/<topic-slug>/` |
-| `/teachme-drill <topic> [1\|2\|3]` \| `/teachme drill <topic> [1\|2\|3]` *(or `--tier 1\|2\|3`)* | **Problem Generator & Grader** | `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md` |
-| `/teachme-compare <A> vs <B>` \| `/teachme compare <A> vs <B>` | **Cross-Vault Synthesis** | `~/notes/comparisons/<a-vs-b>.md` |
+| `/teachme <topic>` | **Full Pipeline** | `<VAULT_ROOT>/<topic-slug>/` (Runs Phases 1–6, starting with Frontier Grilling) |
+| `/teachme <topic> --auto` | **Fast-Track Pipeline** | `<VAULT_ROOT>/<topic-slug>/` (Skips Phase 1 grilling with defaults; runs Phases 2–6) |
+| `/teachme-notes-path [path\|reset]` \| `/teachme notes-path [path\|reset]` | **Vault Root Configuration** | `~/.teachme-config.json` & `<VAULT_ROOT>/` |
+| `/teachme-expand <topic>` \| `/teachme expand <topic>` | **Vault Expansion & Deepening** | `<VAULT_ROOT>/<topic-slug>/` |
+| `/teachme-verify <topic>` \| `/teachme verify <topic>` *(alias: `/teachme audit <topic>`)* | **Vault Integrity & Auto-Repair** | `<VAULT_ROOT>/<topic-slug>/` |
+| `/teachme-ingest <topic> <source>` \| `/teachme ingest <topic> <source>` *(or `<source> into <topic>`)* | **Source Ingestion & Merge** | `<VAULT_ROOT>/<topic-slug>/` |
+| `/teachme-distill <topic>` \| `/teachme distill <topic>` | **Executive Cheat Sheet & Flashcards** | `<VAULT_ROOT>/<topic-slug>/09-CHEAT-SHEET.md` |
+| `/teachme-review <topic>` \| `/teachme review <topic>` | **Spaced-Repetition Coaching** | `<VAULT_ROOT>/<topic-slug>/` |
+| `/teachme-feynman <concept>` \| `/teachme feynman <concept>` | **Reverse-Teaching Audit** | `<VAULT_ROOT>/<topic-slug>/` |
+| `/teachme-drill <topic> [1\|2\|3]` \| `/teachme drill <topic> [1\|2\|3]` *(or `--tier 1\|2\|3`)* | **Problem Generator & Grader** | `<VAULT_ROOT>/<topic-slug>/07-PRACTICE-PROBLEMS.md` |
+| `/teachme-compare <A> vs <B>` \| `/teachme compare <A> vs <B>` | **Cross-Vault Synthesis** | `<VAULT_ROOT>/comparisons/<a-vs-b>.md` |
 
 ---
 
@@ -84,33 +88,33 @@ Route any subcommand invocation (both top-level `/teachme-<subcommand>` wrapper 
 ### Phase 1: Frontier Grilling & Mission Lock (`references/MISSION-AND-GRILL.md`)
 1. Read `references/MISSION-AND-GRILL.md`.
 2. Unless `--auto` or `defaults` / `go` was passed, present the **4 numbered `❓` questions** with `➡️` recommended defaults (`No prior knowledge`, `Absolute mastery covering all topics`, `Complete first-principles mastery`, `None`) to calibrate baseline (ZPD), depth, outcome, and custom scope/seed material. Wait for the user's response.
-3. Once answered (or defaulted), create `~/notes/<topic-slug>/00-MISSION.md` with explicit baseline/coverage fields, concrete success criteria, and curriculum milestones.
+3. Once answered (or defaulted), create `<VAULT_ROOT>/<topic-slug>/00-MISSION.md` with explicit baseline/coverage fields, concrete success criteria, and curriculum milestones.
 
 ### Phase 2: Primary-Source Research Toolchain & Exhaustive Syllabus (`references/RESEARCH-TOOLCHAIN.md`)
 1. Read `references/RESEARCH-TOOLCHAIN.md`.
-2. Formulate a falsifiable Research Brief, decompose the subject into a **complete, exhaustive syllabus** covering every topic, subtopic, algorithm, theorem, and mechanism required for full mastery, and capture raw intermediate search/reading drafts inside `~/notes/<topic-slug>/scratchpad/raw-research.md` so canonical notes stay clean.
-3. Write `~/notes/<topic-slug>/01-RESOURCES.md` separating **Knowledge** (specs, papers, official docs), **Wisdom** (post-mortems, maintainer talks, practitioner insights), the **Exhaustive Syllabus**, and **Gaps**.
-4. Chase primary sources and write `~/notes/<topic-slug>/02-DEEP-RESEARCH.md` with inline `[Source]` citations, internal mechanics, empirical benchmarks, failure modes, a comparative landscape table, and a **Formula Anatomy Breakdown** for every formula.
+2. Formulate a falsifiable Research Brief, decompose the subject into a **complete, exhaustive syllabus** covering every topic, subtopic, algorithm, theorem, and mechanism required for full mastery, and capture raw intermediate search/reading drafts inside `<VAULT_ROOT>/<topic-slug>/scratchpad/raw-research.md` so canonical notes stay clean.
+3. Write `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.md` separating **Knowledge** (specs, papers, official docs), **Wisdom** (post-mortems, maintainer talks, practitioner insights), the **Exhaustive Syllabus**, and **Gaps**.
+4. Chase primary sources and write `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md` with inline `[Source]` citations, internal mechanics, empirical benchmarks, failure modes, a comparative landscape table, and a **Formula Anatomy Breakdown** for every formula.
 
 ### Phase 3: First-Principles Mental Models, Glossary & Derivations (`references/STUDY-AND-GLOSSARY.md`)
 1. Read `references/STUDY-AND-GLOSSARY.md`.
-2. Use `~/notes/<topic-slug>/scratchpad/derivation-drafts.md` for rough intermediate algebra/brainstorming before committing canonical notes.
-3. Generate `~/notes/<topic-slug>/05-MENTAL-MODELS.md` containing:
+2. Use `<VAULT_ROOT>/<topic-slug>/scratchpad/derivation-drafts.md` for rough intermediate algebra/brainstorming before committing canonical notes.
+3. Generate `<VAULT_ROOT>/<topic-slug>/05-MENTAL-MODELS.md` containing:
    - Zero-jargon Feynman core analogy (including where the analogy holds and where it breaks).
    - First-principles axiom stack.
    - Clean ASCII architecture and state-transition diagram.
    - Adversarial pre-mortem (how to break it, silent failure modes, and defensive invariants).
-4. Generate `~/notes/<topic-slug>/04-GLOSSARY.md` with strict 1-2 sentence definitions of what each canonical term IS, plus `_Avoid_:` lines for overloaded synonyms.
-5. Generate `~/notes/<topic-slug>/06-DERIVATIONS-AND-PROOFS.md` deriving every major equation, complexity bound, and theorem step-by-step from base axioms with 1-sentence justifications and cross-references to `topics/*.md` and `04-GLOSSARY.md`.
+4. Generate `<VAULT_ROOT>/<topic-slug>/04-GLOSSARY.md` with strict 1-2 sentence definitions of what each canonical term IS, plus `_Avoid_:` lines for overloaded synonyms.
+5. Generate `<VAULT_ROOT>/<topic-slug>/06-DERIVATIONS-AND-PROOFS.md` deriving every major equation, complexity bound, and theorem step-by-step from base axioms with 1-sentence justifications and cross-references to `topics/*.md` and `04-GLOSSARY.md`.
 
 ### Phase 4: Master Cornell Guide, 8-Block Subtopic Files, Session State, MOC Index & Flashcards (`references/STUDY-AND-GLOSSARY.md`)
-1. Generate a dedicated, full-length file `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` for **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no compressing, merging, or skipping), structured in the exact **8-Block Subtopic Note Standard** (Block 0 typed YAML `L0` metadata, Block 1 `L1-ANCHOR`, Block 2 `L2-PREREQS-AND-MOTIVATION`, Block 3 `L3-FOUR-LAYER-THEORY` with ASCII diagram + Contrastive "Is vs. Is Not" table + Analogy Break-Down callout + Symbol Anatomy + Directional Sensitivity & Boundary Limits, Block 4 `L4-DERIVATION-AND-CODE` zero-skip axiom derivation, Block 5 executable 10–18 line Python/NumPy `assert` verification snippet, Block 6 `L5-WORKBOOK-AND-GRAPH` `I Do` → `We Do` → `You Do` with `<details>`, Block 7 Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger). Run the **Mandatory 6-Point Writer -> Critic Audit** before saving each file to disk.
-2. Synthesize `00-MISSION.md`, `02-DEEP-RESEARCH.md`, `04-GLOSSARY.md`, `05-MENTAL-MODELS.md`, and all `topics/` files into `~/notes/<topic-slug>/03-CORNELL-STUDY-GUIDE.md`, explicitly linking **every** `[[topics/<nn>-<subtopic-slug>]]` file in its syllabus index and sections, with **Formula Anatomy Breakdowns**, trade-off tables, `<details>` active-recall cues, a 5-bullet synthesis summary, and `## Living Session Notes & Insights`.
-3. Generate `~/notes/<topic-slug>/00-MOC-INDEX.md` as the master navigation dashboard (with Cumulative Synthesis Strip support) and `~/notes/<topic-slug>/00-SESSION-STATE.md` (strictly `< 60` lines) as the hot-state resume pointer.
-4. Generate `~/notes/<topic-slug>/08-FLASHCARDS.md` formatted for Obsidian Spaced Repetition (`#flashcards/<topic-slug>`) and Anki with conceptual/mechanism cards (`::` and `?`) and formula/symbol cloze deletions (`==...==`).
+1. Generate a dedicated, full-length file `<VAULT_ROOT>/<topic-slug>/topics/<nn>-<subtopic-slug>.md` for **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no compressing, merging, or skipping), structured in the exact **8-Block Subtopic Note Standard** (Block 0 typed YAML `L0` metadata, Block 1 `L1-ANCHOR`, Block 2 `L2-PREREQS-AND-MOTIVATION`, Block 3 `L3-FOUR-LAYER-THEORY` with ASCII diagram + Contrastive "Is vs. Is Not" table + Analogy Break-Down callout + Symbol Anatomy + Directional Sensitivity & Boundary Limits, Block 4 `L4-DERIVATION-AND-CODE` zero-skip axiom derivation, Block 5 executable 10–18 line Python/NumPy `assert` verification snippet, Block 6 `L5-WORKBOOK-AND-GRAPH` `I Do` → `We Do` → `You Do` with `<details>`, Block 7 Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger). Run the **Mandatory 6-Point Writer -> Critic Audit** before saving each file to disk.
+2. Synthesize `00-MISSION.md`, `02-DEEP-RESEARCH.md`, `04-GLOSSARY.md`, `05-MENTAL-MODELS.md`, and all `topics/` files into `<VAULT_ROOT>/<topic-slug>/03-CORNELL-STUDY-GUIDE.md`, explicitly linking **every** `[[topics/<nn>-<subtopic-slug>]]` file in its syllabus index and sections, with **Formula Anatomy Breakdowns**, trade-off tables, `<details>` active-recall cues, a 5-bullet synthesis summary, and `## Living Session Notes & Insights`.
+3. Generate `<VAULT_ROOT>/<topic-slug>/00-MOC-INDEX.md` as the master navigation dashboard (with Cumulative Synthesis Strip support) and `<VAULT_ROOT>/<topic-slug>/00-SESSION-STATE.md` (strictly `< 60` lines) as the hot-state resume pointer.
+4. Generate `<VAULT_ROOT>/<topic-slug>/08-FLASHCARDS.md` formatted for Obsidian Spaced Repetition (`#flashcards/<topic-slug>`) and Anki with conceptual/mechanism cards (`::` and `?`) and formula/symbol cloze deletions (`==...==`).
 
 ### Phase 5: Atomic Zettelkasten Cards (`references/STUDY-AND-GLOSSARY.md`)
-1. Extract standalone atomic concept cards into `~/notes/<topic-slug>/atomic/<concept-slug>.md` covering every key mechanism, theorem, and invariant (no arbitrary cap).
+1. Extract standalone atomic concept cards into `<VAULT_ROOT>/<topic-slug>/atomic/<concept-slug>.md` covering every key mechanism, theorem, and invariant (no arbitrary cap).
 2. Each card must be 150-300 words, include YAML frontmatter (`tags`, `created`, `status: evergreen`, `parent: "[[03-CORNELL-STUDY-GUIDE]]"`), partition content with the strict HTML semantic anchors (`<!-- SECTION: L1-ANCHOR -->` through `<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->`), ground terms in `04-GLOSSARY.md`, cite `[Source]`, and interlink via `[[wikilinks]]` under `## Related Concepts`.
 
 ### Phase 6: Progressive 7-Component Socratic Mastery Loop & Learning Records (`references/RETENTION-AND-RECORDS.md`)

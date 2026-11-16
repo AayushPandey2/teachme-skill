@@ -9,7 +9,7 @@ Wrapper skill exposing the `drill` subcommand as a top-level slash command witho
 
 ## 1. Argument Parsing
 - Extract `<topic>` and optional tier (`1`, `2`, `3`, or `--tier 1|2|3`) from `$ARGUMENTS` (or the text immediately following `/teachme-drill`).
-- If `<topic>` is missing, scan `~/notes/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
+- If `<topic>` is missing, scan `<VAULT_ROOT>/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
 
 ## 2. Core Reference Resolution
 Load these canonical instructions before generating drills (checking local sibling paths first, then global skills directories):
@@ -19,4 +19,4 @@ Load these canonical instructions before generating drills (checking local sibli
 
 ## 3. Execution Mandate
 - Read `07-PRACTICE-PROBLEMS.md` (if present) and `00-SESSION-STATE.md` to avoid duplicate problems and calibrate to the active ZPD tier.
-- Present **one problem at a time** (Tier 1 recall/substitution, Tier 2 multi-step synthesis, or Tier 3 adversarial edge cases), grade step-by-step reasoning without spoilers on errors, and append solved problems with full step-by-step solutions into `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md`.
+- Present **one problem at a time** (Tier 1 recall/substitution, Tier 2 multi-step synthesis, or Tier 3 adversarial edge cases), grade step-by-step reasoning without spoilers on errors, and append solved problems with full step-by-step solutions into `<VAULT_ROOT>/<topic-slug>/07-PRACTICE-PROBLEMS.md`.

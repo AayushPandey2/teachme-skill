@@ -9,7 +9,7 @@ Wrapper skill exposing the `feynman` subcommand as a top-level slash command wit
 
 ## 1. Argument Parsing
 - Extract `<concept>` (and optional `<topic>` / `[subtopic]`) from `$ARGUMENTS` (or the text immediately following `/teachme-feynman`).
-- If ambiguous, check `~/notes/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
+- If ambiguous, check `<VAULT_ROOT>/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
 
 ## 2. Core Reference Resolution
 Load these canonical instructions before auditing (checking local sibling paths first, then global skills directories):

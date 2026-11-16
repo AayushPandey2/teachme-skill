@@ -18,5 +18,5 @@ Load these canonical instructions before comparing (checking local sibling paths
 3. **Contrastive "Is vs. Is Not" & Formula Anatomy Standards (§4, §6):** `../teachme/references/STUDY-AND-GLOSSARY.md` (fallback: `~/.gemini/antigravity/skills/teachme/references/STUDY-AND-GLOSSARY.md`).
 
 ## 3. Execution Mandate
-- Execute **`/teachme compare <A> vs <B>`** end-to-end: check `~/notes/<a-slug>/` and `~/notes/<b-slug>/` (running targeted primary-source research for any missing vault), and write `~/notes/comparisons/<a-slug>-vs-<b-slug>.md`.
+- Execute **`/teachme compare <A> vs <B>`** end-to-end: check `<VAULT_ROOT>/<a-slug>/` and `<VAULT_ROOT>/<b-slug>/` (running targeted primary-source research for any missing vault), and write `<VAULT_ROOT>/comparisons/<a-slug>-vs-<b-slug>.md`.
 - Include the Executive Verdict, Side-by-Side Architecture & Contrastive "Is vs. Is Not" Matrix, Mathematical Contrast (pure LaTeX with `\mid` in tables, zero backticks), and bidirectional links inside both vaults' `00-MOC-INDEX.md`.

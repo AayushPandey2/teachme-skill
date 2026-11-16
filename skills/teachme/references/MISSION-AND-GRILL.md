@@ -16,7 +16,7 @@ Never dump a 10-question form on the user, and never ask questions you can answe
 Ask these **4 numbered questions** in a single clean turn. Format every question with `❓` and provide the primary recommended default prefixed with `➡️ Default:`:
 
 ```markdown
-Before I launch primary-source research and build your vault at `~/notes/<topic-slug>/`, let's lock the mission (reply with numbers, e.g. `1 working familiarity, 2 defaults`, or type `defaults` / `go`):
+Before I launch primary-source research and build your vault at `<VAULT_ROOT>/<topic-slug>/`, let's lock the mission (reply with numbers, e.g. `1 working familiarity, 2 defaults`, or type `defaults` / `go`):
 
 1. ❓ **1. Prior Knowledge & Prerequisites:** How much background do you already have in `<topic>`?
    ➡️ *Default:* **No prior knowledge** *(Build from absolute zero and first principles; explain every prerequisite, symbol, and term from scratch).*
@@ -37,14 +37,14 @@ Before I launch primary-source research and build your vault at `~/notes/<topic-
 
 ## 2. Mission Lock (`00-MISSION.md`)
 
-Once the user answers (or selects `defaults`, `go`, or `--auto`), create `~/notes/<topic-slug>/00-MISSION.md` using this exact structure. Whenever defaults are chosen, write the exact baseline and coverage lines below so Phase 6 automatically calibrates Question 1 to a beginner-safe 1-number scalar trace:
+Once the user answers (or selects `defaults`, `go`, or `--auto`), create `<VAULT_ROOT>/<topic-slug>/00-MISSION.md` using this exact structure. Whenever defaults are chosen, write the exact baseline and coverage lines below so Phase 6 automatically calibrates Question 1 to a beginner-safe 1-number scalar trace:
 
-### Template: `~/notes/<topic-slug>/00-MISSION.md`
+### Template: `<VAULT_ROOT>/<topic-slug>/00-MISSION.md`
 
 ```markdown
 # Mission: <Topic Title>
 
-- **Vault Path:** `~/notes/<topic-slug>/`
+- **Vault Path:** `<VAULT_ROOT>/<topic-slug>/`
 - **Created:** <YYYY-MM-DD>
 - **Prior Knowledge Baseline:** No prior knowledge (Zero-baseline first principles)
 - **Coverage & Depth Mode:** Absolute mastery covering all topics (Zero-omission syllabus)

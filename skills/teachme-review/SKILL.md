@@ -9,7 +9,7 @@ Wrapper skill exposing the `review` subcommand as a top-level slash command with
 
 ## 1. Argument Parsing
 - Extract `<topic>` from `$ARGUMENTS` (or the text immediately following `/teachme-review`).
-- If `<topic>` is missing, scan `~/notes/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
+- If `<topic>` is missing, scan `<VAULT_ROOT>/*/00-SESSION-STATE.md` for an active vault or ask a single clarifying question.
 
 ## 2. Core Reference Resolution
 Load these canonical instructions before starting the review loop (checking local sibling paths first, then global skills directories):

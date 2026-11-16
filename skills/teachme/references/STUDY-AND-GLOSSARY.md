@@ -220,7 +220,7 @@ NN. [[topics/<nn>-<subtopic-slug>]] — <1-line summary>
 
 ## 6. Phase 4B: Detailed Subtopic Notes — 8-Block Standard (`topics/<nn>-<subtopic-slug>.md`)
 
-For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a deep, self-contained, zero-baseline-to-mastery reference file at `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` (`01-...`, `02-...`, etc.) partitioned with the strict Three-Tier Progressive Disclosure HTML anchors (`L1-ANCHOR`, `L2-PREREQS-AND-MOTIVATION`, `L3-FOUR-LAYER-THEORY`, `L4-DERIVATION-AND-CODE`, `L5-WORKBOOK-AND-GRAPH`).
+For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a deep, self-contained, zero-baseline-to-mastery reference file at `<VAULT_ROOT>/<topic-slug>/topics/<nn>-<subtopic-slug>.md` (`01-...`, `02-...`, etc.) partitioned with the strict Three-Tier Progressive Disclosure HTML anchors (`L1-ANCHOR`, `L2-PREREQS-AND-MOTIVATION`, `L3-FOUR-LAYER-THEORY`, `L4-DERIVATION-AND-CODE`, `L5-WORKBOOK-AND-GRAPH`).
 
 ### Exact 8-Block Subtopic Note Template
 
@@ -376,7 +376,7 @@ Before writing any generated or expanded `topics/<nn>-<subtopic-slug>.md` file t
 
 ## 7. Phase 4C: Hot-State Resume (`00-SESSION-STATE.md`), Master MOC (`00-MOC-INDEX.md`) & Working Buffer (`scratchpad/`)
 
-### A. Hot-State Resume Pointer (`~/notes/<topic-slug>/00-SESSION-STATE.md` — Strictly `< 60` Lines)
+### A. Hot-State Resume Pointer (`<VAULT_ROOT>/<topic-slug>/00-SESSION-STATE.md` — Strictly `< 60` Lines)
 Create and continuously maintain `00-SESSION-STATE.md` at the vault root storing **ONLY** these 4 items (never exceeding 60 lines):
 
 ```markdown
@@ -392,11 +392,11 @@ Create and continuously maintain `00-SESSION-STATE.md` at the vault root storing
 ```
 
 ### B. Ephemeral Working Buffer (`scratchpad/`) & Auto-Compaction
-- Write raw intermediate research notes in `~/notes/<topic-slug>/scratchpad/raw-research.md` and rough algebra/derivation trials in `~/notes/<topic-slug>/scratchpad/derivation-drafts.md` so canonical `topics/` and `atomic/` files stay spotless.
+- Write raw intermediate research notes in `<VAULT_ROOT>/<topic-slug>/scratchpad/raw-research.md` and rough algebra/derivation trials in `<VAULT_ROOT>/<topic-slug>/scratchpad/derivation-drafts.md` so canonical `topics/` and `atomic/` files stay spotless.
 - **Auto-Compaction (Every 3 Completed Subtopics):** Append a 5-line **Cumulative Synthesis Strip** to `00-MOC-INDEX.md` and roll up verified formulas into `09-CHEAT-SHEET.md`.
 
 ### C. Master Map of Content (`00-MOC-INDEX.md`)
-Create `~/notes/<topic-slug>/00-MOC-INDEX.md` as the central navigation dashboard so Obsidian and Markdown navigation stays effortless regardless of vault size:
+Create `<VAULT_ROOT>/<topic-slug>/00-MOC-INDEX.md` as the central navigation dashboard so Obsidian and Markdown navigation stays effortless regardless of vault size:
 
 ````markdown
 # Map of Content (MOC): <Topic Title>
@@ -461,7 +461,7 @@ graph TD
 
 ## 8. Phase 4D: Spaced-Repetition Cloze & Flashcard Deck (`08-FLASHCARDS.md`)
 
-Generate `~/notes/<topic-slug>/08-FLASHCARDS.md` formatted cleanly for **Obsidian Spaced Repetition** (`#flashcards/<topic-slug>`) and **Anki** import:
+Generate `<VAULT_ROOT>/<topic-slug>/08-FLASHCARDS.md` formatted cleanly for **Obsidian Spaced Repetition** (`#flashcards/<topic-slug>`) and **Anki** import:
 
 ```markdown
 # Spaced-Repetition Flashcards: <Topic Title>
@@ -489,7 +489,7 @@ For `<Formula Name>`: increasing ==$<variable>$== causes the output to ==<increa
 
 ## 9. Phase 5: Atomic Zettelkasten Cards (`atomic/`)
 
-Create standalone Markdown cards inside `~/notes/<topic-slug>/atomic/<concept-slug>.md` for every key mechanism, theorem, invariant, and failure mode (no arbitrary card cap). Each card must express **one atomic concept** in 150-300 words and include the strict Three-Tier Progressive Disclosure HTML section markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) so prerequisite cards can be progressively disclosed via `L0 + L1` without bloating context:
+Create standalone Markdown cards inside `<VAULT_ROOT>/<topic-slug>/atomic/<concept-slug>.md` for every key mechanism, theorem, invariant, and failure mode (no arbitrary card cap). Each card must express **one atomic concept** in 150-300 words and include the strict Three-Tier Progressive Disclosure HTML section markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) so prerequisite cards can be progressively disclosed via `L0 + L1` without bloating context:
 
 ```markdown
 ---

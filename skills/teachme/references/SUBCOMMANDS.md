@@ -1,6 +1,6 @@
-# Subcommand Router Reference: Lifecycle, Ingestion, Retention & Synthesis Commands
+# Subcommand Router Reference: Lifecycle, Ingestion, Retention, Synthesis & Vault Configuration
 
-When invoked with a subcommand, execute its dedicated workflow directly without rebuilding the entire vault from scratch. All outputs remain 100% pure Markdown inside `~/notes/` and strictly enforce **Zero Black-Box Formulas** (Mandatory Formula Anatomy Breakdown) and **Teach-Before-Test**.
+When invoked with a subcommand (via `/teachme-<subcommand>` or `/teachme <subcommand>`), execute its dedicated workflow directly without rebuilding the entire vault from scratch. Always resolve `<VAULT_ROOT>` dynamically by reading `~/.teachme-config.json` (`notes_root`, defaulting to `~/notes` if absent/unset)—never hardcode `<VAULT_ROOT>/`. All outputs remain 100% pure Markdown inside `<VAULT_ROOT>/` and strictly enforce **Zero Black-Box Formulas** (Mandatory Formula Anatomy Breakdown), **8-Block Subtopic Notes**, and **Anti-Spoiler Progressive Mastery**.
 
 ---
 
@@ -8,7 +8,7 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 ### 1. `/teachme ingest <path-or-url> into <topic>` (Source Ingestion & Merge)
 
-1. **Read Existing Vault First:** Load `00-MOC-INDEX.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, and `04-GLOSSARY.md` inside `~/notes/<topic-slug>/`. If the vault does not exist yet, initialize it first (using Phase 1 defaults if `--auto` or after a quick Mission Lock).
+1. **Read Existing Vault First:** Load `00-MOC-INDEX.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, and `04-GLOSSARY.md` inside `<VAULT_ROOT>/<topic-slug>/`. If the vault does not exist yet, initialize it first (using Phase 1 defaults if `--auto` or after a quick Mission Lock).
 2. **Extract & Verify:** Parse the provided local file (PDF, lecture notes, code, transcript) or URL (research paper, YouTube transcript, GitHub repository, official docs). Extract every new claim, mechanism, benchmark, and mathematical equation with inline `[Source]` citations.
 3. **Apply Mandatory Formula Anatomy:** For every new formula extracted, generate the complete Formula Anatomy Breakdown (`$$...$$`, Plain-English Intuition, 4-column Component & Operator Breakdown Table, Boundary & Limiting Cases, and Worked Numerical Walkthrough).
 4. **Update Vault Files:**
@@ -31,8 +31,8 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 ### 2. `/teachme distill <topic>` (Executive Cheat Sheet)
 
-1. **Read Full Vault:** Scan `00-MOC-INDEX.md`, `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md`, `05-MENTAL-MODELS.md`, and `topics/*.md` inside `~/notes/<topic-slug>/`.
-2. **Generate `~/notes/<topic-slug>/09-CHEAT-SHEET.md`:** Compress the entire topic into a high-density, single-page last-minute review sheet containing ONLY these 4 sections:
+1. **Read Full Vault:** Scan `00-MOC-INDEX.md`, `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md`, `05-MENTAL-MODELS.md`, and `topics/*.md` inside `<VAULT_ROOT>/<topic-slug>/`.
+2. **Generate `<VAULT_ROOT>/<topic-slug>/09-CHEAT-SHEET.md`:** Compress the entire topic into a high-density, single-page last-minute review sheet containing ONLY these 4 sections:
 
 ```markdown
 # Executive Cheat Sheet: <Topic Title>
@@ -59,7 +59,7 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 | **<Symptom 1>** | <Exact mechanism that broke> | <Preventive invariant or mitigation> |
 ```
 
-3. **Link in MOC:** Ensure `[[09-CHEAT-SHEET]]` is linked in the Vault Navigation header of `~/notes/<topic-slug>/00-MOC-INDEX.md`.
+3. **Link in MOC:** Ensure `[[09-CHEAT-SHEET]]` is linked in the Vault Navigation header of `<VAULT_ROOT>/<topic-slug>/00-MOC-INDEX.md`.
 
 ---
 
@@ -81,18 +81,18 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
    2. **First-Principles Accuracy:** Are the causal steps and invariants sound?
    3. **Formula Intuition:** Did they accurately explain what each variable, subscript, and operator does?
    4. **Edge-Case Awareness:** Did they note where the intuition or analogy breaks down?
-3. **Patch & Record:** Point out exact gaps gently, provide a refined model explanation if needed, save the session outcome to `~/notes/<topic-slug>/learning-records/000N-feynman-<slug>.md`, and check off `- [x]` in `00-MOC-INDEX.md` if passed.
+3. **Patch & Record:** Point out exact gaps gently, provide a refined model explanation if needed, save the session outcome to `<VAULT_ROOT>/<topic-slug>/learning-records/000N-feynman-<slug>.md`, and check off `- [x]` in `00-MOC-INDEX.md` if passed.
 
 ---
 
 ### 5. `/teachme drill <topic> [--tier 1|2|3]` (Problem Generator & Grader)
 
-1. **Read Existing Problems:** Check `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md` (if it exists) so no duplicate problems are generated.
+1. **Read Existing Problems:** Check `<VAULT_ROOT>/<topic-slug>/07-PRACTICE-PROBLEMS.md` (if it exists) so no duplicate problems are generated.
 2. **Generate Fresh Problems:** Create 1–3 new quantitative or diagnostic problems calibrated to the requested tier (defaulting to the user's current ZPD tier if `--tier` is omitted):
    - **Tier 1:** Direct formula substitution & symbol sensitivity.
    - **Tier 2:** Multi-step derivation or cross-subtopic synthesis.
    - **Tier 3:** Adversarial edge cases, failure diagnosis, and boundary limits ($\to 0$, $\to \infty$).
-3. **Interactive Grading & Persistence:** Present **one problem at a time** in chat, grade the user's step-by-step math and reasoning, and append all newly solved problems with full step-by-step solutions into `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md`:
+3. **Interactive Grading & Persistence:** Present **one problem at a time** in chat, grade the user's step-by-step math and reasoning, and append all newly solved problems with full step-by-step solutions into `<VAULT_ROOT>/<topic-slug>/07-PRACTICE-PROBLEMS.md`:
 
 ```markdown
 ## Problem <N> [Tier <1|2|3>] — <Subtopic Title>
@@ -109,8 +109,8 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 ### 6. `/teachme compare <topic-a> vs <topic-b>` (Cross-Vault Synthesis)
 
-1. **Cross-Vault & Primary-Source Lookup:** Check if `~/notes/<topic-a-slug>/` and `~/notes/<topic-b-slug>/` already exist in the central vault. For whichever vault is missing, run targeted primary-source research (Phase 2) first so all claims are grounded.
-2. **Generate `~/notes/comparisons/<topic-a-slug>-vs-<topic-b-slug>.md`:**
+1. **Cross-Vault & Primary-Source Lookup:** Check if `<VAULT_ROOT>/<topic-a-slug>/` and `<VAULT_ROOT>/<topic-b-slug>/` already exist in the central vault. For whichever vault is missing, run targeted primary-source research (Phase 2) first so all claims are grounded.
+2. **Generate `<VAULT_ROOT>/comparisons/<topic-a-slug>-vs-<topic-b-slug>.md`:**
 
 ```markdown
 # Comparison: <Topic A> vs. <Topic B>
@@ -144,7 +144,7 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 ### 7. `/teachme expand <topic>` (Vault Expansion & Deepening)
 
-Upgrade an existing vault at `~/notes/<topic-slug>/` from surface-level or incomplete coverage to exhaustive, zero-omission mastery without deleting existing progress or learning records:
+Upgrade an existing vault at `<VAULT_ROOT>/<topic-slug>/` from surface-level or incomplete coverage to exhaustive, zero-omission mastery without deleting existing progress or learning records:
 
 1. **Scan Existing Vault:** Read `00-SESSION-STATE.md` (create it under 60 lines if missing, alongside `scratchpad/`), `00-MISSION.md`, `00-MOC-INDEX.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`, and all existing files in `topics/*.md` and `atomic/*.md`.
 2. **Gap & 8-Block Depth Audit:**
@@ -164,10 +164,10 @@ Upgrade an existing vault at `~/notes/<topic-slug>/` from surface-level or incom
 
 ### 8. `/teachme verify <topic>` *(alias: `/teachme audit <topic>`)* (Vault Integrity & Auto-Repair)
 
-Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan and auto-repair loop across **every `.md` file** inside `~/notes/<topic-slug>/` until **zero** broken links, **zero** broken formulas, and **100% 8-Block Standard compliance** are confirmed:
+Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan and auto-repair loop across **every `.md` file** inside `<VAULT_ROOT>/<topic-slug>/` until **zero** broken links, **zero** broken formulas, and **100% 8-Block Standard compliance** are confirmed:
 
 1. **Pass 1 — Exhaustive Link, Typed Edge & Topology Audit + Auto-Repair:**
-   - Scan **every `.md` file** in `~/notes/<topic-slug>/` (root files, `topics/*.md`, `atomic/*.md`, `learning-records/*.md`) for:
+   - Scan **every `.md` file** in `<VAULT_ROOT>/<topic-slug>/` (root files, `topics/*.md`, `atomic/*.md`, `learning-records/*.md`) for:
      - Obsidian wikilinks: `[[target]]`, `[[target|alias]]`, and heading/block links `[[target#Section]]`.
      - YAML typed semantic edges (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`) and Block 7 semantic links in `topics/*.md`.
      - Standard relative Markdown links: `[label](relative/path.md)`.
@@ -179,7 +179,7 @@ Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan 
      - Detect any orphaned `.md` files in `topics/` or `atomic/` not listed in `00-MOC-INDEX.md` or `03-CORNELL-STUDY-GUIDE.md` and register them into the checklists, `00-SESSION-STATE.md` compact map, and Mermaid/ASCII dependency graphs.
 
 2. **Pass 2 — Exhaustive LaTeX Hygiene & Mandatory 6-Point Writer -> Critic Audit + Auto-Repair:**
-   - Scan **every `.md` file** in `~/notes/<topic-slug>/` for:
+   - Scan **every `.md` file** in `<VAULT_ROOT>/<topic-slug>/` for:
      - **Backtick-wrapped LaTeX:** Any `$` or `$$` math wrapped inside code backticks → strip outer backticks immediately so it becomes pure `$` / `$$` math.
      - **Table-breaking pipes in math:** Any `$... | ...$` inside Markdown table rows `| ... |` → replace raw `|` with `\mid` or `\lvert` / `\rvert` (or `\lVert` / `\rVert`).
      - **Unclosed or mismatched delimiters:** Odd numbers of `$` on a line, unclosed `$$` blocks, stray currency `$` colliding with math, unescaped newlines inside single-line inline math, or broken braces `{` / `}`.
@@ -188,7 +188,7 @@ Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan 
 
 3. **Pass 3 — Mandatory Re-Verification Loop (Zero-Remaining Guarantee) & Cross-File Glossary Check:**
    - Ensure canonical terms used across `topics/*.md` and `atomic/*.md` match `04-GLOSSARY.md` (adding any undefined domain terms to `04-GLOSSARY.md`).
-   - After applying all file edits, **re-run** the link scanner, typed-edge check, 6-Point Writer -> Critic Audit, and LaTeX regex/delimiter check across the entire `~/notes/<topic-slug>/` directory to confirm **0 broken links**, **0 broken formulas**, and **0 missing 8-Block sections** remain before finishing.
+   - After applying all file edits, **re-run** the link scanner, typed-edge check, 6-Point Writer -> Critic Audit, and LaTeX regex/delimiter check across the entire `<VAULT_ROOT>/<topic-slug>/` directory to confirm **0 broken links**, **0 broken formulas**, and **0 missing 8-Block sections** remain before finishing.
    - Output a clear verification report table in chat:
 
 ```markdown
@@ -198,3 +198,36 @@ Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan 
 | `00-MOC-INDEX.md` | 20 / 0 | 0 / 0 | — | PASS |
 | `topics/01-...md` | 6 / 0 | 2 / 0 | 6/6 | PASS |
 ```
+
+---
+
+## D. Vault Configuration (`notes-path`)
+
+### 9. `/teachme-notes-path [path|reset]` *(alias: `/teachme notes-path [path|reset]`)*
+
+Manage the central `<VAULT_ROOT>` directory where all `/teachme` commands read and write topic vaults (`<VAULT_ROOT>/<topic-slug>/` and `<VAULT_ROOT>/comparisons/`).
+
+**Vault Root Resolution Order (`<VAULT_ROOT>`):**
+1. Check `~/.teachme-config.json` (`notes_root`) first.
+2. If `~/.teachme-config.json` does not exist or `notes_root` is unset, default `<VAULT_ROOT>` to `~/notes`.
+
+#### Mode A: `<path>` Provided (`/teachme-notes-path <path>` or `/teachme notes-path <path>`)
+1. **Normalize & Expand Path:** Expand `~`, `$HOME`, `%USERPROFILE%`, or `$env:USERPROFILE`, resolve relative paths cleanly, and normalize slashes for the host OS (storing clean forward-slash or native normalized paths consistently in JSON).
+2. **Create & Verify Write Access:** Create the directory if it does not exist (`mkdir -p` on POSIX / `New-Item -ItemType Directory -Force` on Windows) and verify write access inside it before saving configuration.
+3. **Detect Existing Vaults & Ask Before Moving:** Check the previous `<OLD_VAULT_ROOT>` (if it existed and contains topic vault folders). If existing topic vaults are found, display both `<OLD_VAULT_ROOT>` and `<NEW_VAULT_ROOT>` and ask whether the user wants to copy/move existing topic vaults over or keep them separate (**never** move or delete existing vault files destructively without explicit confirmation).
+4. **Save `~/.teachme-config.json`:** Write or update `~/.teachme-config.json`:
+   ```json
+   {
+     "notes_root": "<normalized-path>",
+     "updated_at": "<YYYY-MM-DD>"
+   }
+   ```
+5. **Confirm:** Report the newly active `<VAULT_ROOT>` path clearly in chat.
+
+#### Mode B: No Argument Provided (`/teachme-notes-path`)
+1. Resolve `<VAULT_ROOT>` using `~/.teachme-config.json` (showing whether it is a **custom** `notes_root` or the **default** `~/notes`).
+2. List all topic vaults currently stored inside `<VAULT_ROOT>` (along with `comparisons/` if present).
+
+#### Mode C: `reset` Provided (`/teachme-notes-path reset`)
+1. Update `~/.teachme-config.json` so `notes_root` is reset back to `~/notes` (with `updated_at: "<YYYY-MM-DD>"`).
+2. Confirm in chat that `<VAULT_ROOT>` is now reset to the default `~/notes` (mentioning the previous custom path if one was set, without deleting any files there).

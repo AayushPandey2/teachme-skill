@@ -15,14 +15,14 @@ Before executing web searches or reading files, define a structured **Research B
 
 ## 2. Source Hierarchy: Knowledge vs. Wisdom
 
-Organize all discovered sources inside `~/notes/<topic-slug>/01-RESOURCES.md` into two distinct buckets plus the exhaustive syllabus and an explicit gap log:
+Organize all discovered sources inside `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.md` into two distinct buckets plus the exhaustive syllabus and an explicit gap log:
 
 - **Knowledge (Primary & Authoritative):** Official documentation, RFCs/standards, academic papers, canonical textbooks, source code repositories, release notes.
 - **Wisdom (High-Signal Practitioner Experience):** Engineering post-mortems, talks by creators/maintainers, vetted community discussions (Hacker News, GitHub Issues, specialized forums) highlighting real-world sharp edges.
 - **Exhaustive Syllabus:** Numbered list (`01` .. `NN`) of every subtopic to be researched in `02-DEEP-RESEARCH.md` and written to `topics/<nn>-<subtopic-slug>.md`.
 - **Gaps:** Specific questions where primary sources conflict, are paywalled/unavailable, or lack empirical benchmarks.
 
-### Template: `~/notes/<topic-slug>/01-RESOURCES.md`
+### Template: `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.md`
 
 ```markdown
 # Research Resources & Provenance Index: <Topic Title>
@@ -57,12 +57,12 @@ NN. `<nn>-<subtopic-slug>` — <Subtopic Title & scope>
 
 ## 3. Primary-Source Chasing & Deep Research Dossier (`02-DEEP-RESEARCH.md`)
 
-Never cite a secondary blog post when the primary paper, RFC, or source code is reachable. Trace every claim back to its origin and document exact mechanisms, invariants, benchmarks, and conflicts in `~/notes/<topic-slug>/02-DEEP-RESEARCH.md`.
+Never cite a secondary blog post when the primary paper, RFC, or source code is reachable. Trace every claim back to its origin and document exact mechanisms, invariants, benchmarks, and conflicts in `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`.
 
 ### Mandatory Rule: Zero Black-Box Formulas & Pure LaTeX Hygiene
 Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/STUDY-AND-GLOSSARY.md` §4 for the exact schema: Plain-English Intuition, Component & Operator Breakdown Table, Boundary & Limiting Cases, and Worked Numerical Walkthrough).
 
-### Template: `~/notes/<topic-slug>/02-DEEP-RESEARCH.md`
+### Template: `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`
 
 ```markdown
 # Deep Primary-Source Research Dossier: <Topic Title>
