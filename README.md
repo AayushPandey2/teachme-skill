@@ -40,6 +40,31 @@ Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside 
 └── scratchpad/                    # Ephemeral buffer (raw-research.md, derivation-drafts.md, events.jsonl, queue-<nn>.json)
 ```
 
+## Vault-Native Mode (Existing Obsidian Vaults)
+
+Connect an existing Obsidian vault without restructuring folders or imposing standalone filenames:
+
+```bash
+# Connect and profile your Obsidian vault (auto-detects .obsidian/)
+python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault"
+
+# Inspect inferred folders, tags, metadata schema, note style, and plugin capabilities
+python skills/teachme/scripts/vault_cli.py profile "/path/to/MyObsidianVault"
+
+# Search existing knowledge and preview placement/template/links before writing
+python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent"
+python skills/teachme/scripts/vault_cli.py plan "/path/to/MyObsidianVault" --topic "Gradient Descent"
+
+# Dry-run preview, then write atomically and audit only TeachMe-managed notes
+python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --dry-run
+python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --apply
+python skills/teachme/scripts/vault_cli.py audit "/path/to/MyObsidianVault"
+```
+
+- **State Isolation:** TeachMe stores `profile.json`, `index.json`, `managed-notes.json`, backups, and session logs inside `<vault>/.teachme/` (or a custom `--state-dir`).
+- **Non-Destructive Guarantee:** Legacy `fix` and `verify` never alter or complain about existing user-authored notes in Vault-Native Mode; `--extend` creates a timestamped backup before appending.
+- **Slash Commands in Antigravity:** Use `/teachme-vault connect <path>`, `/teachme-vault plan --topic "<topic>"`, or `/teachme <topic>` after connecting your vault.
+
 ## Installation
 
 Clone this repository and copy all `skills/teachme*` folders into your AI tool's skills directory (so `/teachme` and all `/teachme-*` subcommands appear in slash-command autocomplete), and create your central `~/notes` vault folder:
@@ -69,6 +94,7 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 | Autocomplete Command | Space-Separated Alias | What It Does |
 | :--- | :--- | :--- |
 | `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `<VAULT_ROOT>/<topic-slug>/` (default `~/notes/`), and teaches interactively via the 7-Component Mastery Loop. |
+| `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `discover`, `profile`, `search`, `plan`, `generate`, `audit`, `mode`, `reindex`) in **Vault-Native Mode**, adapting placement, templates, metadata, tags, links, and style without restructuring your vault. |
 | `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views the active `<VAULT_ROOT>`, redirects vault storage to a custom folder (`~/.teachme-config.json`), or resets back to `~/notes`. |
 | `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 7-Section Standard, creates `.md` files for missing related subtopics, and runs the 7-Point Critic Audit. |
 | `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, `<details>` blocks, and malformed LaTeX across the vault. |
@@ -98,7 +124,9 @@ teachme-skill/
     │       ├── RESEARCH-TOOLCHAIN.md      # Phase 2: Knowledge vs. Wisdom sourcing, deep-linking & scratchpad isolation
     │       ├── STUDY-AND-GLOSSARY.md      # Phases 4–5: 7-Section Blueprint, 7-Point Critic Gate, templates & atomic cards
     │       ├── RETENTION-AND-RECORDS.md   # Phase 6: 4-Turn pacing, ONE-question law, Anti-Spoiler & ADR records
-    │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, expand, verify, ingest, distill, review, feynman, drill, compare)
+    │       ├── VAULT-NATIVE.md            # Vault-Native Mode workflow, plugin awareness & non-destructive writes
+    │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, vault, expand, verify, ingest, distill, review, feynman, drill, compare)
+    ├── teachme-vault/SKILL.md             # Wrapper -> /teachme-vault <subcommand> [args]
     ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
     ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>
     ├── teachme-verify/SKILL.md            # Wrapper -> /teachme-verify <topic>

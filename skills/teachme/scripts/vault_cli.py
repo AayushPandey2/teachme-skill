@@ -16,6 +16,14 @@ import re
 import sys
 from typing import Any
 
+_SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+
+from teachme_vault.cli_commands import register_vault_native_subcommands
+from teachme_vault.models import MODE_VAULT_NATIVE, detect_vault_mode, load_config, resolve_state_dir
+from teachme_vault.writer import audit_vault_native
+
 REQUIRED_TOPIC_SECTIONS = [
     "L1-ANCHOR",
     "L2-PREREQS-AND-MOTIVATION",
@@ -199,7 +207,42 @@ def parse_session_state_fields(text: str) -> dict[str, str]:
 
 
 def cmd_state(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    if not args.vault_path:
+        mode_info = detect_vault_mode(None, config=cfg)
+        if mode_info["mode"] == MODE_VAULT_NATIVE and cfg.get("obsidian_vault"):
+            obs_path = Path(os.path.expandvars(str(cfg["obsidian_vault"]))).expanduser().resolve()
+            if obs_path.is_dir():
+                sdir = resolve_state_dir(obs_path, config=cfg)
+                print(
+                    dump_json(
+                        {
+                            "mode": "vault-native",
+                            "vault_path": str(obs_path),
+                            "state_dir": str(sdir),
+                            "has_profile": (sdir / "profile.json").is_file(),
+                            "has_index": (sdir / "index.json").is_file(),
+                        }
+                    )
+                )
+                return 0
+
     vault = resolve_vault_path(args.vault_path)
+    mode_info = detect_vault_mode(vault, config=cfg)
+    if mode_info["mode"] == MODE_VAULT_NATIVE and not (vault / "00-SESSION-STATE.md").is_file():
+        sdir = resolve_state_dir(vault, config=cfg)
+        print(
+            dump_json(
+                {
+                    "mode": "vault-native",
+                    "vault_path": str(vault),
+                    "state_dir": str(sdir),
+                    "has_profile": (sdir / "profile.json").is_file(),
+                    "has_index": (sdir / "index.json").is_file(),
+                }
+            )
+        )
+        return 0
     state_file = vault / "00-SESSION-STATE.md"
     graph_file = vault / "00-GRAPH.json"
 
@@ -1274,6 +1317,12 @@ def resolve_wikilink_target(
 
 def cmd_verify(args: argparse.Namespace) -> int:
     vault = resolve_vault_path(args.vault_path)
+    mode_info = detect_vault_mode(vault)
+    if mode_info["mode"] == MODE_VAULT_NATIVE and not getattr(args, "force_standalone", False):
+        report = audit_vault_native(vault)
+        print(dump_json(report))
+        return 0
+
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
@@ -1785,6 +1834,22 @@ def fix_details_in_text(text: str) -> tuple[str, int]:
 def cmd_fix(args: argparse.Namespace) -> int:
     """Deterministically auto-repair <details> block formatting and bare LaTeX."""
     vault = resolve_vault_path(args.vault_path)
+    mode_info = detect_vault_mode(vault)
+    if mode_info["mode"] == MODE_VAULT_NATIVE and not getattr(args, "force_standalone", False):
+        print(
+            dump_json(
+                {
+                    "vault_path": str(vault),
+                    "mode": "vault-native",
+                    "skipped": True,
+                    "files_scanned": 0,
+                    "files_modified": 0,
+                    "reason": "Vault-native mode protects existing user notes from automatic rewriting. Use 'audit' for TeachMe-managed notes.",
+                }
+            )
+        )
+        return 0
+
     all_md = [
         p for p in sorted(vault.rglob("*.md"))
         if "scratchpad" not in p.relative_to(vault).parts
@@ -1850,10 +1915,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_verify = sub.add_parser("verify", help="Verify YAML, LaTeX, <details>, links, typed edges, section markers & orphans.")
     p_verify.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_verify.add_argument("--force-standalone", action="store_true", help="Force standalone verification rules.")
     p_verify.set_defaults(func=cmd_verify)
 
     p_fix = sub.add_parser("fix", help="Auto-repair <details> block formatting and unambiguous bare LaTeX.")
     p_fix.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_fix.add_argument("--force-standalone", action="store_true", help="Force standalone auto-repair rules.")
     p_fix.set_defaults(func=cmd_fix)
 
     p_init = sub.add_parser("init", help="Scaffold vault dirs, 00-SESSION-STATE.md, 00-MOC-INDEX.md, topic stubs & 00-GRAPH.json.")
@@ -1875,6 +1942,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_flush.add_argument("--topic", required=True, help="Subtopic number (e.g. 01).")
     p_flush.add_argument("--note", default="", help="Optional verified invariant note.")
     p_flush.set_defaults(func=cmd_flush)
+
+    register_vault_native_subcommands(sub)
 
     return parser
 
