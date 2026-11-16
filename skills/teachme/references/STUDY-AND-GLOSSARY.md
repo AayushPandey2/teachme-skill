@@ -89,20 +89,20 @@ $$
 
 ---
 
-## 4. Mandatory Formula Anatomy Breakdown Standard (Zero Black-Box Formulas)
+## 4. Mandatory Formula Anatomy Breakdown Standard (Layer 3 + Layer 4 Schema)
 
 **Non-Negotiable Rules:**
-- Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and **every** `topics/<nn>-<subtopic-slug>.md` file, **no mathematical formula, equation, recurrence, objective/loss function, or complexity bound** may appear without an immediate **Formula Anatomy Breakdown** following this exact structure.
-- **Zero Backtick-Wrapped Math:** **NEVER** wrap inline (`$...$`) or display (`$$...$$`) LaTeX in backticks anywhere—especially not inside Markdown table cells. Write `| $x$ | ... |`, never `` | `$x$` | ... | ``.
-- **Table-Safe LaTeX Delimiters & Escaping:** Inside Markdown table cells, **NEVER** use raw pipe `|` characters inside math (always use `\mid`, `\lvert`, `\rvert`, `\lVert`, `\rVert`). Keep single-line `$...$` free of unescaped newlines and verify every `$` / `$$` is closed.
+- Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and **every** `topics/<nn>-<subtopic-slug>.md` file, **no mathematical formula, equation, recurrence, objective/loss function, or complexity bound** may appear without **Layer 3 (Mathematical Intuition before formal notation)** and an immediate **Layer 4 Formula Anatomy Breakdown** following this exact structure.
+- **Zero Backtick-Wrapped Math:** **NEVER** wrap inline or display LaTeX delimiters in backticks anywhere—especially not inside Markdown table cells. Always write raw `$` / `$$` math delimiters directly without code ticks.
+- **Table-Safe LaTeX Delimiters & Escaping:** Inside Markdown table cells, **NEVER** use raw pipe `|` characters inside math (always use `\mid`, `\lvert`, `\rvert`, `\lVert`, `\rVert`). Keep single-line inline math free of unescaped newlines and verify every opening and closing math delimiter matches.
 - **Zero-Dead-Link Generation:** Only emit `[[wikilinks]]` or `[text](path.md)` links whose exact target file exists on disk (never link to hypothetical files or `[[none]]`).
 
 ```markdown
+- **Mathematical Intuition (Before Notation):** <1–3 sentences of plain-English geometric, scaling, or behavioral intuition explaining what the math is doing before showing formal symbols.>
+
 $$
 <Display LaTeX Equation>
 $$
-
-- **Plain-English Intuition:** <1–2 sentences explaining what the equation actually measures, balances, or optimizes.>
 
 | Symbol / Operator | Name & Exact Role in the Equation | Units / Domain / Shape | Directional Sensitivity |
 |---|---|---|---|
@@ -114,10 +114,11 @@ $$
   - As $<var> \to 0$: <Exact mathematical & physical/system behavior>.
   - As $<var> \to 1$ (if applicable): <Exact behavior>.
   - As $<var> \to \infty$: <Exact behavior / asymptote / saturation>.
-- **Worked Numerical Walkthrough:**
-  1. **Inputs:** <Concrete, realistic numbers with units/shapes>.
-  2. **Substitution:** <Plug numbers step-by-step into the equation>.
-  3. **Evaluation & Interpretation:** <Final number + what it means in plain English>.
+  - Negative / degenerate inputs (if applicable): <Exact failure or clamping behavior>.
+- **Concrete 3-Number Worked Trace (`I Do`):**
+  1. **Inputs (3 Concrete Numbers):** <3 specific, realistic numbers with units/shapes>.
+  2. **Step-by-Step Substitution:** <Plug the 3 numbers step-by-step into the equation, thinking aloud>.
+  3. **Evaluation & Plain-English Interpretation:** <Final number + what it means intuitively>.
 ```
 
 *Every single variable, subscript, superscript, constant, and mathematical operator ($\sum$, $\prod$, $\nabla$, $\log$, $\arg\max$, $\mathbb{E}$, norms, matrices, etc.) in the equation MUST have a row in the Component & Operator Breakdown Table.*
@@ -216,7 +217,14 @@ NN. [[topics/<nn>-<subtopic-slug>]] — <1-line summary>
 
 ## 6. Phase 4B: Dedicated Per-Subtopic Deep-Dive Files (`topics/<nn>-<subtopic-slug>.md`)
 
-For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a full-length, standalone Markdown file inside `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` numbered sequentially (`01-...`, `02-...`, etc.):
+For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a full-length, standalone Markdown file inside `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` numbered sequentially (`01-...`, `02-...`, etc.).
+
+**Mandatory 4-Layer Theory Presentation Standard (Concrete -> Representational -> Abstract):**
+Every subtopic file MUST present its core concept in this exact 4-layer sequence before moving to code examples, edge cases, and self-checks:
+1. **Layer 1 — Daily-Life Intuition:** Relatable everyday physical/human analogy + 1-line mental hook (written *before* introducing any technical jargon or math symbols).
+2. **Layer 2 — Theoretical Explanation:** Precise causal mechanism (`Inputs -> Transformation -> Outputs`), ASCII/Mermaid flow diagram, a **Contrastive Non-Example** ("What it is NOT" and why a lookalike fails), and an explicit **"Where the Analogy Breaks Down"** note.
+3. **Layer 3 — Mathematical Intuition:** Plain-English geometric, scaling, or behavioral explanation of what the math is doing *before* showing formal notation.
+4. **Layer 4 — Mathematical Explanation & Formula Anatomy:** Formal LaTeX equation in pure display math (zero backticks around math, `\mid` instead of `|` inside tables), complete Symbol/Operator Breakdown Table with directional sensitivity, boundary edge cases (`0`, `1`, `\infty`, negative/degenerate), and a concrete 3-number worked trace (`I Do`).
 
 ````markdown
 ---
@@ -230,25 +238,56 @@ parent: "[[03-CORNELL-STUDY-GUIDE]]"
 
 # <nn>. <Subtopic Title>
 
-## 1. Core Concept & Why It Exists
-<First-principles intuition, what bottleneck or problem this subtopic solves, **bolded canonical terms** from `04-GLOSSARY.md`, and inline [Source] citations.>
+## 1. Layer 1 — Daily-Life Intuition
+<Relatable, everyday physical or human analogy explaining why this mechanism exists—written BEFORE introducing any technical jargon or math symbols.>
 
-## 2. Internal Mechanics & Step-by-Step Walkthrough
-<Complete technical breakdown with zero hand-waving: exact data structures, state transitions, control flow, and invariants [Source].>
+- **1-Line Mental Hook:** <One crisp sentence locking in the core intuition.>
 
-## 3. Mathematical Formulations & Complete Formula Anatomy
-<Every formula, recurrence, objective/loss function, or complexity bound for this subtopic rendered in `$$...$$` and immediately followed by its full **Formula Anatomy Breakdown** (Plain-English Intuition, Component & Operator Breakdown Table for every symbol/operator, Boundary & Limiting Cases, and Worked Numerical Walkthrough). If a purely non-mathematical subtopic has no equations, explicitly note "No formal equations govern this mechanism" and provide exact complexity/capacity bounds with full breakdown if applicable.>
+## 2. Layer 2 — Theoretical Explanation
+- **Causal Mechanism (Inputs → Transformation → Outputs):** <Precise step-by-step mechanics with zero hand-waving: exact inputs, state transitions/transformations, invariants, and outputs using **bolded canonical terms** from `04-GLOSSARY.md` and inline [Source] citations.>
 
-## 4. Worked Examples / Annotated Code
+```text
+<Clean ASCII or Mermaid flow diagram showing Inputs -> Transformation -> Outputs>
+```
+
+- **Contrastive Non-Example ("What it is NOT"):** <Describe a common lookalike or naive alternative and explain specifically why it fails or behaves differently [Source].>
+- **Where the Analogy Breaks Down:** <Explicit boundary explaining where Layer 1's everyday analogy diverges from the true formal mechanism.>
+
+## 3. Layer 3 — Mathematical Intuition
+<Plain-English geometric, scaling, or behavioral explanation of what the math is doing—how terms compete, grow, normalize, or project—written BEFORE showing formal equations or notation.>
+
+## 4. Layer 4 — Mathematical Explanation & Formula Anatomy
+<Every formal equation, recurrence, objective/loss function, or complexity bound for this subtopic rendered in pure display LaTeX (zero backticks, `\mid` / `\lvert` / `\rvert` inside tables) and immediately followed by its full Formula Anatomy Breakdown. If a purely non-mathematical subtopic has no formal equations, explicitly state "No formal equations govern this mechanism" and provide exact complexity/capacity bounds or invariant inequalities with full breakdown.>
+
+$$
+<Display LaTeX Equation>
+$$
+
+| Symbol / Operator | Name & Exact Role in the Equation | Units / Domain / Shape | Directional Sensitivity |
+|---|---|---|---|
+| $x$ | <Name & exact role> | <Units / domain / shape> | <Effect on output when $x$ increases or decreases> |
+| ... | ... | ... | ... |
+
+- **Boundary Edge Cases:**
+  - Input $= 0$: <Exact behavior>.
+  - Input $= 1$ (if applicable): <Exact behavior>.
+  - Input $\to \infty$: <Exact limiting behavior>.
+  - Negative / degenerate inputs (if applicable): <Exact behavior>.
+- **Concrete 3-Number Worked Trace (`I Do`):**
+  1. **Inputs (3 Concrete Numbers):** <3 specific, realistic numbers with units/shapes>.
+  2. **Step-by-Step Substitution:** <Plug the 3 numbers step-by-step into the equation>.
+  3. **Evaluation & Plain-English Interpretation:** <Final value + plain-English meaning>.
+
+## 5. Worked Examples / Annotated Code
 ```<language>
 // Realistic, end-to-end annotated example (never foo/bar placeholders)
 ```
 
-## 5. Edge Cases, Failure Modes & Trade-offs
+## 6. Edge Cases, Failure Modes & Trade-offs
 - **Edge Case / Failure Mode 1:** <Trigger, blast radius, and mitigation> [Source].
 - **Trade-offs:** <What this design optimizes for vs. what it sacrifices>.
 
-## 6. Subtopic Self-Check Questions
+## 7. Subtopic Self-Check Questions
 - **Question 1:** <Diagnostic, mechanism-tracing, or failure-prediction question?>
   <details><summary>Reveal Answer</summary>
   <Complete answer grounded in first principles and primary sources.>
