@@ -62,20 +62,20 @@ For any `<topic>`, create and maintain this exact directory tree at `~/notes/<to
 
 ## Subcommand Router
 
-Route any subcommand invocation directly to its dedicated workflow in `references/SUBCOMMANDS.md` without rebuilding the entire vault from scratch:
+Route any subcommand invocation (both top-level `/teachme-<subcommand>` wrapper skills and space-separated `/teachme <subcommand>` aliases) directly to its dedicated workflow in `references/SUBCOMMANDS.md` without rebuilding the entire vault from scratch:
 
-| Invocation | Mode | Target Path |
+| Autocomplete Command & Space-Separated Alias | Mode | Target Path |
 |---|---|---|
 | `/teachme <topic>` | **Full Pipeline** | `~/notes/<topic-slug>/` (Runs Phases 1–6, starting with Frontier Grilling) |
 | `/teachme <topic> --auto` | **Fast-Track Pipeline** | `~/notes/<topic-slug>/` (Skips Phase 1 grilling with defaults; runs Phases 2–6) |
-| `/teachme ingest <path-or-url> into <topic>` | **Source Ingestion & Merge** | `~/notes/<topic-slug>/` |
-| `/teachme distill <topic>` | **Executive Cheat Sheet** | `~/notes/<topic-slug>/09-CHEAT-SHEET.md` |
-| `/teachme review <topic>` | **Spaced-Repetition Quiz** | `~/notes/<topic-slug>/` |
-| `/teachme feynman <topic> [subtopic]` | **Reverse-Teaching Audit** | `~/notes/<topic-slug>/` |
-| `/teachme drill <topic> [--tier 1\|2\|3]` | **Problem Generator & Grader** | `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md` |
-| `/teachme compare <topic-a> vs <topic-b>` | **Cross-Vault Synthesis** | `~/notes/comparisons/<a-vs-b>.md` |
-| `/teachme expand <topic>` | **Vault Expansion & Deepening** | `~/notes/<topic-slug>/` |
-| `/teachme verify <topic>` *(alias: `audit`)* | **Vault Integrity & Auto-Repair** | `~/notes/<topic-slug>/` |
+| `/teachme-expand <topic>` \| `/teachme expand <topic>` | **Vault Expansion & Deepening** | `~/notes/<topic-slug>/` |
+| `/teachme-verify <topic>` \| `/teachme verify <topic>` *(alias: `/teachme audit <topic>`)* | **Vault Integrity & Auto-Repair** | `~/notes/<topic-slug>/` |
+| `/teachme-ingest <topic> <source>` \| `/teachme ingest <topic> <source>` *(or `<source> into <topic>`)* | **Source Ingestion & Merge** | `~/notes/<topic-slug>/` |
+| `/teachme-distill <topic>` \| `/teachme distill <topic>` | **Executive Cheat Sheet & Flashcards** | `~/notes/<topic-slug>/09-CHEAT-SHEET.md` |
+| `/teachme-review <topic>` \| `/teachme review <topic>` | **Spaced-Repetition Coaching** | `~/notes/<topic-slug>/` |
+| `/teachme-feynman <concept>` \| `/teachme feynman <concept>` | **Reverse-Teaching Audit** | `~/notes/<topic-slug>/` |
+| `/teachme-drill <topic> [1\|2\|3]` \| `/teachme drill <topic> [1\|2\|3]` *(or `--tier 1\|2\|3`)* | **Problem Generator & Grader** | `~/notes/<topic-slug>/07-PRACTICE-PROBLEMS.md` |
+| `/teachme-compare <A> vs <B>` \| `/teachme compare <A> vs <B>` | **Cross-Vault Synthesis** | `~/notes/comparisons/<a-vs-b>.md` |
 
 ---
 
