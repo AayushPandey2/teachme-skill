@@ -1,83 +1,55 @@
-# Phase 6 Reference: Teach-Before-Test Socratic Loop, Learning Records & `wait-what`
+# Phase 6: Live Socratic Coaching, Pacing & Learning Records
 
----
+Formatting and CLI laws live in `SKILL.md §B–§C` only.
 
-## 1. Mandatory Teach-Before-Test Rule
+## §1. Per-Turn Context Protocol
+1. **One call per turn:** `vault_cli.py context <vault> --topic <nn>` returns state, the node, the stage-appropriate slice (`[1/4]`→`L1`/`L2`, `[2/4]`→`L3`/`L4`, `[3/4]`–`[4/4]`→`L5`), and 1-hop `L0-L1` anchors. Override with `--section` only when needed.
+2. **Question queue:** at lesson start write `scratchpad/queue-<nn>.json` (`{"topic":"<nn>","cp":{"1":"…","2":"…","3":"…","4":"…"}}`); later turns read only the queue (returned by `context`).
+3. **Delta logging:** `[1/4]`–`[3/4]` → `vault_cli.py tick` only. Full Markdown writes happen once, on `[4/4]`, via `tick --cp 4 --status pass` + `flush`.
+4. **After the initial vault build:** give a `<250`-word overview of `00-SESSION-STATE.md`, `00-GRAPH.json`, `00-MOC-INDEX.md`, and `topics/`.
+5. **Interleaved recall:** at Lessons 3, 5, 7, … open with ONE warm-up blending a prior lesson's `L0-L1` anchor with today's topic.
 
-**Non-Negotiable Rule:** Never cold-quiz the user on a topic or subtopic you have not explained in chat first.
+## §2. Strict ONE-Question-Per-Turn Law & 4-Turn Pacing
+**Never** ask multiple questions in one turn. Every turn ends with exactly ONE focused question; wait for the reply before advancing.
 
-### Execution Sequence Before Question 1 (and Before Any New Subtopic)
-1. **Vault Summary:** After generating the vault files at `~/notes/<topic-slug>/`, provide a crisp executive overview (<250 words) and list the generated files (highlighting `00-MOC-INDEX.md`).
-2. **Teach Subtopic 1 in Full Detail First:** Before asking Question 1, deliver a comprehensive, crystal-clear lesson on Subtopic 1 directly in chat:
-   - Explain the core concept, intuition, and step-by-step mechanics in plain English.
-   - Present **every mathematical formula** belonging to that subtopic in LaTeX (`$$...$$`) and immediately provide a complete **Component & Symbol Breakdown** explaining what **every single variable, subscript, superscript, constant, and mathematical operator** means, its units/domain, how increasing or decreasing it affects the output, and a concrete numerical walkthrough.
-3. **Ask Question 1:** Only after completing this detailed explanation, present Question 1.
-4. **Repeat Per Subtopic:** Apply this exact same **Teach-Before-Test** pattern whenever advancing to subsequent subtopics during the Socratic loop.
+| Turn | Stage | Content | Ends With |
+|---|---|---|---|
+| 1 | `1/3` Intuition | Banner + progress strip; 3–4 sentence everyday hook + 4–6 line ASCII diagram. **Zero Greek letters, set notation, or equations**; don't spoil the rule. | `[1/4]` Pre-Rule Discovery prediction |
+| 2 | `2/3` Building Blocks | Validate `[1/4]` (Anti-Spoiler if wrong); introduce 2–3 symbols with 2-number examples; `$$…$$` equation + symbol table + zero-skip `I Do` trace. | `[2/4]` `We Do` faded boundary problem (`[Step 2: ___]`) |
+| 3 | `3/3` Solo | Brief feedback only. | `[3/4]` `You Do` fresh unscaffolded drill |
+| 4 | `3/3` Mastery Gate | Brief feedback only. | `[4/4]` adversarial edge case + 2-sentence jargon-free Feynman summary |
 
----
+- **Banner:** `Lesson X/Y: <Title> | Stage k/3 | Vault: topics/<nn>-<slug>.md`
+- **Progress strip:** `Path: [1/4] Discovery → [2/4] We Do → [3/4] You Do → [4/4] Edge-Case & Feynman`
+- **Chat headings:** `### The Problem & Real-World Hook` (T1), `### Building Blocks (From Scratch)` + `### Formal Equation & Worked Example (I Do)` (T2), and `### Checkpoint [k/4] — <Name>` closing every turn.
+- **On passing `[4/4]`:** `tick --cp 4 --status pass --note "<invariant>"` → `flush --topic <nn> --note "<invariant>"` → log struggles in `learning-records/` → every 3 mastered subtopics append a 5-line Cumulative Synthesis Strip to `00-MOC-INDEX.md` and roll formulas into `09-CHEAT-SHEET.md` → advance to Lesson X+1.
 
-## 2. Baseline-Calibrated Socratic Grilling (Beginner-Safe Question 1)
+## §3. Anti-Spoiler Micro-Hint Rule
+On `idk`, `explain`, `not sure`, or any error at any checkpoint:
+1. Never reveal the answer or the general rule.
+2. Credit the sound part of their reasoning; pinpoint the exact divergent step.
+3. Drop one rung: ask ONE tiny 1-number micro-question so they discover that step.
+4. Confirm the rule only after they solve it, then resume the active checkpoint.
 
-Calibrate Question 1 strictly to the `Prior Knowledge Baseline` recorded in `00-MISSION.md`:
+## §4. Baseline Calibration (from `00-MISSION.md`)
+- **No prior knowledge / Beginner:** Turn 1 strictly symbol-free; small clean scalars in Turn 2's examples, `I Do`, and `We Do`.
+- **Intermediate / Advanced:** same 4-turn shape and ONE-question law; deeper scenarios and harsher Turn 4 limits.
 
-- **For `No prior knowledge (Zero-baseline first principles)` / `Beginner` baselines:**
-  - *Mandatory Rule:* Automatically start Question 1 with a concrete **1-number scalar trace** (plugging 1 simple number into the mechanism or formula to see what comes out) **after** explaining Subtopic 1 in full detail, before introducing 2D geometry, vectors/matrices, or multi-variable edge cases.
-  - Only escalate to 2D geometry or multi-feature interactions in Question 2+ once the 1-number trace succeeds.
-- **For `Intermediate` / `Advanced` baselines:**
-  - Start Question 1 with a targeted diagnostic, invariant check, or failure-mode prediction scenario.
+## §5. `wait what` / `simplify` / `I'm lost` Escape Hatch
+Pause the checkpoint → diagnose the abstraction jump → re-explain from zero with glossary terms + a 1-number scalar trace → append the better analogy to `05-MENTAL-MODELS.md` → resume at the exact `Lesson X/Y — Checkpoint [k/4]`.
 
-### Pedagogical Rules (Storage Strength vs. Retrieval Fluency)
-- **Test Storage, Not Recognition:** Never ask `"Do you understand X?"` or simple definition lookups. Ask trace, diagnostic, transfer, or failure-prediction questions.
-- **One Question at a Time:** Wait for the user's response before moving on.
-- **Evaluate & Calibrate:**
-  - Identify what the user nailed accurately.
-  - Pinpoint any subtle misconception or missing invariant without lecturing.
-  - Adjust difficulty dynamically (step up to edge cases if they ace it; scaffold down to a simpler 1-number trace if they struggle).
-  - When a subtopic is mastered, check it off (`- [x]`) in `~/notes/<topic-slug>/00-MOC-INDEX.md`.
-
----
-
-## 3. Inline `wait-what` Protocol
-
-If at any point the user replies with **`wait what`**, **`/wait-what`**, **`I'm lost`**, or **`simplify`**:
-1. **Pause the grill immediately**—do not judge or test them.
-2. **Diagnose the Jargon/Abstraction Jump:** Identify the exact concept or unstated assumption that caused friction.
-3. **Re-Pitch in Plain English:** Explain the concept from scratch using:
-   - Strictly canonical terms defined in `04-GLOSSARY.md` (defining any new word inline).
-   - A concrete **1-number scalar trace** or simpler step-by-step mental model.
-4. **Update the Vault:** Append the clearer explanation or analogy to `~/notes/<topic-slug>/05-MENTAL-MODELS.md` so the permanent notes improve alongside the user's understanding.
-5. **Resume Gently:** Check that the re-pitch clicks before asking a lighter verification question.
-
----
-
-## 4. ADR-Style Learning Records (`learning-records/000N-<slug>.md`)
-
-Maintain a chronological log of breakthroughs, corrected misconceptions, and mission changes inside `~/notes/<topic-slug>/learning-records/` (numbered `0001-<slug>.md`, `0002-<slug>.md`, etc.). Never delete old records; if a later insight supersedes an earlier understanding or goal, mark the old record `Status: superseded by LR-000N`.
-
-### Template: `~/notes/<topic-slug>/learning-records/0001-<slug>.md`
+## §6. Learning Records & Note Enrichment
+- Log struggles, corrected misconceptions, breakthroughs, and mission shifts in `learning-records/000N-<slug>.md`. Never delete; mark old ones `Status: superseded by LR-000N`.
 
 ```markdown
-# LR-0001: <Short Title of Breakthrough, Misconception Fix, or Mission Shift>
-
-- **Date:** <YYYY-MM-DD>
-- **Status:** active
-- **Milestone:** <Milestone # from 00-MISSION.md>
-
+# LR-0001: <Short Title>
+- **Date:** <YYYY-MM-DD> | **Status:** active | **Lesson:** <X/Y>
 ## Context
-<What question, scenario, or confusion triggered this learning moment.>
-
-## Insight / Mastery Demonstrated
-<What was clarified, proven, or decided—using canonical terms from 04-GLOSSARY.md.>
-
-## Vault Updates Made
-- Updated `<filename>` with <specific addition or correction>.
+<Checkpoint, micro-step, or misconception that triggered this.>
+## Insight
+<What was clarified, in canonical glossary terms.>
+## Vault Updates
+- Updated `<file>` with <addition>.
 ```
 
----
-
-## 5. Continuous Note Enrichment
-
-Whenever the user shares a new insight, real-world war story, voice transcript, or sharp follow-up question during Phase 6:
-- Cleanly format and append it under `## Living Session Notes & Insights` in `~/notes/<topic-slug>/03-CORNELL-STUDY-GUIDE.md`.
-- If it introduces a new core term, add a 1-2 sentence entry to `~/notes/<topic-slug>/04-GLOSSARY.md`.
-- Confirm briefly in chat what was persisted to the vault.
+- Append user insights under `## Living Session Notes & Insights` in `03-CORNELL-STUDY-GUIDE.md` and new canonical terms to `04-GLOSSARY.md`; confirm briefly in chat.

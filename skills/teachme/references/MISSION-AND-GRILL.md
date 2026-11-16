@@ -1,74 +1,72 @@
-# Phase 1 Reference: Frontier Grilling & Mission Lock
+# Phases 1–3: Frontier Grilling, Research Workflow & Vault Scaffold
 
-## 1. Dependency-Tree Frontier Grilling Protocol
+Formatting, linking, and CLI laws live in `SKILL.md §B–§C` only.
 
-Never dump a 10-question form on the user, and never ask questions you can answer yourself via research.
-
-### Step A: Separate Facts from Decisions
-- **Facts (Agent Responsibility):** Technical specs, history, benchmarks, standard architectures, best practices. *Never ask the user about facts—research them in Phase 2.*
-- **Decisions & Context (User Responsibility):**
-  1. **Prior Knowledge & Prerequisites:** Baseline in `<topic>` (defaulting to **No prior knowledge** / zero-baseline first principles).
-  2. **Depth & Syllabus Coverage:** Thoroughness level (defaulting to **Absolute mastery covering all topics** / zero-omission syllabus).
-  3. **Concrete Mastery Goal:** What "done" looks like (defaulting to **Complete first-principles mastery**).
-  4. **Seed Notes or Custom Scope Boundaries:** Any syllabus, textbook, lecture notes, or exclusions to anchor on (defaulting to **None**).
-
-### Step B: Present Only the Unblocked Frontier
-Ask these **4 numbered questions** in a single clean turn. Format every question with `❓` and provide the primary recommended default prefixed with `➡️ Default:`:
+## Phase 1 — Frontier Grilling & Mission Lock
+- **Facts are yours, decisions are the user's.** Never ask about specs, history, or benchmarks — research them in Phase 2. Never dump a long form.
+- Unless `--auto` / `defaults` / `go` was passed, ask exactly these 4 questions in ONE turn and wait:
 
 ```markdown
-Before I launch primary-source research and build your vault at `~/notes/<topic-slug>/`, let's lock the mission (reply with numbers, e.g. `1 working familiarity, 2 defaults`, or type `defaults` / `go`):
+Before I research and build your vault at `<VAULT_ROOT>/<topic-slug>/`, let's lock the mission (reply e.g. `1 working familiarity, 2 defaults`, or `defaults` / `go`):
 
-1. ❓ **1. Prior Knowledge & Prerequisites:** How much background do you already have in `<topic>`?
-   ➡️ *Default:* **No prior knowledge** *(Build from absolute zero and first principles; explain every prerequisite, symbol, and term from scratch).*
-   *Alternatives:* Basic intuition only | Working familiarity | Advanced (skip fundamentals).
-
-2. ❓ **2. Depth & Syllabus Coverage:** How thoroughly should we cover the subject?
-   ➡️ *Default:* **Absolute mastery covering all topics** *(Zero-omission syllabus decomposition—every subtopic gets its own dedicated `.md` file, full step-by-step axiom derivations, and symbol-by-symbol formula anatomy).*
-   *Alternatives:* Core fundamentals only | Exam / interview prep | Practical implementation focus.
-
-3. ❓ **3. Concrete Mastery Goal:** What outcome defines success for you?
-   ➡️ *Default:* **Complete first-principles mastery** *(Able to derive every formula without faith, explain every concept in plain English without jargon, and solve Tier 3 edge-case drills).*
-
-4. ❓ **4. Seed Notes or Custom Scope Boundaries (Optional):** Any specific syllabus, textbook, lecture notes, or exclusions to anchor on?
-   ➡️ *Default:* **None** *(Full unrestricted syllabus anchored on canonical primary sources).*
+1. ❓ **Prior Knowledge:** How much background do you have in `<topic>`?
+   ➡️ *Default:* **No prior knowledge** *(build from absolute zero; define every symbol and term).*
+   *Alternatives:* Basic intuition | Working familiarity | Advanced (skip fundamentals).
+2. ❓ **Depth & Coverage:** How thoroughly should we cover it?
+   ➡️ *Default:* **Absolute mastery covering all topics** *(zero-omission syllabus, one file per subtopic, full derivations).*
+   *Alternatives:* Core fundamentals | Exam / interview prep | Practical implementation.
+3. ❓ **Mastery Goal:** What defines success?
+   ➡️ *Default:* **Complete first-principles mastery** *(derive every formula, explain without jargon, solve Tier 3 drills).*
+4. ❓ **Seed Notes / Scope (Optional):** Any syllabus, textbook, notes, or exclusions?
+   ➡️ *Default:* **None** *(full syllabus anchored on canonical primary sources).*
 ```
 
----
-
-## 2. Mission Lock (`00-MISSION.md`)
-
-Once the user answers (or selects `defaults`, `go`, or `--auto`), create `~/notes/<topic-slug>/00-MISSION.md` using this exact structure. Whenever defaults are chosen, write the exact baseline and coverage lines below so Phase 6 automatically calibrates Question 1 to a beginner-safe 1-number scalar trace:
-
-### Template: `~/notes/<topic-slug>/00-MISSION.md`
+Write `00-MISSION.md` (record defaults verbatim so Phase 6 calibrates Turn 1 to a beginner-safe scalar trace):
 
 ```markdown
 # Mission: <Topic Title>
 
-- **Vault Path:** `~/notes/<topic-slug>/`
-- **Created:** <YYYY-MM-DD>
+- **Vault Path:** `<VAULT_ROOT>/<topic-slug>/` | **Created:** <YYYY-MM-DD> | **Status:** Active
 - **Prior Knowledge Baseline:** No prior knowledge (Zero-baseline first principles)
 - **Coverage & Depth Mode:** Absolute mastery covering all topics (Zero-omission syllabus)
-- **Status:** Active
 
 ## 1. Target Outcome
-Complete first-principles mastery of `<Topic Title>`: able to derive every formula without faith, explain every concept in plain English without jargon, and solve Tier 3 edge-case drills. *(Or custom outcome if specified by the user.)*
+<Complete first-principles mastery of <Topic>, or the user's custom outcome.>
 
-## 2. Success Criteria (Observable Proof of Mastery)
+## 2. Success Criteria
 - [ ] Explain every core mechanism from first principles without jargon.
 - [ ] Derive every governing equation step-by-step from base axioms.
-- [ ] Compare `<topic>` against its top 2–3 alternatives across complexity, trade-offs, and failure modes.
-- [ ] Diagnose and resolve Tier 3 edge cases, boundary limits, and failure scenarios.
+- [ ] Compare against the top 2–3 alternatives (complexity, trade-offs, failure modes).
+- [ ] Diagnose Tier 3 edge cases and boundary failures.
 
 ## 3. Curriculum Milestones
-1. **Milestone 1:** <Prerequisites, Origin & Core Mental Model>
-2. **Milestone 2:** <Internal Architecture & Step-by-Step Mechanics>
-3. **Milestone 3:** <Mathematical Derivations, Trade-offs & Edge Cases>
-4. **Milestone 4:** <Comparative Landscape & Applied Mastery>
+1. <Prerequisites, Origin & Core Mental Model> 2. <Internal Mechanics> 3. <Derivations, Trade-offs & Edge Cases> 4. <Comparative Landscape & Applied Mastery>
 
-## 4. Explicit Scope Boundaries
-- **In Scope:** Full unrestricted syllabus anchored on canonical primary sources (zero-omission coverage). *(Or custom scope if specified.)*
-- **Out of Scope:** None—all subtopics covered. *(Or explicit exclusions if specified.)*
+## 4. Scope Boundaries
+- **In Scope:** <Full syllabus or custom scope> | **Out of Scope:** <None or exclusions>
 
-## 5. User Seed Questions & Raw Inputs
-- <List any specific syllabus, textbook, lecture notes, or questions provided by the user, or "None provided.">
+## 5. User Seed Inputs
+- <Syllabus / textbook / questions provided, or "None provided.">
 ```
+
+## Phase 2 — Primary-Source Research
+1. Load `references/RESEARCH-TOOLCHAIN.md` (retrieval rules + `01-RESOURCES.md` / `02-DEEP-RESEARCH.md` templates).
+2. Write a falsifiable Research Brief (4–6 questions tied to mission milestones).
+3. Decompose the topic into an **exhaustive numbered syllabus** (`01`…`NN`) in topological prerequisite order — every subtopic becomes one `topics/<nn>-<slug>.md`.
+4. Keep raw notes in `scratchpad/raw-research.md`; write `01-RESOURCES.md` then `02-DEEP-RESEARCH.md`.
+
+## Phase 3 — Deterministic Vault Scaffold (Zero LLM Boilerplate)
+Save the syllabus as `scratchpad/subtopics.json`, then run `vault_cli.py init`:
+
+```json
+[
+  {"slug": "01-<slug>", "title": "<Title>", "depends_on": [], "contrasts_with": []},
+  {"slug": "02-<slug>", "title": "<Title>", "depends_on": ["topic-01"], "contrasts_with": []}
+]
+```
+
+```bash
+python vault_cli.py init "<VAULT_ROOT>/<topic-slug>" --topic "<Topic Title>" --subtopics "<VAULT_ROOT>/<topic-slug>/scratchpad/subtopics.json"
+```
+
+This creates `topics/`, `atomic/`, `learning-records/`, `scratchpad/`, `00-SESSION-STATE.md` (`<60` lines), `00-MOC-INDEX.md`, `00-GRAPH.json`, and YAML-valid topic stubs (existing files are never overwritten). Then continue with Phase 4 (`references/STUDY-AND-GLOSSARY.md`).
