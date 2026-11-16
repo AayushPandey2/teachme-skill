@@ -1,0 +1,130 @@
+# `/teachme` — Primary-Source Research & Mastery Agent Skill
+
+An AI agent skill (`/teachme`) that deeply researches any topic from primary sources, builds a complete, interlinked Obsidian/Markdown study vault at `~/notes/<topic-slug>/`, and teaches it to you step by step from first principles.
+
+Works out of the box with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
+
+## Why `/teachme`?
+
+Standard LLM explanations dump a wall of text you forget five minutes later. `/teachme` acts as an end-to-end learning OS:
+
+1. **Zero-Baseline & Absolute Mastery Defaults:** Starts every new session with 4 calibrated `❓` questions defaulting to **No prior knowledge** (build from absolute zero) and **Absolute mastery covering all topics** (zero-omission syllabus decomposition)—or jump straight in with `--auto`.
+
+2. **Primary-Source Research Toolchain:** Separates vetted **Knowledge** (RFCs, papers, official docs, textbooks) from practitioner **Wisdom** (post-mortems, talks, benchmarks) and logs unresolved gaps explicitly.
+
+3. **Zero-Omission Subtopic Files:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—no arbitrary caps or skipped sections.
+
+4. **Complete Formula Anatomy & Clean LaTeX Hygiene:** Every equation is broken down symbol-by-symbol (variables, subscripts, operators, units/domain, directional sensitivity, edge cases, and a worked numerical walkthrough) alongside step-by-step derivations from axioms—rendered with clean, table-safe MathJax/KaTeX delimiters and zero broken backtick formatting.
+
+5. **Obsidian-Ready Central Vault:** Outputs a Master Map of Content (`00-MOC-INDEX.md` with Mermaid + ASCII dependency graphs), Cornell study notes, atomic Zettelkasten cards (`atomic/`), graded practice problems, spaced-repetition flashcards (`08-FLASHCARDS.md`), and ADR-style `learning-records/`.
+
+6. **Teach-Before-Test Socratic Loop:** Explains each subtopic thoroughly in chat (including every formula component) before quizzing you, starts 0-knowledge beginners with a concrete 1-number scalar trace, and includes an inline `wait what` / `simplify` escape hatch.
+
+## Generated Vault Architecture
+
+Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside `~/notes/<topic-slug>/`:
+
+```
+~/notes/<topic-slug>/
+├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid + ASCII dependency graph & checkboxes
+├── 00-MISSION.md                  # Target outcome, baseline (0 prior knowledge), scope & success criteria
+├── 01-RESOURCES.md                # Primary sources (Knowledge), practitioner signal (Wisdom) & Gaps
+├── 02-DEEP-RESEARCH.md            # Primary-source cited research dossier with full formula anatomy
+├── 03-CORNELL-STUDY-GUIDE.md      # Master synthesis notes & <details> active-recall cues
+├── 04-GLOSSARY.md                 # Crisp 1–2 sentence definitions + "_Avoid_:" aliases
+├── 05-MENTAL-MODELS.md            # Feynman analogies, first-principles axioms & failure pre-mortems
+├── 06-DERIVATIONS-AND-PROOFS.md   # Step-by-step algebraic & logical derivations from base axioms
+├── 07-PRACTICE-PROBLEMS.md        # Graded Tier 1–3 problems with hidden step-by-step solutions
+├── 08-FLASHCARDS.md               # Obsidian Spaced Repetition / Anki-ready Q&A & cloze cards
+├── 09-CHEAT-SHEET.md              # Single-page executive cheat sheet (generated via /teachme distill)
+├── topics/                        # Dedicated deep-dive .md file for EVERY subtopic
+├── atomic/                        # Interlinked evergreen Zettelkasten cards ([[wikilinks]])
+└── learning-records/              # ADR-style chronological mastery & misconception logs
+```
+
+## Installation
+
+Clone this repository and copy `skills/teachme/` into your AI tool's skills directory (and create your central `~/notes` vault folder):
+
+```bash
+git clone https://github.com/AayushPandey2/teachme-skill.git
+cd teachme-skill
+mkdir -p ~/notes
+```
+
+### Copy by Agent
+
+| Agent / Tool | Global Skills Path | Project-Local Path |
+| :--- | :--- | :--- |
+| **Claude Code** | `~/.claude/skills/teachme/` | `.claude/skills/teachme/` |
+| **Cursor** | `~/.cursor/skills/teachme/` | `.cursor/skills/teachme/` |
+| **Antigravity** | `~/.gemini/antigravity/skills/teachme/` | `.agent/skills/teachme/` |
+| **Gemini CLI** | `~/.gemini/skills/teachme/` | `.gemini/skills/teachme/` |
+| **Windsurf** | `~/.codeium/windsurf/skills/teachme/` | `.windsurf/skills/teachme/` |
+| **Cline** | `~/.cline/skills/teachme/` | `.cline/skills/teachme/` |
+| **Codex / Generic** | `~/.agents/skills/teachme/` | `.agents/skills/teachme/` |
+
+Quick copy commands:
+
+```bash
+# Claude Code
+mkdir -p ~/.claude/skills/teachme && cp -r skills/teachme/* ~/.claude/skills/teachme/
+
+# Cursor
+mkdir -p ~/.cursor/skills/teachme && cp -r skills/teachme/* ~/.cursor/skills/teachme/
+
+# Antigravity
+mkdir -p ~/.gemini/antigravity/skills/teachme && cp -r skills/teachme/* ~/.gemini/antigravity/skills/teachme/
+```
+
+## Commands & Lifecycle Workflows
+
+Open a new session in your agent and invoke `/teachme`:
+
+### Core Learning & Vault Creation
+
+| Command | What It Does |
+| :--- | :--- |
+| `/teachme <topic>` | Starts Phase 1 Frontier Grilling (defaulting to **No prior knowledge** + **Absolute mastery covering all topics**), builds the full vault at `~/notes/<topic-slug>/`, teaches Subtopic 1 in full detail, and starts with a 1-number trace quiz. |
+| `/teachme <topic> --auto` | Skips Phase 1 grilling using the **No prior knowledge + Absolute mastery** defaults and builds the complete vault immediately. |
+| `wait what` / `simplify` | Pauses quizzing during Phase 6, re-explains the sticking point from scratch using a concrete 1-number trace, and saves the clearer analogy to `05-MENTAL-MODELS.md`. |
+
+### Vault Expansion, Verification & Retention Subcommands
+
+| Command | What It Does |
+| :--- | :--- |
+| `/teachme expand <topic>` | Scans an existing vault for shallow files or missing related subtopics, enriches pre-existing notes with deeper mechanics & derivations, creates `.md` files for all missing topics, and updates `00-MOC-INDEX.md` graphs while preserving existing progress. |
+| `/teachme verify <topic>` | Runs a multi-pass integrity sweep across every `.md` file in the vault to detect and auto-repair broken `[[wikilinks]]`, orphaned files, malformed or backtick-wrapped LaTeX formulas, table-breaking pipes, and missing Formula Anatomy blocks. *(Alias: `/teachme audit <topic>`)* |
+| `/teachme ingest <path-or-url> into <topic>` | Parses a PDF, paper, YouTube transcript, GitHub repo, or raw notes; extracts new claims & formulas with inline citations; updates `topics/` & `00-MOC-INDEX.md`; and flags contradictions against existing notes. |
+| `/teachme distill <topic>` | Compresses an entire multi-file vault into a single-page executive cheat sheet (`09-CHEAT-SHEET.md`) with core invariants, critical formulas, and failure modes. |
+| `/teachme review <topic>` | Scans `00-MOC-INDEX.md` and `learning-records/` for unchecked subtopics or past misconceptions and runs a targeted spaced-repetition quiz without regenerating the vault. |
+| `/teachme feynman <topic> [subtopic]` | Flips the roles: asks *you* to explain a concept and its formulas in plain English, grades your explanation for hidden jargon or skipped steps, and logs progress to `learning-records/`. |
+| `/teachme drill <topic> [--tier 1|2|3]` | Generates targeted problem sets (Concept Check $\rightarrow$ Formula Application $\rightarrow$ Adversarial Edge Cases) and grades your step-by-step work. |
+| `/teachme compare <topic-a> vs <topic-b>` | Cross-reads two vaults (or researches a challenger), generates a side-by-side Trade-Off & Architecture Matrix at `~/notes/comparisons/<a-vs-b>.md`, and links both MOC indexes. |
+
+*(If your agent does not support `/slash` skill commands natively, prompt: `"Use the teachme skill to research and teach me <topic>."`)*
+
+## Repository Structure
+
+```
+teachme-skill/
+├── README.md
+├── LICENSE
+└── skills/
+    └── teachme/
+        ├── SKILL.md                       # Master router, operating laws & 6-phase state machine
+        └── references/
+            ├── MISSION-AND-GRILL.md       # Frontier grilling (0 prior knowledge + absolute mastery defaults)
+            ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
+            ├── STUDY-AND-GLOSSARY.md      # Formula anatomy, LaTeX hygiene, MOC index, derivations & flashcards
+            ├── RETENTION-AND-RECORDS.md   # Teach-before-test Socratic loop, wait-what & ADR learning records
+            └── SUBCOMMANDS.md             # Workflows for expand, verify, ingest, distill, review, feynman, drill & compare
+```
+
+## Acknowledgments
+
+Inspired by workflow patterns from [`mattpocock/skills`](https://github.com/mattpocock/skills), [`rohankgeorge/the-researcher`](https://github.com/rohankgeorge/the-researcher), and [`rohankgeorge/thinking-tools`](https://github.com/rohankgeorge/thinking-tools).
+
+## License
+
+MIT
