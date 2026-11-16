@@ -20,8 +20,14 @@ Link **every** `[[topics/<nn>-<subtopic-slug>]]` file, include Formula Anatomy B
 <Structured explanation using **bold** `04-GLOSSARY.md` terms + [Source] citations + Formula Anatomy.>
 
 ### Active-Recall Cue Questions
-- **Cue 1:** <Diagnostic/mechanism question?>
-  <details><summary>Reveal Answer</summary><Crisp answer.></details>
+#### Cue 1: <Diagnostic/mechanism question?>
+
+<details>
+<summary>Reveal Answer</summary>
+
+<Crisp answer with all math wrapped in `$...$`.>
+
+</details>
 
 ## Trade-Offs & Comparative Matrix
 | Criterion | <Topic> | <Alt A> | <Alt B> |
@@ -46,6 +52,8 @@ Use `scripts/vault_cli.py init <VAULT_PATH> --title "<Topic Title>" --topics <01
 ---
 
 ## 3. Phase 4D: Spaced-Repetition Deck (`08-FLASHCARDS.md`)
+
+Enforce the **Global Math Delimiter Law** (`100%` `$...$` / `$$...$$` coverage—never leave bare `\theta`, `\in`, `\to`, etc. on card fronts or backs) and the **Global `<details>` HTML Block Law** (if any card uses `<details>`, place it at column 0 with blank lines before `<details>`, after `</summary>`, and before `</details>`).
 
 ```markdown
 # Spaced-Repetition Flashcards: <Topic Title>

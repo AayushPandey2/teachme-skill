@@ -7,10 +7,11 @@
 Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and every `topics/<nn>-<subtopic-slug>.md`, **every** formula/recurrence/bound MUST include:
 1. **Zero-Baseline Micro-Bridge** for any new symbol (2–3 plain-English lines + 2-number example).
 2. **Mathematical Intuition (Before Symbols)** explaining geometry/scaling before formal notation.
-3. **Consistent `$inline$` & `$$display$$` LaTeX Hygiene:**
-   - Wrap **EVERY** mathematical variable, operator, or expression in prose, tables, and `<details>` blocks in `$...$` (e.g., `$x_i \in \{0, 1\}$`, `$\theta$`, `$\hat{y}$`).
-   - **Zero** bare LaTeX commands (`\theta`, `\sum`, `\hat`, `\mathbf`, etc.) outside `$...$`/`$$...$$`.
+3. **Consistent `$inline$` & `$$display$$` LaTeX Hygiene & `<details>` HTML Block Law:**
+   - Wrap **EVERY** mathematical variable, subscript/superscript (`$x_i$`, `$w_1$`), arrow (`$\to$`, `$\implies$`, `$\iff$`), set operator (`$\in$`, `$\mathbb{R}$`), or LaTeX macro (`$\theta$`, `$\sum$`, `$\hat{y}$`, `$\mathbf{w}$`, `$\le$`, `$\ge$`, `$\neq$`, `$\approx$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\lVert x \rVert$`, `$\operatorname{sign}$`) in prose, headings, lists, tables, and `<details>` blocks in `$...$` or `$$...$$`.
+   - **Zero** bare LaTeX commands (`\theta`, `\in`, `\to`, `\sum`, `\hat`, `\mathbf`, `\implies`, `\le`, `\ge`, `\frac`, `\sqrt`, `\lVert`, `\rVert`, etc.) outside `$...$`/`$$...$$`, code fences, or inline code.
    - **Zero** spaces before a closing `$` (never `= $`), **zero** backticks around `$`/`$$`, and always `\mid`/`\lvert`/`\rvert` instead of raw `|` inside Markdown tables.
+   - **Global `<details>` Block Law:** `<details>` and `</details>` MUST start at column 0 on their own line (never inline or nested inside `-` / `1.` list items), with a blank line before `<details>`, `<summary>...</summary>` on its own line immediately after `<details>`, a blank line after `</summary>`, and a blank line before `</details>`. Use `####` subheadings for drills/cues instead of list-nested `<details>`.
 4. **Symbol & Operator Table** covering every variable, subscript, superscript, constant, and operator.
 5. **Zero-Skip `I Do` Trace** + **Limiting Cases** (`$0$`, `$1$`, `$-1$`, `$\infty$`, degenerate).
 
@@ -126,19 +127,35 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
 
 ### `We Do` (Faded Multi-Step Boundary Problem)
 <Second problem testing a boundary condition or edge-case interaction—NOT trivial arithmetic identical to `I Do`—with ~60% shown and `[Step 2: ___]`, `[Step 4: ___]` missing.>
-<details><summary>Reveal Step-by-Step Solution</summary>
+
+<details>
+<summary>Reveal Step-by-Step Solution</summary>
+
 <Exact missing steps + final answer with clean `$...$` math.>
+
 </details>
 
 ### `You Do` (Two-Part Solo Mastery)
-- **Drill A — Reverse-Engineering / Design Problem:** <Design parameters/weights/thresholds to satisfy a specification.>
-  <details><summary>Reveal Step-by-Step Solution</summary>
-  <Complete design derivation + verification.>
-  </details>
-- **Drill B — Adversarial Edge-Case / Impossibility Proof:** <Prove or test a boundary failure / impossibility condition.>
-  <details><summary>Reveal Step-by-Step Solution</summary>
-  <Complete proof/analysis + 2-sentence Feynman check.>
-  </details>
+
+#### Drill A — Reverse-Engineering / Design Problem
+<Design parameters/weights/thresholds to satisfy a specification.>
+
+<details>
+<summary>Reveal Step-by-Step Solution</summary>
+
+<Complete design derivation + verification.>
+
+</details>
+
+#### Drill B — Adversarial Edge-Case / Impossibility Proof
+<Prove or test a boundary failure / impossibility condition.>
+
+<details>
+<summary>Reveal Step-by-Step Solution</summary>
+
+<Complete proof/analysis + 2-sentence Feynman check.>
+
+</details>
 
 ## 7. Common Traps, Primary Sources & Mastery Graph
 

@@ -740,9 +740,123 @@ def validate_yaml_frontmatter(
             )
 
 
-BARE_LATEX_CMD_RE = re.compile(
-    r"\\(?:theta|sum|hat|mathbf|frac|prod|nabla|partial|alpha|beta|gamma|sigma|lambda|vec|mathbb|infty|lvert|rvert|lVert|rVert)\b"
+BARE_LATEX_CMD_NAMES = (
+    r"theta|in|to|sum|hat|mathbf|implies|iff|le|ge|neq|approx|frac|sqrt|"
+    r"lVert|rVert|lvert|rvert|mathbb|text|operatorname|prod|nabla|partial|"
+    r"alpha|beta|gamma|sigma|lambda|vec|infty|cdot|times|leq|geq|mid|"
+    r"forall|exists|Delta|eta|mu|epsilon|varepsilon|mathcal|tilde"
 )
+
+BARE_LATEX_CMD_RE = re.compile(rf"\\(?:{BARE_LATEX_CMD_NAMES})\b")
+BARE_LATEX_EXPR_RE = re.compile(
+    rf"\\(?:{BARE_LATEX_CMD_NAMES})\b(?:\s*\{{[^{{}}]*\}})*(?:[_^](?:\{{[^{{}}]*\}}|[A-Za-z0-9]))*"
+)
+
+
+def scan_details_in_file(
+    rel_path: str, text: str, errors: list[dict[str, Any]]
+) -> None:
+    """Flag <details> / </details> blocks violating the Global <details> HTML Block Law."""
+    lines = text.lstrip("\ufeff").splitlines()
+    _, body_start = parse_frontmatter(text)
+    in_fence = False
+    fence_char = ""
+    open_details_line: int | None = None
+
+    for idx, raw_line in enumerate(lines, start=1):
+        if idx <= body_start:
+            continue
+        fm = FENCE_RE.match(raw_line)
+        if fm:
+            marker = fm.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+            elif marker[0] == fence_char:
+                in_fence = False
+            continue
+        if in_fence:
+            continue
+
+        # Ignore <details> / </details> inside inline code spans
+        no_code = re.sub(r"`[^`\r\n]*`", "", raw_line)
+        has_open = "<details>" in no_code
+        has_close = "</details>" in no_code
+        if not (has_open or has_close):
+            continue
+
+        stripped = raw_line.strip()
+        if has_open:
+            open_details_line = idx
+            if raw_line != stripped or stripped != "<details>":
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "details_block_format",
+                        "detail": "<details> must be alone at column 0 on its own line",
+                    }
+                )
+            elif idx > body_start + 1 and lines[idx - 2].strip() != "":
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "details_block_format",
+                        "detail": "Missing blank line immediately before <details>",
+                    }
+                )
+
+            # Check next line is <summary>...</summary> followed by a blank line
+            if idx >= len(lines) or not re.match(r"^<summary>.*</summary>$", lines[idx]):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "details_block_format",
+                        "detail": "<summary>...</summary> must be alone at column 0 immediately after <details>",
+                    }
+                )
+            elif idx + 1 >= len(lines) or lines[idx + 1].strip() != "":
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx + 1,
+                        "type": "details_block_format",
+                        "detail": "Missing blank line immediately after </summary>",
+                    }
+                )
+
+        if has_close:
+            open_details_line = None
+            if raw_line != stripped or stripped != "</details>":
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "details_block_format",
+                        "detail": "</details> must be alone at column 0 on its own line",
+                    }
+                )
+            elif idx > body_start + 1 and lines[idx - 2].strip() != "":
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": idx,
+                        "type": "details_block_format",
+                        "detail": "Missing blank line immediately before </details>",
+                    }
+                )
+
+    if open_details_line is not None:
+        errors.append(
+            {
+                "file": rel_path,
+                "line": open_details_line,
+                "type": "details_block_format",
+                "detail": "Unclosed <details> block",
+            }
+        )
 
 
 def scan_latex_in_file(
@@ -942,9 +1056,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
         text = text_cache[p]
         lines = text.splitlines()
 
-        # YAML frontmatter & LaTeX checks
+        # YAML frontmatter, LaTeX & <details> HTML block checks
         validate_yaml_frontmatter(rel_path, text, errors)
         scan_latex_in_file(rel_path, text, errors)
+        scan_details_in_file(rel_path, text, errors)
         # Check section markers for topics/*.md and atomic/*.md
         parts = p.relative_to(vault).parts
         if parts[0] in ("topics", "atomic"):
@@ -1195,6 +1310,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 )
 
     broken_yaml = sum(1 for e in errors if e["type"].startswith("yaml_"))
+    broken_details = sum(1 for e in errors if e["type"] == "details_block_format")
     broken_latex = sum(
         1
         for e in errors
@@ -1216,11 +1332,231 @@ def cmd_verify(args: argparse.Namespace) -> int:
             "broken_yaml": broken_yaml,
             "broken_links": broken_links,
             "broken_latex": broken_latex,
+            "broken_details": broken_details,
             "missing_sections": missing_sections,
             "orphans": orphans,
         },
     }
     print(dump_json(report))
+    return 0
+
+
+def _wrap_bare_latex_segment(seg: str) -> tuple[str, int]:
+    """Wrap unambiguous bare LaTeX tokens in $...$ within a plain-text segment."""
+    count = 0
+
+    def _repl(m: re.Match[str]) -> str:
+        nonlocal count
+        count += 1
+        return f"${m.group(0)}$"
+
+    updated = BARE_LATEX_EXPR_RE.sub(_repl, seg)
+    return updated, count
+
+
+def fix_bare_latex_in_text(text: str) -> tuple[str, int]:
+    """Wrap bare LaTeX commands outside $...$, $$...$$, code fences, and inline code."""
+    has_bom = text.startswith("\ufeff")
+    raw_lines = text.lstrip("\ufeff").splitlines()
+    _, body_start = parse_frontmatter(text)
+    in_fence = False
+    fence_char = ""
+    in_display_math = False
+    fixes = 0
+    out_lines: list[str] = []
+
+    token_re = re.compile(r"(`[^`\r\n]*`|\$\$|\$[^$\r\n]*\$)")
+
+    for idx, line in enumerate(raw_lines, start=1):
+        if idx <= body_start:
+            out_lines.append(line)
+            continue
+        fm = FENCE_RE.match(line)
+        if fm:
+            marker = fm.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+            elif marker[0] == fence_char:
+                in_fence = False
+            out_lines.append(line)
+            continue
+        if in_fence:
+            out_lines.append(line)
+            continue
+
+        no_code = re.sub(r"`[^`\r\n]*`", "", line)
+        dd_count = no_code.count("$$")
+        if dd_count % 2 == 1:
+            in_display_math = not in_display_math
+            out_lines.append(line)
+            continue
+        if in_display_math:
+            out_lines.append(line)
+            continue
+
+        parts = token_re.split(line)
+        new_parts: list[str] = []
+        for i, part in enumerate(parts):
+            if i % 2 == 1:
+                new_parts.append(part)
+            else:
+                fixed_part, n = _wrap_bare_latex_segment(part)
+                fixes += n
+                new_parts.append(fixed_part)
+        out_lines.append("".join(new_parts))
+
+    result = "\n".join(out_lines) + ("\n" if text.endswith("\n") else "")
+    return ("\ufeff" + result if has_bom else result), fixes
+
+
+def _ensure_blank_before(out: list[str]) -> None:
+    if out and out[-1].strip() != "":
+        out.append("")
+
+
+def fix_details_in_text(text: str) -> tuple[str, int]:
+    """Normalize <details> blocks to column 0 with required blank lines and clean bullets."""
+    has_bom = text.startswith("\ufeff")
+    raw_lines = text.lstrip("\ufeff").splitlines()
+    _, body_start = parse_frontmatter(text)
+    in_fence = False
+    fence_char = ""
+    in_details = False
+    fixes = 0
+    out: list[str] = []
+
+    for idx, line in enumerate(raw_lines, start=1):
+        if idx <= body_start:
+            out.append(line)
+            continue
+        fm = FENCE_RE.match(line)
+        if fm:
+            marker = fm.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+            elif marker[0] == fence_char:
+                in_fence = False
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+
+        no_code = re.sub(r"`[^`\r\n]*`", "", line)
+        if "<details>" in no_code:
+            before, after = line.split("<details>", 1)
+            if before.strip():
+                out.append(before.rstrip())
+                fixes += 1
+            elif line != line.lstrip():
+                fixes += 1
+
+            _ensure_blank_before(out)
+            out.append("<details>")
+            in_details = True
+
+            # Handle <summary>...</summary> on same line or remaining content
+            rem = after.strip()
+            sum_m = re.match(r"^<summary>(.*?)</summary>(.*)$", rem)
+            if sum_m:
+                out.append(f"<summary>{sum_m.group(1).strip()}</summary>")
+                out.append("")
+                tail = sum_m.group(2).strip()
+                if "</details>" in tail:
+                    inner, post = tail.split("</details>", 1)
+                    if inner.strip():
+                        out.append(inner.strip())
+                    out.append("")
+                    out.append("</details>")
+                    in_details = False
+                    if post.strip():
+                        out.append(post.strip())
+                    fixes += 1
+                elif tail:
+                    out.append(tail)
+                    fixes += 1
+            elif rem:
+                out.append(rem)
+                fixes += 1
+            continue
+
+        if in_details:
+            stripped = line.strip()
+            # Remove stray empty bullets left behind inside broken <details> blocks
+            if stripped in ("-", "*"):
+                fixes += 1
+                continue
+            if "</details>" in no_code:
+                before, after = line.split("</details>", 1)
+                if before.strip():
+                    out.append(before.strip())
+                    fixes += 1
+                _ensure_blank_before(out)
+                out.append("</details>")
+                in_details = False
+                if line != "</details>":
+                    fixes += 1
+                if after.strip():
+                    out.append(after.strip())
+                continue
+
+            # De-indent list-nested lines inside <details>
+            deindented = line.lstrip(" ") if line.startswith("  ") else line
+            if deindented != line:
+                fixes += 1
+            # Ensure blank line after standalone <summary>...</summary>
+            if re.match(r"^<summary>.*</summary>$", stripped):
+                out.append(stripped)
+                out.append("")
+                continue
+            # Avoid duplicate consecutive blank lines right after </summary>
+            if stripped == "" and out and out[-1] == "":
+                continue
+            out.append(deindented)
+            continue
+
+        out.append(line)
+
+    result = "\n".join(out) + ("\n" if text.endswith("\n") else "")
+    return ("\ufeff" + result if has_bom else result), fixes
+
+
+def cmd_fix(args: argparse.Namespace) -> int:
+    """Deterministically auto-repair <details> block formatting and bare LaTeX."""
+    vault = resolve_vault_path(args.vault_path)
+    all_md = [
+        p for p in sorted(vault.rglob("*.md"))
+        if "scratchpad" not in p.relative_to(vault).parts
+    ]
+
+    fixed_files: list[str] = []
+    details_fixed_total = 0
+    latex_fixed_total = 0
+
+    for p in all_md:
+        orig = read_utf8(p)
+        updated, d_count = fix_details_in_text(orig)
+        updated, l_count = fix_bare_latex_in_text(updated)
+        if updated != orig:
+            p.write_text(updated, encoding="utf-8")
+            fixed_files.append(p.relative_to(vault).as_posix())
+            details_fixed_total += d_count
+            latex_fixed_total += l_count
+
+    print(
+        dump_json(
+            {
+                "vault_path": str(vault),
+                "files_scanned": len(all_md),
+                "files_modified": len(fixed_files),
+                "modified_files": fixed_files,
+                "details_fixes": details_fixed_total,
+                "latex_fixes": latex_fixed_total,
+            }
+        )
+    )
     return 0
 
 
@@ -1253,9 +1589,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_tick.add_argument("--note", default="", help="Optional short invariant/misconception note.")
     p_tick.set_defaults(func=cmd_tick)
 
-    p_verify = sub.add_parser("verify", help="Verify YAML, LaTeX, links, typed edges, section markers & orphans.")
+    p_verify = sub.add_parser("verify", help="Verify YAML, LaTeX, <details>, links, typed edges, section markers & orphans.")
     p_verify.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
     p_verify.set_defaults(func=cmd_verify)
+
+    p_fix = sub.add_parser("fix", help="Auto-repair <details> block formatting and unambiguous bare LaTeX.")
+    p_fix.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_fix.set_defaults(func=cmd_fix)
 
     p_init = sub.add_parser("init", help="Scaffold vault dirs, 00-SESSION-STATE.md, 00-MOC-INDEX.md & 00-GRAPH.json.")
     p_init.add_argument("vault_path", help="Target topic vault directory.")

@@ -14,7 +14,7 @@ Deepen shallow notes in `<VAULT_ROOT>/<topic-slug>/` to the **8-Block Subtopic S
    - Upgrade shallow `topics/*.md` files to full **7-Section / 8-Block Standard** compliance (`## 1.`–`## 7.` learner-centric headings, `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` HTML markers, Contrastive "Is vs. Is Not" table, Input-to-Output Behavior Table, zero-skip Proof, 10–18 line Python/NumPy `assert` verification snippet, `I Do -> We Do -> You Do` Drills A & B, Section 7 Misconceptions + Bridge + clickable `[[wikilinks]]` + `Primary Sources & Deep Links` table).
    - Partition `atomic/*.md` cards with `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers.
    - Generate new `topics/<nn>-<slug>.md` and `atomic/<slug>.md` files for uncovered subtopics; update `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`.
-   - Pass ALL **8 Points of the Writer -> Critic Audit** (`subtopic-8block.md` §4, including Check #8 Primary-Source Deep-Link Verification) before saving each `topics/*.md` file.
+   - Pass ALL **8 Points of the Writer -> Critic Audit** (`subtopic-8block.md` §4, including Check #8 Primary-Source Deep-Link Verification) and the **Global `<details>` Block Law & Math Delimiter Law** (`SKILL.md` §9–10: column-0 blank-line-padded `<details>` blocks, `100%` `$...$`/`$$...$$` math coverage) before saving each `topics/*.md` file.
 4. **Refresh Graph & Verify:**
-   - Update `00-MOC-INDEX.md` (preserving `[x]` checkmarks) and run `vault_cli.py graph <VAULT_PATH>` + `vault_cli.py verify <VAULT_PATH>` until `errors` is empty.
+   - Update `00-MOC-INDEX.md` (preserving `[x]` checkmarks) and run `vault_cli.py graph <VAULT_PATH>`, `vault_cli.py fix <VAULT_PATH>` (if needed), and `vault_cli.py verify <VAULT_PATH>` until `errors` is empty.
    - Print a concise summary of deepened and newly created files.

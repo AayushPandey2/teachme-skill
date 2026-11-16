@@ -3,11 +3,13 @@
 Run a deterministic, zero-token multi-pass integrity sweep across `<VAULT_ROOT>/<topic-slug>/` and auto-repair only the exact lines/files flagged until zero errors remain.
 
 ## Execution Sequence (CLI-Backed Auto-Repair)
-1. **Zero-Token Scan (Pass 1):**
+1. **Zero-Token Scan & Deterministic Fix (Pass 1):**
    - Run `vault_cli.py graph <VAULT_PATH>` (refreshes `00-GRAPH.json`) and `vault_cli.py verify <VAULT_PATH>`.
-   - Inspect ONLY the compact JSON `errors` and `warnings` arrays (`file`, `line`, `type`, `detail`). **Do NOT burn tokens reading clean files.**
+   - If `details_block_format` or `bare_latex_command` errors appear, run `vault_cli.py fix <VAULT_PATH>` first for deterministic auto-repair, then re-run `vault_cli.py verify <VAULT_PATH>`.
+   - Inspect ONLY the remaining compact JSON `errors` and `warnings` arrays (`file`, `line`, `type`, `detail`). **Do NOT burn tokens reading clean files.**
    - Also check `00-SESSION-STATE.md` exists (`<60` lines) and `scratchpad/` exists.
 2. **Targeted Auto-Repair (Only Flagged Files/Lines):**
+   - **`details_block_format`:** Ensure `<details>` and `</details>` start at column 0 on their own line (never inline or list-nested), with a blank line before `<details>`, `<summary>...</summary>` on its own line immediately after `<details>`, a blank line after `</summary>`, and a blank line before `</details>`.
    - **`backtick_latex`:** Strip outer code backticks around `$` / `$$` math.
    - **`table_pipe_in_math`:** Replace raw `|` inside table math with `\mid`, `\lvert`, `\rvert`, `\lVert`, or `\rVert`.
    - **`unmatched_dollar` / `unclosed_display_math`:** Fix unclosed `$` / `$$` or stray currency `$` collisions.
