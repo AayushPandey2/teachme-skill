@@ -3,40 +3,55 @@ name: teachme
 description: "Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with /teachme <topic> or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (<VAULT_ROOT>/<topic-slug>/, defaulting to ~/notes)."
 ---
 
-# Unified `/teachme` Master Core
+# `/teachme` Master Router & Core Laws
 
-For full-pipeline `/teachme <topic>` (Phases 1–6), load `references/PIPELINE.md`. For subcommands, load only `references/cmd-<subcommand>.md`.
+This file is the **single source of truth** for vault location, formatting, linking, and CLI laws. Reference files never restate these laws; they cite `SKILL.md §A–§D`.
 
-## Non-Negotiable Operating Laws
+## §A. Vault Root Resolution
+- `<VAULT_ROOT>` = `notes_root` in `~/.teachme-config.json`; fallback `~/notes`. Change it only via `/teachme-notes-path`.
+- Write ONLY inside `<VAULT_ROOT>/<topic-slug>/` (comparisons: `<VAULT_ROOT>/comparisons/`). Never scatter notes in project folders.
+- If `<topic>` is omitted, run `vault_cli.py state` (auto-selects the most recently active vault) or ask ONE clarifying question.
 
-1. **Central Vault & Dynamic `<VAULT_ROOT>`:** Write only to `<VAULT_ROOT>/<topic-slug>/` (never scatter notes in project folders). Resolve `<VAULT_ROOT>` from `~/.teachme-config.json` (`notes_root`), defaulting to `~/notes` if absent/unset.
-2. **Frontier Grilling First:** New `/teachme <topic>` runs start with Phase 1 (`MISSION-AND-GRILL.md`) unless `--auto`, `"auto"`, `"defaults"`, or `"go"` is passed.
-3. **Pure Markdown & Strict YAML Frontmatter:** Produce 100% pure `.md` files. Double-quote `"..."` all `description`, `title`, `checkpoint`, `key_equations`, and YAML string values containing `:`, `|`, `[`, `]`, `{`, `}`, `<`, `>`, `*`, `&`, `#`, `?`, or `\`.
-4. **Primary-Source Grounding & Dual Deep-Linking:** Treat pre-trained knowledge as untrusted until grounded in primary sources (Phase 2). Never use bare `[Author, Year]` text or bare domain homepages; use inline dual deep-links (`([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<anchor>|Source]] · [[02-DEEP-RESEARCH#<anchor>|Deep Research]])`) and Section 8's `Primary Sources & Deep Links` table (`references/subtopic-8block.md` §2–3).
-5. **Minimal Progressive Reference Loading:** Load `references/PIPELINE.md` only for full `/teachme <topic>`, and `references/cmd-<subcommand>.md` for subcommands.
-6. **Exhaustive Subtopics (No Caps):** Generate a standalone `topics/<nn>-<subtopic-slug>.md` (`references/subtopic-8block.md`, passing the **8-Point Critic Audit**) for every syllabus subtopic, plus `atomic/` cards.
-7. **Zero Black-Box Formulas:** Every formula in `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and `topics/*.md` follows `references/subtopic-8block.md` §1.
-8. **4-Turn Progressive Pacing, ONE Question Per Turn & Anti-Spoiler Rule:** Phase 6 delivers each lesson across **4 Progressive Turns** (`Stage 1/3` Turn 1 -> `Stage 2/3` Turn 2 -> `Stage 3/3` Turn 3 -> `Stage 3/3` Turn 4) and 4 Checkpoints (`[1/4]`–`[4/4]`) per `references/RETENTION-AND-RECORDS.md` §2–3. **NEVER** ask multiple numbered questions in one turn—every turn ends with **exactly ONE focused question**, and Turn 1 contains **ZERO Greek symbols or set notation**. On `"idk"`, `"explain"`, or errors, drop down to a 1-number micro-question without spoiling the answer.
-9. **Global Math Delimiter Law (100% `$...$` / `$$...$$` Coverage) & Zero Backtick-Wrapped Math:** Every mathematical symbol, Greek letter, subscripted/superscripted variable (`$x_i$`, `$w_1$`), arrow (`$\to$`, `$\implies$`, `$\iff$`), set operator (`$\in$`, `$\mathbb{R}$`), or LaTeX macro (`$\theta$`, `$\sum$`, `$\hat{y}$`, `$\mathbf{w}$`, `$\le$`, `$\ge$`, `$\neq$`, `$\approx$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\lVert x \rVert$`, `$\operatorname{sign}$`) appearing **anywhere** in prose, bullet points, headings, tables, or `<details>` blocks MUST be enclosed in `$...$` or `$$...$$` (zero bare backslashes outside code fences and inline code). NEVER wrap `$` or `$$` math in code backticks anywhere (including table cells).
-10. **Table-Safe LaTeX Delimiters & Global `<details>` HTML Block Law:** Inside Markdown tables, use `\mid`, `\lvert`, `\rvert`, `\lVert`, `\rVert` instead of raw `|`; keep inline math single-line and balanced. Across **all** `.md` files (flashcards, Cornell cues, drills, proofs), `<details>` and `</details>` MUST start at column 0 on their own line (never inline at the end of a sentence or inside a `-` / `1.` list item), with: (a) a blank line before `<details>`, (b) `<summary>...</summary>` on its own line immediately after `<details>`, (c) a blank line immediately after `</summary>`, and (d) a blank line immediately before `</details>`. Use `####` subheadings instead of list-nested `<details>`.
-11. **Zero-Dead-Link & Typed Edge Rule:** Every `[[wikilink]]`, relative `.md` link, and YAML typed edge (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`) must resolve to an existing vault file (use `[]`, never `[[none]]`).
-12. **CLI-Backed Spreading Activation, Queue & Delta-Flush:**
-    - **Start/Resume:** Run `scripts/vault_cli.py state` and `graph` instead of scanning Markdown files.
-    - **1-Hop Spreading Activation:** Load ONLY active stage slices of `topic-<nn>` via `vault_cli.py slice` + immediate 1-hop neighbors (`depends_on`, `contrasts_with` from `00-GRAPH.json`) via `--section L0-L1`. Forbid loading mastered nodes $>1$ hop away unless an interleaved warm-up queries them.
-    - **Queue & Batch Flush:** Write `scratchpad/queue-<nn>.json` once per lesson; log `[1/4]`–`[3/4]` via `vault_cli.py tick`; run `vault_cli.py flush` once on `[4/4]`.
-    - **Auto-Compaction:** Keep raw drafts in `scratchpad/`; every 3 completed subtopics append a 5-line **Cumulative Synthesis Strip** to `00-MOC-INDEX.md` and roll up formulas into `09-CHEAT-SHEET.md`.
+## §B. Non-Negotiable Formatting & Hygiene Laws (Every Vault `.md` File)
+1. **Pure Markdown + Strict YAML:** Double-quote `title`, `description`, `checkpoint`, `key_equations` items, and any YAML string containing `: | [ ] { } < > * & # ? \`. Spaces (never tabs) for indentation.
+2. **Math Delimiter Law (100% coverage):** Every math symbol, Greek letter, sub/superscripted variable, arrow, set operator, or LaTeX macro (`\theta \in \to \implies \iff \sum \hat \mathbf \le \ge \neq \approx \frac \sqrt \lVert \rVert \mathbb \text \operatorname`) anywhere in prose, lists, headings, tables, or `<details>` MUST sit inside `$...$` or `$$...$$`. Zero bare backslashes outside code fences/inline code.
+3. **Math Hygiene:** Never wrap `$`/`$$` math in backticks. No space before a closing `$`. Keep inline math single-line and balanced. Inside tables use `\mid \lvert \rvert \lVert \rVert`, never a raw `|`.
+4. **`<details>` Block Law:** `<details>` and `</details>` each stand alone at column 0 (never inline, never inside a `-`/`1.` list item). Required shape — blank line, `<details>`, `<summary>…</summary>`, blank line, body, blank line, `</details>`. Put the question in a `####` heading above the block.
+5. **Zero Black-Box Formulas:** Every equation gets a Formula Anatomy Breakdown (`references/STUDY-AND-GLOSSARY.md §1`).
+6. **Dual-Layer Deep-Linking:** Never cite bare `[Author, Year]` or a bare homepage. Inline format: `([Author, Year](<doi-or-exact-url>) · [[01-RESOURCES#<anchor>|Source]] · [[02-DEEP-RESEARCH#<anchor>|Research]])` (`references/RESEARCH-TOOLCHAIN.md §3`).
+7. **Zero Dead Links:** Every `[[wikilink]]`, relative link, and typed YAML edge (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of` → `topic-<nn>` IDs) resolves to an existing vault file. Empty edge = `[]`, never `[[none]]`.
+8. **Exhaustive Coverage:** One `topics/<nn>-<slug>.md` per syllabus subtopic (no caps, no merges) + `atomic/` cards.
 
-## Subcommand Router
+## §C. CLI-First Execution Mandate (`scripts/vault_cli.py`, Python 3 stdlib)
+Never hand-generate scaffolding or scan Markdown when a CLI call answers it. Resolve the script at `../teachme/scripts/vault_cli.py` or `~/.gemini/antigravity/skills/teachme/scripts/vault_cli.py`.
 
-| Autocomplete Command & Alias | Reference | Target |
+| Call | Use |
+|---|---|
+| `init <vault> --topic "<T>" --subtopics <file.json>` | Scaffold dirs, `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, `00-GRAPH.json`, topic stubs |
+| `context <vault> --topic <nn>` | **Default per-turn load:** state + node + stage slice + 1-hop `L0-L1` anchors in ONE call |
+| `state` / `graph` / `slice <file> --section <S>` | Resume pointer / rebuild `00-GRAPH.json` / single section (`L0-L1`, `L1-ANCHOR`…`L5-WORKBOOK-AND-GRAPH`) |
+| `tick <vault> --topic <nn> --cp <1-4> --status <pass\|retry>` | Log checkpoints to `scratchpad/events.jsonl` |
+| `flush <vault> --topic <nn> --note "<invariant>"` | Persist mastery once on `[4/4]` |
+| `fix <vault>` → `verify <vault>` | Auto-repair `<details>`/bare LaTeX, then audit until `errors: []` |
+
+- **1-Hop Rule:** Load only the active topic's stage slice + `depends_on`/`contrasts_with` `L0-L1` anchors. Never load mastered nodes >1 hop away unless an interleaved warm-up needs them.
+- **Exit Gate:** Every write-phase ends with `fix` → `verify` returning `errors: []`.
+
+## §D. Routing (Load ONLY the Listed File)
+
+| Trigger | Reference | Output |
 |---|---|---|
-| `/teachme <topic>` *(or `--auto`)* | `references/PIPELINE.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-notes-path [path\|reset]` \| `/teachme notes-path` | `references/cmd-notes-path.md` | `~/.teachme-config.json` |
-| `/teachme-expand <topic>` \| `/teachme expand` | `references/cmd-expand.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-verify <topic>` \| `/teachme verify` / `audit` | `references/cmd-verify.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-ingest <topic> <source>` \| `/teachme ingest` | `references/cmd-ingest.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-distill <topic>` \| `/teachme distill` | `references/cmd-distill.md` | `<VAULT_ROOT>/<topic-slug>/09-CHEAT-SHEET.md` |
-| `/teachme-review <topic>` \| `/teachme review` | `references/cmd-review.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-feynman <concept>` \| `/teachme feynman` | `references/cmd-feynman.md` | `<VAULT_ROOT>/<topic-slug>/` |
-| `/teachme-drill <topic> [1\|2\|3]` \| `/teachme drill` | `references/cmd-drill.md` | `<VAULT_ROOT>/<topic-slug>/07-PRACTICE-PROBLEMS.md` |
-| `/teachme-compare <A> vs <B>` \| `/teachme compare` | `references/cmd-compare.md` | `<VAULT_ROOT>/comparisons/<a-vs-b>.md` |
+| `/teachme <topic>` Phases 1–3 (grill, research, scaffold); skip grilling on `--auto`/`defaults`/`go` | `references/MISSION-AND-GRILL.md` (+ `RESEARCH-TOOLCHAIN.md` in Phase 2) | `00-MISSION.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, scaffold |
+| Phases 4–5 (notes, glossary, models, Cornell, flashcards, atomic) | `references/STUDY-AND-GLOSSARY.md` | `topics/`, `03`–`09`, `atomic/` |
+| Phase 6 live Socratic coaching | `references/RETENTION-AND-RECORDS.md` | `events.jsonl`, `learning-records/` |
+| `/teachme-notes-path [path\|reset]` | `references/cmd-notes-path.md` | `~/.teachme-config.json` |
+| `/teachme-expand <topic>` | `references/cmd-expand.md` | `topics/`, `atomic/` |
+| `/teachme-verify <topic>` (alias `audit`) | `references/cmd-verify.md` | repaired vault |
+| `/teachme-ingest <topic> <source>` | `references/cmd-ingest.md` | merged vault |
+| `/teachme-distill <topic>` | `references/cmd-distill.md` | `09-CHEAT-SHEET.md`, `08-FLASHCARDS.md` |
+| `/teachme-review <topic>` | `references/cmd-review.md` | coaching session |
+| `/teachme-feynman <concept>` | `references/cmd-feynman.md` | `learning-records/` |
+| `/teachme-drill <topic> [1\|2\|3]` | `references/cmd-drill.md` | `07-PRACTICE-PROBLEMS.md` |
+| `/teachme-compare <A> vs <B>` | `references/cmd-compare.md` | `comparisons/<a-vs-b>.md` |
+
+Space-separated aliases (`/teachme expand <topic>`) route identically.

@@ -10,8 +10,8 @@ Standard LLM explanations dump a wall of text you forget five minutes later. `/t
 
 1. **Zero-Baseline & Absolute Mastery Defaults:** Starts every new session with 4 calibrated `❓` questions defaulting to **No prior knowledge** (build from absolute zero) and **Absolute mastery covering all topics** (zero-omission syllabus decomposition)—or jump straight in with `--auto`.
 2. **Primary-Source Research Toolchain:** Separates vetted **Knowledge** (RFCs, papers, official docs, textbooks) from practitioner **Wisdom** (post-mortems, talks, benchmarks), captures rough drafts in `scratchpad/`, and logs unresolved gaps explicitly.
-3. **8-Block Subtopic Notes & 6-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
-4. **Zero-Token CLI, Spreading Activation & Delta-Flush (`scripts/vault_cli.py` + `00-GRAPH.json`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer, `00-GRAPH.json` typed adjacency map, and a standard-library Python CLI (`state`, `graph`, `slice`, `tick`, `verify`) so the agent loads only 1-hop `L0-L1` neighbors + active depth-stage slices, tracks checkpoints via `scratchpad/events.jsonl` + `queue-<nn>.json`, and flushes Markdown updates once on mastery.
+3. **7-Section Subtopic Notes & 7-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
+4. **Zero-Token CLI, Spreading Activation & Delta-Flush (`scripts/vault_cli.py` + `00-GRAPH.json`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer, `00-GRAPH.json` typed adjacency map, and a standard-library Python CLI (`init`, `context`, `state`, `graph`, `slice`, `tick`, `flush`, `fix`, `verify`) so the agent bundles 1-hop `L0-L1` neighbors + active depth-stage slices in a single `context` call, tracks checkpoints via `scratchpad/events.jsonl` + `queue-<nn>.json`, and flushes Markdown updates once on mastery.
 5. **Progressive 7-Component Socratic Loop:** Escalates across 3 depth stages (`1/3`, `2/3`, `3/3`) and 4 checkpoints (`[1/4]` Discovery Hook → `[2/4]` `We Do` → `[3/4]` `You Do` → `[4/4]` Adversarial Edge-Case + Feynman Gate), enforcing a strict **Anti-Spoiler Rule** with drop-down 1-number micro-steps and an inline `wait what` / `simplify` escape hatch.
 6. **Autocomplete Slash-Command Suite & Custom Vault Root:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 10 commands appear immediately in your editor or CLI slash-command dropdown, and lets you redirect where vaults live via `/teachme-notes-path` (`~/.teachme-config.json`).
 
@@ -70,8 +70,8 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 | :--- | :--- | :--- |
 | `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `<VAULT_ROOT>/<topic-slug>/` (default `~/notes/`), and teaches interactively via the 7-Component Mastery Loop. |
 | `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views the active `<VAULT_ROOT>`, redirects vault storage to a custom folder (`~/.teachme-config.json`), or resets back to `~/notes`. |
-| `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 8-Block Standard, creates `.md` files for missing related subtopics, and runs the 6-Point Critic Audit. |
-| `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, and malformed LaTeX across the vault. |
+| `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 7-Section Standard, creates `.md` files for missing related subtopics, and runs the 7-Point Critic Audit. |
+| `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, `<details>` blocks, and malformed LaTeX across the vault. |
 | `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs new PDFs, URLs, lecture notes, or raw dumps into an existing vault, flags contradictions, and syncs `00-SESSION-STATE.md` without overwriting mastered checkpoints. |
 | `/teachme-distill <topic>` | `/teachme distill <topic>` | Compresses a vault into a high-density 1-page `09-CHEAT-SHEET.md` and refreshes the `08-FLASHCARDS.md` spaced-repetition deck. |
 | `/teachme-review <topic>` | `/teachme review <topic>` | Launches an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in `00-SESSION-STATE.md` and `learning-records/`. |
@@ -92,13 +92,12 @@ teachme-skill/
     ├── teachme/                           # Single source of truth: master router, operating laws, CLI & references
     │   ├── SKILL.md
     │   ├── scripts/
-    │   │   └── vault_cli.py               # Zero-token CLI: state, graph, slice, tick & verify
+    │   │   └── vault_cli.py               # Zero-token CLI: init, context, state, graph, slice, tick, flush, fix & verify
     │   └── references/
-    │       ├── MISSION-AND-GRILL.md       # Frontier grilling (0 prior knowledge + absolute mastery defaults)
-    │       ├── RESEARCH-TOOLCHAIN.md      # Knowledge vs. Wisdom sourcing & primary-source chaser
-    │       ├── STUDY-AND-GLOSSARY.md      # 8-Block subtopic standard, 6-Point Critic Audit, L1-L5 anchors & templates
-    │       ├── RETENTION-AND-RECORDS.md   # Spreading activation, 7-Component loop, Anti-Spoiler & ADR records
-    │       ├── SUBCOMMANDS.md             # Slim index pointer to atomic cmd-*.md files
+    │       ├── MISSION-AND-GRILL.md       # Phases 1–3: Frontier grilling, Mission Lock & CLI vault scaffold
+    │       ├── RESEARCH-TOOLCHAIN.md      # Phase 2: Knowledge vs. Wisdom sourcing, deep-linking & scratchpad isolation
+    │       ├── STUDY-AND-GLOSSARY.md      # Phases 4–5: 7-Section Blueprint, 7-Point Critic Gate, templates & atomic cards
+    │       ├── RETENTION-AND-RECORDS.md   # Phase 6: 4-Turn pacing, ONE-question law, Anti-Spoiler & ADR records
     │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, expand, verify, ingest, distill, review, feynman, drill, compare)
     ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
     ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>

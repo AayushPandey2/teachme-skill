@@ -1,101 +1,80 @@
-# Phase 2 Reference: Primary-Source Research Toolchain
+# Primary-Source Retrieval, Deep-Linking & Scratchpad Isolation
 
-Combine rigorous research scoping, exhaustive syllabus decomposition, source-tier separation (`Knowledge` vs. `Wisdom`), primary-source chasing, and mandatory **Formula Anatomy Breakdowns** so zero hallucinated, shallow, or black-box content enters the vault.
+Formatting laws live in `SKILL.md §B` only. Treat pre-trained knowledge as untrusted until grounded here.
 
----
+## §1. Retrieval Rules
+- **Chase to origin:** Never cite a secondary blog when the paper, RFC, spec, or source code is reachable.
+- **Knowledge (primary):** official docs, RFCs/standards, peer-reviewed papers, canonical textbooks, source repos, release notes.
+- **Wisdom (practitioner):** post-mortems, creator/maintainer talks, vetted issue threads exposing real sharp edges.
+- **Exclude:** SEO listicles, AI-generated summaries, undated/unversioned tutorials, unverifiable claims.
+- **Log gaps explicitly:** conflicts, paywalls, or missing benchmarks go to `## Gaps & Unverified Claims` — never paper over them.
 
-## 1. Research Brief & Exhaustive Syllabus Decomposition
-Before executing web searches or reading files, define a structured **Research Brief** at the top of `01-RESOURCES.md`:
-- **Core Research Questions (4-6+):** Specific, falsifiable questions aligned with `00-MISSION.md` milestones.
-- **Exhaustive Syllabus Decomposition (No Caps):** Decompose `<topic>` into a complete, numbered syllabus covering **every single topic, subtopic, algorithm, theorem, and mechanism** required for full mastery. Never compress, merge, or skip subtopics to save space. Every item in this syllabus will become a dedicated `topics/<nn>-<subtopic-slug>.md` file in Phase 4.
-- **Inclusion Criteria:** Canonical specs, RFCs, peer-reviewed papers, official documentation, benchmarks with reproducible methodology, post-mortems from primary authors.
-- **Exclusion Criteria:** SEO listicles, AI-generated summaries, undated tutorials without version numbers, unverified claims.
+## §2. Scratchpad Isolation
+- All raw extraction, rough algebra, and drafts live in `scratchpad/` (`raw-research.md`, `derivation-drafts.md`, `subtopics.json`, `events.jsonl`, `queue-<nn>.json`).
+- `scratchpad/` is excluded from `verify`, graph building, and MOC registration; never link to it from notes.
 
----
+## §3. Deep-Link Standard
+- Link the exact DOI / arXiv abs page / RFC `#section-N` / docs anchor — never a bare domain.
+- Every `01-RESOURCES.md` source gets its own `###` heading so `[[01-RESOURCES#<heading>]]` resolves; every `02-DEEP-RESEARCH.md` subsection uses a stable `###` heading for `[[02-DEEP-RESEARCH#<heading>]]`.
+- Inline citation format is defined once in `SKILL.md §B.6`.
 
-## 2. Source Hierarchy: Knowledge vs. Wisdom
-
-Organize all discovered sources inside `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.md` into two distinct buckets plus the exhaustive syllabus and an explicit gap log:
-
-- **Knowledge (Primary & Authoritative):** Official documentation, RFCs/standards, academic papers, canonical textbooks, source code repositories, release notes.
-- **Wisdom (High-Signal Practitioner Experience):** Engineering post-mortems, talks by creators/maintainers, vetted community discussions (Hacker News, GitHub Issues, specialized forums) highlighting real-world sharp edges.
-- **Exhaustive Syllabus:** Numbered list (`01` .. `NN`) of every subtopic to be researched in `02-DEEP-RESEARCH.md` and written to `topics/<nn>-<subtopic-slug>.md`.
-- **Gaps:** Specific questions where primary sources conflict, are paywalled/unavailable, or lack empirical benchmarks.
-
-### Template: `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.md`
+## §4. Template — `01-RESOURCES.md`
 
 ```markdown
 # Research Resources & Provenance Index: <Topic Title>
 
 ## Research Brief
-- **Mission Alignment:** <Link to target outcome in 00-MISSION.md>
-- **Core Questions:**
-  1. <Question 1>
-  2. <Question 2>
-  3. <Question 3>
-  4. <Question 4>
-- **Inclusion / Exclusion:** Prioritize primary specs, official docs, and empirical benchmarks; exclude derivative blog summaries.
+- **Mission Alignment:** [[00-MISSION]]
+- **Core Questions:** 1. <Q1> 2. <Q2> 3. <Q3> 4. <Q4>
 
-## Exhaustive Syllabus (1 Subtopic = 1 `topics/<nn>-<subtopic-slug>.md` File)
-1. `01-<subtopic-slug>` — <Subtopic Title & scope>
-2. `02-<subtopic-slug>` — <Subtopic Title & scope>
-...
-NN. `<nn>-<subtopic-slug>` — <Subtopic Title & scope>
+## Exhaustive Syllabus (1 Subtopic = 1 `topics/<nn>-<slug>.md`)
+1. `01-<slug>` — <Title & scope>
 
 ## Knowledge (Primary Sources)
 ### <Author / Org> (<Year>) — <Source Title>
-- **Direct Link:** [<Specific Paper DOI / arXiv / Docs Section>](<exact-deep-url-never-bare-homepage>)
-- **Type:** Official Spec / Paper / Docs
-- **Covers:** <Specific mechanism, equation, or claim anchored here for `[[01-RESOURCES#<Heading>]]` deep-links.>
+- **Direct Link:** [<Paper DOI / Docs Section>](<exact-deep-url>)
+- **Type:** Spec / Paper / Docs | **Covers:** <Exact mechanism, equation, or claim>
 
-## Wisdom (Practitioner & Community Signal)
-### <Author / Maintainer> (<Year>) — <Talk / Post-Mortem Title>
-- **Direct Link:** [<Specific Section / Timestamp>](<exact-deep-url>)
-- **Type:** Post-Mortem / Maintainer Talk
-- **Covers:** <Real-world failure mode or operational trade-off.>
+## Wisdom (Practitioner Signal)
+### <Author> (<Year>) — <Talk / Post-Mortem Title>
+- **Direct Link:** [<Section / Timestamp>](<exact-deep-url>)
+- **Type:** Post-Mortem / Talk | **Covers:** <Real-world failure mode or trade-off>
 
 ## Gaps & Unverified Claims
-- **Gap 1:** <What could not be verified from primary sources and why.>
+- **Gap 1:** <What could not be verified and why.>
 ```
 
----
-
-## 3. Primary-Source Chasing & Deep Research Dossier (`02-DEEP-RESEARCH.md`)
-
-Never cite a secondary blog post when the primary paper, RFC, or source code is reachable. Trace every claim back to its origin and document exact mechanisms, invariants, benchmarks, and conflicts in `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`.
-
-### Mandatory Rule: Zero Black-Box Formulas & Pure LaTeX Hygiene
-Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/subtopic-8block.md` §1). Use clean, predictable `### <Section Anchor>` headings so `[[02-DEEP-RESEARCH#<Section Anchor>]]` deep-links from `topics/*.md` resolve directly.
-
-### Template: `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`
+## §5. Template — `02-DEEP-RESEARCH.md`
+Every equation is `$$...$$` display math followed by a Formula Anatomy Breakdown (`STUDY-AND-GLOSSARY.md §1`).
 
 ```markdown
 # Deep Primary-Source Research Dossier: <Topic Title>
 
 ## 1. Origin & Problem Statement
-- **Historical Context & Catalyst:** <What existed before, why it was created, and the exact bottleneck it solved> [Source].
-- **Core Design Constraints:** <Fundamental constraints that shaped its architecture> [Source].
+- **Catalyst:** <What existed before and the bottleneck solved> <citation>
+- **Design Constraints:** <Constraints that shaped the architecture> <citation>
 
 ## 2. Architecture & Internal Mechanics
-- **System Components:** <Detailed breakdown of each component and its responsibility> [Source].
-- **Execution Flow / Lifecycle:** <Exact step-by-step mechanics under the hood> [Source].
-- **Invariants & Guarantees:** <What the system strictly guarantees and under what preconditions> [Source].
+- **Components:** <Each component's responsibility> <citation>
+- **Execution Flow:** <Exact step-by-step mechanics> <citation>
+- **Invariants & Guarantees:** <What strictly holds, under which preconditions> <citation>
 
 ## 3. Mathematical Formulations & Complexity Bounds
-<Every equation, recurrence, objective function, or bound rendered in `$$...$$` and immediately followed by its full Formula Anatomy Breakdown (Plain-English Intuition, Component & Operator Breakdown Table, Boundary & Limiting Cases, Worked Numerical Walkthrough) [Source].>
+### <Formula Name>
+<Display equation + Formula Anatomy Breakdown> <citation>
 
-## 4. Empirical Benchmarks, Trade-offs & Failure Modes
-- **Complexity & Performance Characteristics:** <Verified time/space/network bounds and benchmarks> [Source].
-- **Where It Breaks (Edge Cases & Failure Modes):** <Specific conditions causing correctness bugs, operational pain, or performance degradation> [Source].
+## 4. Benchmarks, Trade-offs & Failure Modes
+- **Performance:** <Verified bounds and benchmarks> <citation>
+- **Where It Breaks:** <Edge cases causing bugs or degradation> <citation>
 
 ## 5. Comparative Landscape
-| Dimension | <Topic> | <Alternative A> | <Alternative B> |
+| Dimension | <Topic> | <Alt A> | <Alt B> |
 |---|---|---|---|
-| **Core Mechanism** | ... [Source] | ... [Source] | ... [Source] |
+| **Core Mechanism** | ... | ... | ... |
 | **Primary Strength** | ... | ... | ... |
 | **Critical Weakness** | ... | ... | ... |
 | **Best-Fit Scenario** | ... | ... | ... |
 
 ## 6. Contested Claims & Open Questions
-- <Any conflicting benchmarks, version differences, or unresolved edge cases discovered during research.>
+- <Conflicting benchmarks, version deltas, unresolved edge cases.>
 ```

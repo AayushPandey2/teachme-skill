@@ -400,48 +400,307 @@ def cmd_tick(args: argparse.Namespace) -> int:
     return 0
 
 
+def _quote_yaml(val: str) -> str:
+    escaped = val.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _format_yaml_list(items: list[str]) -> str:
+    if not items:
+        return "[]"
+    return "[" + ", ".join(_quote_yaml(str(x)) for x in items) + "]"
+
+
+def _build_topic_stub(item: dict[str, Any], next_id: str | None) -> str:
+    slug = str(item["slug"]).strip()
+    num = slug.split("-", 1)[0].zfill(2) if slug.split("-", 1)[0].isdigit() else slug
+    title = str(item.get("title") or slug).strip()
+    deps = [str(x) for x in item.get("depends_on", []) if str(x).strip()]
+    contrasts = [str(x) for x in item.get("contrasts_with", []) if str(x).strip()]
+    unlocks = [str(x) for x in item.get("unlocks", []) if str(x).strip()] or ([next_id] if next_id else [])
+    fixes = [str(x) for x in item.get("fixes_failure_of", []) if str(x).strip()]
+
+    return "\n".join(
+        [
+            "---",
+            f"id: {_quote_yaml(f'topic-{num}')}",
+            f"title: {_quote_yaml(title)}",
+            'status: "unstarted"',
+            'checkpoint: "0/4"',
+            f"depends_on: {_format_yaml_list(deps)}",
+            f"unlocks: {_format_yaml_list(unlocks)}",
+            f"contrasts_with: {_format_yaml_list(contrasts)}",
+            f"fixes_failure_of: {_format_yaml_list(fixes)}",
+            "key_equations: []",
+            "---",
+            "",
+            f"# {num}. {title}",
+            "",
+            "<!-- SECTION: L1-ANCHOR -->",
+            "## 1. The Core Idea (30-Second Anchor)",
+            "",
+            "<!-- SECTION: L2-PREREQS-AND-MOTIVATION -->",
+            "## 2. Building Blocks & Why This Exists",
+            "",
+            "<!-- SECTION: L3-FOUR-LAYER-THEORY -->",
+            "## 3. How It Works: Intuition to Formal Math",
+            "",
+            "<!-- SECTION: L4-DERIVATION-AND-CODE -->",
+            "## 4. Step-by-Step Proof (Zero Skips)",
+            "",
+            "## 5. Run It Yourself (Python Verification)",
+            "",
+            "<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->",
+            "## 6. Practice Workbook (I Do -> We Do -> You Do)",
+            "",
+            "## 7. Common Traps, Primary Sources & Mastery Graph",
+            "",
+            "### 4-Checkpoint Mastery Ledger",
+            "- [ ] `[1/4]` Discovery Prediction",
+            "- [ ] `[2/4]` We-Do Faded Step",
+            "- [ ] `[3/4]` You-Do Cold Drill",
+            "- [ ] `[4/4]` Edge-Case & Feynman Gate",
+            "",
+        ]
+    )
+
+
+def _load_subtopic_items(args: argparse.Namespace) -> list[dict[str, Any]]:
+    sub_file = getattr(args, "subtopics", None)
+    if sub_file:
+        p = Path(os.path.expandvars(sub_file)).expanduser().resolve()
+        if not p.is_file():
+            raise FileNotFoundError(f"Subtopics JSON not found: {p}")
+        data = json.loads(read_utf8(p))
+        if not isinstance(data, list):
+            raise ValueError("Subtopics JSON must be a list of objects")
+        return [dict(item) for item in data if isinstance(item, dict) and item.get("slug")]
+    raw_topics = getattr(args, "topics", "") or ""
+    return [
+        {"slug": t.strip(), "title": t.strip()}
+        for t in raw_topics.split(",")
+        if t.strip()
+    ]
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     vault = Path(os.path.expandvars(args.vault_path)).expanduser().resolve()
     for sub in ("topics", "atomic", "learning-records", "scratchpad"):
         (vault / sub).mkdir(parents=True, exist_ok=True)
 
-    topics = [t.strip() for t in args.topics.split(",") if t.strip()] if args.topics else []
-    nums = [t.split("-", 1)[0].zfill(2) if t.split("-", 1)[0].isdigit() else t for t in topics]
-    first_topic = f"topics/{topics[0]}.md" if topics else "topics/01-overview.md"
-    status_tokens = " ".join(f"`[ ] {n}`" for n in (nums or ["01"]))
+    topic_title = (getattr(args, "topic", None) or getattr(args, "title", None) or vault.name).strip()
+    items = _load_subtopic_items(args)
+    slugs = [str(it["slug"]).strip() for it in items]
+    nums = [s.split("-", 1)[0].zfill(2) if s.split("-", 1)[0].isdigit() else s for s in slugs]
+    first_topic = f"topics/{slugs[0]}.md" if slugs else "topics/01-overview.md"
 
-    state_lines = [
-        f"# Session State: {args.title}",
-        "",
-        f"- **Active Subtopic:** `{first_topic}`",
-        "- **Live Stage & Checkpoint:** `Depth Stage 1/3 | Checkpoint [1/4]`",
-        "- **Last Verified Invariant:** Vault initialized.",
-        "",
-        "## Compact Subtopic Status Map",
-        status_tokens,
-        "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
-    ]
-    (vault / "00-SESSION-STATE.md").write_text("\n".join(state_lines) + "\n", encoding="utf-8")
+    # 1. Create missing topic stubs without overwriting existing files
+    stubs_created = 0
+    for idx, item in enumerate(items):
+        slug = str(item["slug"]).strip()
+        target = vault / "topics" / f"{slug}.md"
+        if not target.exists():
+            next_id = f"topic-{nums[idx + 1]}" if idx + 1 < len(nums) else None
+            target.write_text(_build_topic_stub(item, next_id), encoding="utf-8")
+            stubs_created += 1
 
-    tracker_lines = [
-        f"- [ ] **{n}.** [[topics/{t}]]" for n, t in zip(nums, topics)
-    ] or ["- [ ] **01.** [[topics/01-overview]]"]
-    moc_lines = [
-        f"# Map of Content (MOC): {args.title}",
-        "",
-        "## Vault Navigation",
-        "- [[00-SESSION-STATE]] — Hot-state resume pointer (<60 lines)",
-        "",
-        "## Complete Subtopic Syllabus Tracker (`topics/`)",
-        *tracker_lines,
-        "",
-        "## Cumulative Synthesis Strips (Auto-Compacted Every 3 Subtopics)",
-        "",
-        "## Atomic Zettelkasten Concept Index (`atomic/`)",
-    ]
-    (vault / "00-MOC-INDEX.md").write_text("\n".join(moc_lines) + "\n", encoding="utf-8")
+    # 2. Create or non-destructively update 00-SESSION-STATE.md (<60 lines)
+    state_path = vault / "00-SESSION-STATE.md"
+    if not state_path.exists():
+        status_tokens = " ".join(f"`[ ] {n}`" for n in (nums or ["01"]))
+        state_lines = [
+            f"# Session State: {topic_title}",
+            "",
+            f"- **Active Subtopic:** `{first_topic}`",
+            "- **Live Stage & Checkpoint:** `Depth Stage 1/3 | Checkpoint [1/4]`",
+            "- **Last Verified Invariant:** Vault initialized.",
+            "",
+            "## Compact Subtopic Status Map",
+            status_tokens,
+            "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
+        ]
+        state_path.write_text("\n".join(state_lines) + "\n", encoding="utf-8")
+    elif nums:
+        s_lines = read_utf8(state_path).splitlines()
+        out_s: list[str] = []
+        for line in s_lines:
+            if "`[ ] " in line or "`[x] " in line or "`[~] " in line:
+                missing_nums = [
+                    n for n in nums if not re.search(rf"`\[[ x~]\]\s*{re.escape(n)}`", line)
+                ]
+                if missing_nums:
+                    line = line.rstrip() + " " + " ".join(f"`[ ] {n}`" for n in missing_nums)
+            out_s.append(line)
+        state_path.write_text("\n".join(out_s[:59]) + "\n", encoding="utf-8")
+
+    # 3. Create or non-destructively update 00-MOC-INDEX.md
+    moc_path = vault / "00-MOC-INDEX.md"
+    if not moc_path.exists():
+        tracker_lines = [
+            f"- [ ] **{n}.** [[topics/{s}]]" for n, s in zip(nums, slugs)
+        ] or ["- [ ] **01.** [[topics/01-overview]]"]
+        moc_lines = [
+            f"# Map of Content (MOC): {topic_title}",
+            "",
+            "## Vault Navigation",
+            "- [[00-SESSION-STATE]] — Hot-state resume pointer (<60 lines)",
+            "",
+            "## Complete Subtopic Syllabus Tracker (`topics/`)",
+            *tracker_lines,
+            "",
+            "## Cumulative Synthesis Strips (Auto-Compacted Every 3 Subtopics)",
+            "",
+            "## Atomic Zettelkasten Concept Index (`atomic/`)",
+        ]
+        moc_path.write_text("\n".join(moc_lines) + "\n", encoding="utf-8")
+    elif slugs:
+        moc_text = read_utf8(moc_path)
+        moc_lines = moc_text.splitlines()
+        missing_entries = [
+            f"- [ ] **{n}.** [[topics/{s}]]"
+            for n, s in zip(nums, slugs)
+            if f"topics/{s}" not in moc_text
+        ]
+        if missing_entries:
+            inserted = False
+            new_moc: list[str] = []
+            for idx, line in enumerate(moc_lines):
+                new_moc.append(line)
+                if not inserted and line.startswith("## Complete Subtopic Syllabus Tracker"):
+                    # Insert after existing tracker bullets
+                    j = idx + 1
+                    while j < len(moc_lines) and (moc_lines[j].startswith("- ") or not moc_lines[j].strip()):
+                        j += 1
+                    # Defer insertion right before next heading
+                if not inserted and idx > 0 and line.startswith("## ") and "Syllabus Tracker" not in line and any("Syllabus Tracker" in x for x in new_moc):
+                    new_moc.pop()
+                    new_moc.extend(missing_entries)
+                    new_moc.append("")
+                    new_moc.append(line)
+                    inserted = True
+            if not inserted:
+                new_moc.extend(missing_entries)
+            moc_path.write_text("\n".join(new_moc) + "\n", encoding="utf-8")
+
     graph = build_graph(vault)
-    print(dump_json({"ok": True, "vault_path": str(vault), "topics": len(topics), "graph_nodes": len(graph["nodes"])}))
+    print(
+        dump_json(
+            {
+                "ok": True,
+                "vault_path": str(vault),
+                "topics": len(slugs),
+                "stubs_created": stubs_created,
+                "graph_nodes": len(graph["nodes"]),
+            }
+        )
+    )
+    return 0
+
+
+def cmd_context(args: argparse.Namespace) -> int:
+    """Return state + node + stage slice + queue + 1-hop L0-L1 anchors in one call."""
+    vault = resolve_vault_path(args.vault_path)
+    raw_topic = str(args.topic).strip()
+    if raw_topic.startswith("topic-"):
+        raw_topic = raw_topic[len("topic-"):]
+    topic_num = raw_topic.zfill(2) if raw_topic.isdigit() else raw_topic
+    node_id = f"topic-{topic_num}"
+
+    # 1. Session state
+    state_file = vault / "00-SESSION-STATE.md"
+    fields = parse_session_state_fields(read_utf8(state_file)) if state_file.is_file() else {}
+    stage_cp = fields.get("stage_cp", "")
+    m_cp = re.search(r"Checkpoint\s*\[?([0-9]+)/[0-9]+\]?", stage_cp)
+    active_cp = int(m_cp.group(1)) if m_cp else 1
+
+    # 2. Graph lookup (read existing or build)
+    graph_path = vault / "00-GRAPH.json"
+    if graph_path.is_file():
+        try:
+            graph = json.loads(read_utf8(graph_path))
+        except json.JSONDecodeError:
+            graph = build_graph(vault)
+    else:
+        graph = build_graph(vault)
+
+    nodes = graph.get("nodes", {})
+    node = nodes.get(node_id)
+    if node is None:
+        # Fallback: match topics/<nn>-*.md
+        topics_dir = vault / "topics"
+        if topics_dir.is_dir():
+            for p in sorted(topics_dir.glob("*.md")):
+                if p.stem.split("-", 1)[0] == topic_num:
+                    node = {"file": f"topics/{p.name}", "title": p.stem, "status": "unstarted", "checkpoint": "0/4", "depends_on": [], "contrasts_with": []}
+                    break
+    if node is None:
+        print(dump_json({"error": f"Topic {node_id} not found"}), file=sys.stderr)
+        return 1
+
+    topic_path = vault / node["file"]
+    if not topic_path.is_file():
+        print(dump_json({"error": f"Topic file not found: {topic_path}"}), file=sys.stderr)
+        return 1
+
+    topic_text = read_utf8(topic_path)
+    if args.section:
+        sections_to_load = [args.section]
+    elif active_cp <= 1:
+        sections_to_load = ["L1-ANCHOR", "L2-PREREQS-AND-MOTIVATION"]
+    elif active_cp == 2:
+        sections_to_load = ["L3-FOUR-LAYER-THEORY", "L4-DERIVATION-AND-CODE"]
+    else:
+        sections_to_load = ["L5-WORKBOOK-AND-GRAPH"]
+
+    slices: dict[str, str] = {}
+    for sec in sections_to_load:
+        try:
+            slices[sec] = extract_section(topic_text, sec)
+        except ValueError:
+            pass
+
+    # 3. Question queue if present
+    queue_file = vault / "scratchpad" / f"queue-{topic_num}.json"
+    queue_data: Any = None
+    if queue_file.is_file():
+        try:
+            queue_data = json.loads(read_utf8(queue_file))
+        except json.JSONDecodeError:
+            queue_data = None
+
+    # 4. 1-hop neighbors (depends_on & contrasts_with) L0-L1 anchors
+    neighbor_ids: list[str] = []
+    for key in ("depends_on", "contrasts_with"):
+        for nid in node.get(key, []):
+            if nid not in neighbor_ids:
+                neighbor_ids.append(nid)
+
+    neighbors: dict[str, str] = {}
+    for nid in neighbor_ids[:4]:
+        n_info = nodes.get(nid)
+        if not n_info:
+            continue
+        n_path = vault / n_info.get("file", "")
+        if n_path.is_file():
+            try:
+                l01 = extract_section(read_utf8(n_path), "L0-L1")
+                neighbors[nid] = l01[:400] + ("..." if len(l01) > 400 else "")
+            except ValueError:
+                pass
+
+    bundle = {
+        "topic": node_id,
+        "file": node.get("file", ""),
+        "status": node.get("status", "unstarted"),
+        "checkpoint": node.get("checkpoint", "0/4"),
+        "active_subtopic": fields.get("active_topic", ""),
+        "stage_cp": stage_cp,
+        "last_invariant": fields.get("last_invariant", ""),
+        "slices": slices,
+        "queue": queue_data,
+        "neighbors_l0_l1": neighbors,
+    }
+    print(dump_json(bundle))
     return 0
 
 
@@ -1597,11 +1856,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_fix.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
     p_fix.set_defaults(func=cmd_fix)
 
-    p_init = sub.add_parser("init", help="Scaffold vault dirs, 00-SESSION-STATE.md, 00-MOC-INDEX.md & 00-GRAPH.json.")
+    p_init = sub.add_parser("init", help="Scaffold vault dirs, 00-SESSION-STATE.md, 00-MOC-INDEX.md, topic stubs & 00-GRAPH.json.")
     p_init.add_argument("vault_path", help="Target topic vault directory.")
-    p_init.add_argument("--title", required=True, help="Human-readable topic title.")
-    p_init.add_argument("--topics", default="", help="Comma-separated topic slugs (e.g. 01-intro,02-core).")
+    p_init.add_argument("--topic", default="", help="Human-readable topic title.")
+    p_init.add_argument("--title", default="", help="Alias for --topic.")
+    p_init.add_argument("--subtopics", default="", help="Path to JSON file listing subtopic objects.")
+    p_init.add_argument("--topics", default="", help="Comma-separated topic slugs fallback (e.g. 01-intro,02-core).")
     p_init.set_defaults(func=cmd_init)
+
+    p_context = sub.add_parser("context", help="Return state + graph node + stage slice + queue + 1-hop L0-L1 anchors in one call.")
+    p_context.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
+    p_context.add_argument("--topic", required=True, help="Subtopic number or ID (e.g. 03 or topic-03).")
+    p_context.add_argument("--section", default=None, help="Optional section override.")
+    p_context.set_defaults(func=cmd_context)
 
     p_flush = sub.add_parser("flush", help="Flush [4/4] mastery to topics/*.md, 00-MOC-INDEX.md & 00-GRAPH.json.")
     p_flush.add_argument("vault_path", nargs="?", default=None, help="Path to topic vault (optional).")
