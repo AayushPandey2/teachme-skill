@@ -518,6 +518,7 @@ def heading_slug(heading_text: str) -> str:
     slug = heading_text.strip().lower()
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"\s+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
     return slug.strip("-")
 
 
@@ -539,7 +540,9 @@ def extract_headings(text: str) -> set[str]:
             continue
         hm = HEADING_RE.match(line)
         if hm:
-            slugs.add(heading_slug(hm.group(1)))
+            raw_h = hm.group(1).strip()
+            slugs.add(heading_slug(raw_h))
+            slugs.add(raw_h.lower())
     return slugs
 
 
@@ -737,16 +740,24 @@ def validate_yaml_frontmatter(
             )
 
 
+BARE_LATEX_CMD_RE = re.compile(
+    r"\\(?:theta|sum|hat|mathbf|frac|prod|nabla|partial|alpha|beta|gamma|sigma|lambda|vec|mathbb|infty|lvert|rvert|lVert|rVert)\b"
+)
+
+
 def scan_latex_in_file(
     rel_path: str, text: str, errors: list[dict[str, Any]]
 ) -> None:
-    lines = text.splitlines()
+    lines = text.lstrip("\ufeff").splitlines()
+    _, body_start = parse_frontmatter(text)
     in_fence = False
     fence_char = ""
     in_display_math = False
     display_start_line = 0
 
     for idx, raw_line in enumerate(lines, start=1):
+        if idx <= body_start:
+            continue
         fm = FENCE_RE.match(raw_line)
         if fm:
             marker = fm.group(1)
@@ -789,7 +800,7 @@ def scan_latex_in_file(
                 in_display_math = False
         no_dd = no_code.replace("$$", "")
 
-        # 3. Single $ parity outside display math
+        # 3. Single $ parity & trailing-space / bare LaTeX checks outside display math
         if not in_display_math:
             if no_dd.count("$") % 2 == 1:
                 errors.append(
@@ -800,6 +811,37 @@ def scan_latex_in_file(
                         "detail": "Odd number of $ delimiters on line",
                     }
                 )
+            else:
+                dollar_idxs = [i for i, ch in enumerate(no_dd) if ch == "$"]
+                outside_parts: list[str] = []
+                last_end = 0
+                for p_i in range(0, len(dollar_idxs), 2):
+                    s_pos = dollar_idxs[p_i]
+                    e_pos = dollar_idxs[p_i + 1]
+                    outside_parts.append(no_dd[last_end:s_pos])
+                    inner_span = no_dd[s_pos + 1 : e_pos]
+                    if inner_span and inner_span[-1].isspace():
+                        errors.append(
+                            {
+                                "file": rel_path,
+                                "line": idx,
+                                "type": "latex_trailing_space",
+                                "detail": f"Space before closing '$': ${inner_span}$",
+                            }
+                        )
+                    last_end = e_pos + 1
+                outside_parts.append(no_dd[last_end:])
+                outside_math = " ".join(outside_parts)
+                bare_m = BARE_LATEX_CMD_RE.search(outside_math)
+                if bare_m:
+                    errors.append(
+                        {
+                            "file": rel_path,
+                            "line": idx,
+                            "type": "bare_latex_command",
+                            "detail": f"Bare LaTeX command outside $...$: {bare_m.group(0)}",
+                        }
+                    )
 
         # 4. Raw pipe inside math on Markdown table rows
         stripped = no_code.strip()
@@ -923,7 +965,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                         }
                     )
 
-        # Typed YAML edge check for topics/*.md
+        # Typed YAML edge, duplicate section numbers, Section 8 wikilinks & primary-source deep-links for topics/*.md
         if parts[0] == "topics":
             meta, _ = parse_frontmatter(text)
             for edge in TYPED_EDGE_FIELDS:
@@ -944,6 +986,76 @@ def cmd_verify(args: argparse.Namespace) -> int:
                                 "detail": f"{edge} target not found: {v}",
                             }
                         )
+
+            # Duplicate ## <N>. section numbers & unlinked Section 8 paths
+            seen_sec_nums: dict[str, int] = {}
+            in_sec8 = False
+            in_fence_t = False
+            fence_char_t = ""
+            for idx_t, raw_t in enumerate(lines, start=1):
+                fm_t = FENCE_RE.match(raw_t)
+                if fm_t:
+                    mk = fm_t.group(1)
+                    if not in_fence_t:
+                        in_fence_t = True
+                        fence_char_t = mk[0]
+                    elif mk[0] == fence_char_t:
+                        in_fence_t = False
+                    continue
+                if in_fence_t:
+                    continue
+                sec_m = re.match(r"^\s*##\s+(\d+)\.\s+", raw_t)
+                if sec_m:
+                    snum = sec_m.group(1)
+                    if snum in seen_sec_nums:
+                        errors.append(
+                            {
+                                "file": rel_path,
+                                "line": idx_t,
+                                "type": "duplicate_section_number",
+                                "detail": f"Duplicate section number '## {snum}.' (first at line {seen_sec_nums[snum]})",
+                            }
+                        )
+                    else:
+                        seen_sec_nums[snum] = idx_t
+                    in_sec8 = snum == "8"
+                if in_sec8 and re.match(
+                    r"^\s*-\s*\*\*(?:Depends On|Unlocks|Contrasts With|Fixes Failure Of|Atomic):\*\*",
+                    raw_t,
+                ):
+                    no_wiki = re.sub(r"\[\[[^\]]+\]\]", "", raw_t)
+                    unlinked_m = re.search(r"\b(?:topics|atomic)/[A-Za-z0-9_.-]+", no_wiki)
+                    if unlinked_m:
+                        broken_links += 1
+                        errors.append(
+                            {
+                                "file": rel_path,
+                                "line": idx_t,
+                                "type": "unlinked_graph_path",
+                                "detail": f"Unlinked path in Section 8 (wrap in [[...]]): {unlinked_m.group(0)}",
+                            }
+                        )
+
+            if "Primary Sources & Deep Links" not in text:
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": 1,
+                        "type": "missing_primary_sources_table",
+                        "detail": "Missing Section 8 'Primary Sources & Deep Links' table",
+                    }
+                )
+            has_http = bool(re.search(r"https?://[^\s)>]+", text))
+            has_res_anchor = bool(re.search(r"\[\[01-RESOURCES#[^\]]+\]\]", text))
+            if not (has_http and has_res_anchor):
+                errors.append(
+                    {
+                        "file": rel_path,
+                        "line": 1,
+                        "type": "missing_primary_source_deep_link",
+                        "detail": "Topic must include clickable https:// primary-source URL and [[01-RESOURCES#...]] anchor",
+                    }
+                )
 
         # Wikilinks & Markdown links (outside fenced code blocks)
         in_fence = False
@@ -987,7 +1099,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                             "detail": f"Missing target for [[{raw_link}]]",
                         }
                     )
-                elif anchor and heading_slug(anchor) not in heading_cache.get(target_file, set()):
+                elif anchor and (anchor.lower() not in heading_cache.get(target_file, set()) and heading_slug(anchor) not in heading_cache.get(target_file, set())):
                     broken_links += 1
                     errors.append(
                         {
@@ -1080,6 +1192,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
             "unmatched_dollar",
             "table_pipe_in_math",
             "unclosed_display_math",
+            "bare_latex_command",
+            "latex_trailing_space",
         }
     )
 

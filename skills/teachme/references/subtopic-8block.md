@@ -1,21 +1,33 @@
-# Phase 4B & Formula Reference: Formula Anatomy, 8-Block Subtopic Notes & 7-Point Critic Audit
+# Phase 4B & Formula Reference: Formula Anatomy, 8-Block Subtopic Notes & 8-Point Critic Audit
 
 ---
 
-## 1. Mandatory Formula Anatomy Breakdown Standard
+## 1. Mandatory Formula Anatomy Breakdown & LaTeX Hygiene
 
 Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and every `topics/<nn>-<subtopic-slug>.md`, **every** formula/recurrence/bound MUST include:
 1. **Zero-Baseline Micro-Bridge** for any new symbol (2–3 plain-English lines + 2-number example).
 2. **Mathematical Intuition (Before Symbols)** explaining geometry/scaling before formal notation.
-3. **Display LaTeX (`$$...$$`)** — zero backticks around `$`/`$$`, `\mid`/`\lvert`/`\rvert` instead of raw `|` inside tables.
+3. **Consistent `$inline$` & `$$display$$` LaTeX Hygiene:**
+   - Wrap **EVERY** mathematical variable, operator, or expression in prose, tables, and `<details>` blocks in `$...$` (e.g., `$x_i \in \{0, 1\}$`, `$\theta$`, `$\hat{y}$`).
+   - **Zero** bare LaTeX commands (`\theta`, `\sum`, `\hat`, `\mathbf`, etc.) outside `$...$`/`$$...$$`.
+   - **Zero** spaces before a closing `$` (never `= $`), **zero** backticks around `$`/`$$`, and always `\mid`/`\lvert`/`\rvert` instead of raw `|` inside Markdown tables.
 4. **Symbol & Operator Table** covering every variable, subscript, superscript, constant, and operator.
-5. **Zero-Skip `I Do` Trace** + **Limiting Cases** (`0`, `1`, `-1`, `\infty`, degenerate).
+5. **Zero-Skip `I Do` Trace** + **Limiting Cases** (`$0$`, `$1$`, `$-1$`, `$\infty$`, degenerate).
 
 ---
 
-## 2. Detailed Subtopic Notes — 8-Block Standard (`topics/<nn>-<subtopic-slug>.md`)
+## 2. Dual-Layer Primary-Source Deep-Linking Standard
 
-Partition every `topics/*.md` file with the 5 strict HTML markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) for `L0`/`L1`/`L2` progressive disclosure:
+Never write bare `[Author, Year]` text citations or link to a bare domain homepage.
+- **Inline Deep-Link Citation Format:** Wherever a theorem, historical motivation, benchmark, or formula is introduced, cite as:
+  `([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]])`
+  Always link to the exact paper DOI/arXiv URL, RFC `#section-X`, or official documentation anchor.
+
+---
+
+## 3. Detailed Subtopic Notes — 8-Block Standard (`topics/<nn>-<subtopic-slug>.md`)
+
+Partition every `topics/*.md` file with the 5 strict HTML markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) and number top-level `##` headings **strictly `1.` through `8.` with zero duplicate section numbers**:
 
 ````markdown
 ---
@@ -42,11 +54,11 @@ key_equations:
 ## 2. Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation
 
 > [!note] Zero-Baseline Prerequisites
-> Define every new symbol/operator/term from scratch before use:
-> - **<Term 1>:** <2–3 plain-English lines + 2-number example.>
+> Define every new symbol/operator/term from scratch before use (wrapping all math in `$...$`):
+> - **<Term 1> (`$x_i$`):** <2–3 plain-English lines + 2-number example.>
 
 ### Engineering Motivation ("Why This Had to Be Invented")
-<3–4 sentences on what failed or scaled poorly previously [Source].>
+<3–4 sentences on what failed or scaled poorly previously ([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]]).>
 
 <!-- SECTION: L3-FOUR-LAYER-THEORY -->
 ## 3. 4-Layer Deep Theory Stack
@@ -55,7 +67,7 @@ key_equations:
 <Thorough physical/human analogy with zero jargon.>
 
 ### Layer 2 — Theoretical Mechanism, Visual Diagram & Contrastive Boundaries
-- **Causal Mechanism (`Input → Transformation → Output`):** <Step-by-step causal walkthrough using **bolded** `04-GLOSSARY.md` terms [Source].>
+- **Causal Mechanism (`Input → Transformation → Output`):** <Step-by-step causal walkthrough using **bolded** `04-GLOSSARY.md` terms ([Author, Year](<direct-url-or-doi>) · [[01-RESOURCES#<source-anchor>|Source]] · [[02-DEEP-RESEARCH#<section-anchor>|Deep Research]]).>
 
 ```text
 <Mandatory ASCII geometry/pipeline/state diagram>
@@ -85,6 +97,11 @@ $$
 |---|---|---|---|
 | $x$ | <Name & role> | <Shape / domain / units> | <Effect when $x$ increases/decreases> |
 
+#### Input-to-Output Behavior Table *(Required for discrete states, logic gates, vector/matrix ops, or thresholds)*
+| Concrete Inputs | Intermediate Value | Output | Interpretation |
+|---|---|---|---|
+| <e.g., $(0, 0)$> | <$s = 0$> | <$\hat{y} = 0$> | <Below threshold> |
+
 - **Directional Sensitivity & Boundary Limits:** Input $\to 0$: <behavior> | $\to 1$/$-1$: <behavior> | Negative/degenerate: <behavior> | $\to \infty$: <behavior>.
 
 <!-- SECTION: L4-DERIVATION-AND-CODE -->
@@ -107,22 +124,43 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
 ### `I Do` (Fully Worked 3-Number Trace)
 1. **Inputs:** <3 numbers matching Code-as-Truth> | 2. **Arithmetic:** <Zero skipped steps> | 3. **Result:** <Value + meaning>.
 
-### `We Do` (Faded Fill-in-the-Blank)
-<Second problem with 60% shown and `[Step 2: ___]`, `[Step 4: ___]` missing.>
+### `We Do` (Faded Multi-Step Boundary Problem)
+<Second problem testing a boundary condition or edge-case interaction—NOT trivial arithmetic identical to `I Do`—with ~60% shown and `[Step 2: ___]`, `[Step 4: ___]` missing.>
 <details><summary>Reveal Step-by-Step Solution</summary>
-<Exact missing steps + final answer.>
+<Exact missing steps + final answer with clean `$...$` math.>
 </details>
 
-### `You Do` (Cold Solo + Adversarial Edge-Case Drill)
-<Boundary-breaking problem with zero scaffolding.>
-<details><summary>Reveal Step-by-Step Solution</summary>
-<Verified solution + boundary analysis + 2-sentence Feynman check.>
-</details>
+### `You Do` (Two-Part Solo Mastery)
+- **Drill A — Reverse-Engineering / Design Problem:** <Design parameters/weights/thresholds to satisfy a specification.>
+  <details><summary>Reveal Step-by-Step Solution</summary>
+  <Complete design derivation + verification.>
+  </details>
+- **Drill B — Adversarial Edge-Case / Impossibility Proof:** <Prove or test a boundary failure / impossibility condition.>
+  <details><summary>Reveal Step-by-Step Solution</summary>
+  <Complete proof/analysis + 2-sentence Feynman check.>
+  </details>
 
-## 7. Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger
+## 7. Common Misconceptions & Bridge to Next Topic
+
+> [!caution] Common Misconceptions & Traps
+> - **_Avoid_:** <Mistake 1> → **True Invariant:** <Correct behavior in `$...$`>.
+> - **_Avoid_:** <Mistake 2> → **True Invariant:** <Correct behavior in `$...$`>.
+
+**Bridge to Next Topic:** <2 sentences explaining the exact limitation that motivates `[[topics/<next-nn>-<next-slug>]]`.>
+
+## 8. Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger
 
 ### Typed Semantic Links
-- **Depends On:** [[topics/<prev>-<slug>]] | **Unlocks:** [[topics/<next>-<slug>]] | **Contrasts With:** [[topics/<lookalike>-<slug>]] | **Fixes Failure Of:** [[topics/<broken>-<slug>]] | **Atomic:** [[atomic/<concept>]]
+- **Depends On:** [[topics/<prev>-<slug>|<prev-nn>: <Prev Title>]]
+- **Unlocks:** [[topics/<next>-<slug>|<next-nn>: <Next Title>]]
+- **Contrasts With:** [[topics/<lookalike>-<slug>|<lookalike-nn>: <Title>]]
+- **Fixes Failure Of:** [[topics/<broken>-<slug>|<broken-nn>: <Title>]]
+- **Atomic:** [[atomic/<concept-slug>|<Concept Title>]]
+
+### Primary Sources & Deep Links
+| Source | Direct External Deep Link | Vault Deep Link | Exact Claim / Equation Verified |
+|---|---|---|---|
+| <Author (Year) — Title> | [<Paper / Docs Section>](https://...) | [[01-RESOURCES#<source-anchor>]] · [[02-DEEP-RESEARCH#<section-anchor>]] | *<Exact claim or equation>* |
 
 ### 4-Checkpoint Mastery Ledger
 - [ ] `[1/4]` Discovery Prediction
@@ -131,16 +169,17 @@ assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}
 - [ ] `[4/4]` Edge-Case & Feynman Gate
 
 ---
-**Navigation:** ← [[<prev-subtopic>|Previous]] | [[03-CORNELL-STUDY-GUIDE|Study Guide]] | [[<next-subtopic>|Next]] →
+**Navigation:** ← [[topics/<prev-subtopic>|Previous]] | [[03-CORNELL-STUDY-GUIDE|Study Guide]] | [[topics/<next-subtopic>|Next]] →
 ````
 
 ---
 
-## 3. Mandatory 7-Point Writer -> Critic Audit (Before Saving Any `topics/*.md`)
-1. Every Layer 4 symbol is defined in Block 2 or the Symbol Table.
-2. Zero skipped algebraic steps in Block 4.
-3. Zero backtick-wrapped LaTeX (`$`/`$$`) and `\mid` used instead of `|` inside every table.
-4. Includes ASCII diagram, Contrastive "Is vs. Is Not" table, and `> [!warning] Where the Analogy Breaks Down`.
-5. Includes runnable 10–18 line Python/NumPy `assert` snippet in Block 5.
-6. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, Block 7) resolve to existing vault files (or `[]`).
-7. **Strict YAML Frontmatter:** Double-quote `"..."` all `description`, `title`, `checkpoint`, `key_equations`, and string values with `:`, `|`, `[`, `]`, `{`, `}`, `<`, `>`, `*`, `&`, `#`, `?`, or `\`.
+## 4. Mandatory 8-Point Writer -> Critic Audit (Before Saving Any `topics/*.md`)
+1. Every Layer 4 symbol is defined in Block 2 or the Symbol Table; zero bare `\theta`/`\sum`/etc. outside `$...$` and zero trailing space before closing `$`.
+2. Strict sequential `## 1.` through `## 8.` headings with zero duplicate numbers.
+3. Zero skipped algebraic steps in Section 4 (`Step-by-Step Axiom Derivation`).
+4. Zero backtick-wrapped LaTeX (`$`/`$$`) and `\mid` used instead of `|` inside every table.
+5. Includes ASCII diagram, Contrastive "Is vs. Is Not" table, `> [!warning] Where the Analogy Breaks Down`, Input-to-Output Behavior Table (where applicable), Section 6 `We Do` boundary + `You Do` Drills A & B, and Section 7 `> [!caution]` + Bridge.
+6. Includes runnable 10–18 line Python/NumPy `assert` snippet in Section 5.
+7. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, Section 8 clickable `[[wikilinks]]`) resolve to existing vault files (`[]` if none), and YAML strings with special chars are double-quoted.
+8. **Primary-Source Deep-Link Verification:** File contains inline dual deep-link citations AND a Section 8 `Primary Sources & Deep Links` table with clickable `https://` direct links + valid `[[01-RESOURCES#<anchor>]]` / `[[02-DEEP-RESEARCH#<anchor>]]` anchors.

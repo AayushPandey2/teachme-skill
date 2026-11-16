@@ -43,11 +43,16 @@ Organize all discovered sources inside `<VAULT_ROOT>/<topic-slug>/01-RESOURCES.m
 NN. `<nn>-<subtopic-slug>` — <Subtopic Title & scope>
 
 ## Knowledge (Primary Sources)
-1. **[<Source Title>](<URL>)** — *Type: Official Spec / Paper / Docs* — Covers: <specific mechanism or claim>.
-2. **[<Source Title>](<URL>)** — *Type: Canonical Reference* — Covers: <specific mechanism or claim>.
+### <Author / Org> (<Year>) — <Source Title>
+- **Direct Link:** [<Specific Paper DOI / arXiv / Docs Section>](<exact-deep-url-never-bare-homepage>)
+- **Type:** Official Spec / Paper / Docs
+- **Covers:** <Specific mechanism, equation, or claim anchored here for `[[01-RESOURCES#<Heading>]]` deep-links.>
 
 ## Wisdom (Practitioner & Community Signal)
-1. **[<Source Title>](<URL>)** — *Type: Post-Mortem / Maintainer Talk* — Covers: <real-world failure mode or operational trade-off>.
+### <Author / Maintainer> (<Year>) — <Talk / Post-Mortem Title>
+- **Direct Link:** [<Specific Section / Timestamp>](<exact-deep-url>)
+- **Type:** Post-Mortem / Maintainer Talk
+- **Covers:** <Real-world failure mode or operational trade-off.>
 
 ## Gaps & Unverified Claims
 - **Gap 1:** <What could not be verified from primary sources and why.>
@@ -60,7 +65,7 @@ NN. `<nn>-<subtopic-slug>` — <Subtopic Title & scope>
 Never cite a secondary blog post when the primary paper, RFC, or source code is reachable. Trace every claim back to its origin and document exact mechanisms, invariants, benchmarks, and conflicts in `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`.
 
 ### Mandatory Rule: Zero Black-Box Formulas & Pure LaTeX Hygiene
-Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/subtopic-8block.md` §1 for the exact schema).
+Every mathematical formula, equation, recurrence, objective/loss function, or complexity bound in `02-DEEP-RESEARCH.md` MUST be rendered in pure display LaTeX (`$$...$$`)—never wrapped in backticks, with `\mid` / `\lvert` / `\rvert` instead of raw `|` inside table cells—and immediately followed by a complete **Formula Anatomy Breakdown** (see `references/subtopic-8block.md` §1). Use clean, predictable `### <Section Anchor>` headings so `[[02-DEEP-RESEARCH#<Section Anchor>]]` deep-links from `topics/*.md` resolve directly.
 
 ### Template: `<VAULT_ROOT>/<topic-slug>/02-DEEP-RESEARCH.md`
 

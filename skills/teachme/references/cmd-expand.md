@@ -11,10 +11,10 @@ Deepen shallow notes in `<VAULT_ROOT>/<topic-slug>/` to the **8-Block Subtopic S
    - Load `00-MISSION.md`, `01-RESOURCES.md`, `00-MOC-INDEX.md`, and ONLY `--section L0-L1` of `topics/*.md` via `vault_cli.py slice` to spot missing prerequisites, missing related subtopics, or incomplete 8-Block files.
    - For any shallow `topics/*.md` file flagged, load it individually to upgrade in place.
 3. **Deepen & Generate (8-Block Standard + 6-Point Audit):**
-   - Upgrade shallow `topics/*.md` files to full **8-Block Standard** compliance (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`, Contrastive "Is vs. Is Not" table, zero-skip Axiom Derivation, 10–18 line Python/NumPy `assert` verification snippet, `I Do -> We Do -> You Do` workbook, typed YAML edges).
+   - Upgrade shallow `topics/*.md` files to full **8-Block Standard** compliance (`## 1.`–`## 8.` headings, `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`, Contrastive "Is vs. Is Not" table, Input-to-Output Behavior Table, zero-skip Axiom Derivation, 10–18 line Python/NumPy `assert` verification snippet, `I Do -> We Do -> You Do` Drills A & B, Section 7 Misconceptions & Bridge, Section 8 clickable `[[wikilinks]]` + `Primary Sources & Deep Links` table).
    - Partition `atomic/*.md` cards with `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers.
    - Generate new `topics/<nn>-<slug>.md` and `atomic/<slug>.md` files for uncovered subtopics; update `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`.
-   - Pass the **7-Point Writer -> Critic Audit** (`subtopic-8block.md` §3) before saving each `topics/*.md` file.
+   - Pass ALL **8 Points of the Writer -> Critic Audit** (`subtopic-8block.md` §4, including Check #8 Primary-Source Deep-Link Verification) before saving each `topics/*.md` file.
 4. **Refresh Graph & Verify:**
    - Update `00-MOC-INDEX.md` (preserving `[x]` checkmarks) and run `vault_cli.py graph <VAULT_PATH>` + `vault_cli.py verify <VAULT_PATH>` until `errors` is empty.
    - Print a concise summary of deepened and newly created files.

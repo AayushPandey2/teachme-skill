@@ -18,7 +18,7 @@ Execute these 6 phases sequentially inside `<VAULT_ROOT>/<topic-slug>/` (resolve
 
 ### Phase 4: Scaffolding, 8-Block Subtopic Notes, Cornell Guide & Flashcards
 1. Run `scripts/vault_cli.py init <VAULT_PATH> --title "<Topic>" --topics <01-slug,02-slug,...>` to scaffold `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, `00-GRAPH.json`, and `scratchpad/`.
-2. Read `references/subtopic-8block.md` and generate `<VAULT_PATH>/topics/<nn>-<subtopic-slug>.md` for every syllabus subtopic, passing the **7-Point Writer -> Critic Audit** before saving each file.
+2. Read `references/subtopic-8block.md` and generate `<VAULT_PATH>/topics/<nn>-<subtopic-slug>.md` for every syllabus subtopic, passing the **8-Point Writer -> Critic Audit** before saving each file.
 3. Read `references/phase4-5-moc-cards.md` and write `03-CORNELL-STUDY-GUIDE.md`, enrich `00-MOC-INDEX.md` (Mermaid + ASCII prereq graph), and write `08-FLASHCARDS.md`.
 4. Run `scripts/vault_cli.py graph <VAULT_PATH>` and `scripts/vault_cli.py verify <VAULT_PATH>` until `errors` is empty.
 
