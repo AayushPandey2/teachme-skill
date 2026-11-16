@@ -67,9 +67,9 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 ### 3. `/teachme review <topic>` (Spaced-Repetition Quiz)
 
-1. **Scan State (Read-Only on Notes):** Read `00-MOC-INDEX.md` (looking for unchecked `- [ ]` subtopics), `learning-records/` (looking for past misconceptions or `superseded` records), and `08-FLASHCARDS.md`. Do NOT regenerate or overwrite existing vault notes.
-2. **Teach-Before-Test & ZPD Quiz:** Briefly recap the weakest or next unchecked subtopic in topological order—including plain-English mechanics and a full component breakdown of any formulas involved—then run a targeted spaced-repetition Socratic quiz **one question at a time** (respecting Beginner-Safe 1-number scalar traces for `0 knowledge` / `Beginner` baselines).
-3. **Persist Progress:** Check off mastered subtopics (`- [x]`) in `00-MOC-INDEX.md` and log breakthroughs or corrected gaps in `learning-records/000N-<slug>.md`.
+1. **Hot-State & Progressive Scan (Read-Only on Notes):** Read `00-SESSION-STATE.md` (<60 lines) FIRST instead of scanning the entire vault, then inspect `00-MOC-INDEX.md` and `learning-records/` for unchecked `- [ ]` subtopics or past misconceptions. Load ONLY `L0 + L1` (`<!-- SECTION: L1-ANCHOR -->`) for prerequisite subtopics and full `L2` content only for the subtopic under review. Do NOT regenerate or overwrite existing vault notes.
+2. **Teach-Before-Test & ZPD Quiz:** Briefly recap the weakest or next unchecked subtopic in topological order—including plain-English intuition and a full component breakdown of any formulas involved—then run a targeted spaced-repetition Socratic quiz **one question at a time** (respecting the Strict Anti-Spoiler drop-down micro-step rule and Beginner-Safe scalar traces for `0 knowledge` / `Beginner` baselines).
+3. **Persist Progress:** Check off mastered subtopics (`- [x]`) in `00-MOC-INDEX.md`, update `00-SESSION-STATE.md`, and log breakthroughs or corrected gaps in `learning-records/000N-<slug>.md`.
 
 ---
 
@@ -146,51 +146,55 @@ When invoked with a subcommand, execute its dedicated workflow directly without 
 
 Upgrade an existing vault at `~/notes/<topic-slug>/` from surface-level or incomplete coverage to exhaustive, zero-omission mastery without deleting existing progress or learning records:
 
-1. **Scan Existing Vault:** Read `00-MISSION.md`, `00-MOC-INDEX.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`, and all existing files in `topics/*.md` and `atomic/*.md`.
-2. **Gap & Depth Audit:**
+1. **Scan Existing Vault:** Read `00-SESSION-STATE.md` (create it under 60 lines if missing, alongside `scratchpad/`), `00-MISSION.md`, `00-MOC-INDEX.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, `04-GLOSSARY.md`, `06-DERIVATIONS-AND-PROOFS.md`, and all existing files in `topics/*.md` and `atomic/*.md`.
+2. **Gap & 8-Block Depth Audit:**
    - Identify **missing related topics, prerequisite foundations, advanced extensions, edge cases, and subtopics** not yet present in `topics/`.
-   - Identify **existing `topics/*.md` or research files that are too brief**, lack full step-by-step derivations, miss edge cases/worked examples, or lack complete component-by-component Formula Anatomy breakdowns.
-3. **Deepen Pre-Existing Files In Place:**
-   - Enrich every shallow `topics/<nn>-<subtopic-slug>.md` file with deeper mechanics, concrete worked numerical/code examples, adversarial edge cases, and complete Formula Anatomy breakdowns (symbol/operator tables, units/domain, directional sensitivity, boundary limits).
+   - Identify **existing `topics/*.md` or research files that are too brief** or missing any part of the **8-Block Subtopic Note Standard** (`references/STUDY-AND-GLOSSARY.md` §6): typed YAML frontmatter (`L0`), HTML semantic anchors (`<!-- SECTION: L1-ANCHOR -->` through `<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->`), Zero-Baseline Micro-Bridge & Engineering Motivation, 4-Layer Deep Theory Stack (with ASCII diagram, Contrastive "Is vs. Is Not" table, Analogy Break-Down warning, Symbol Anatomy & Boundary Limits), zero-skip Axiom Derivation, 10–18 line Python/NumPy `assert` verification snippet, Gradual-Release Workbook (`I Do` → `We Do` → `You Do`), and Typed Knowledge Graph Footer + 4-checkpoint ledger.
+3. **Deepen Pre-Existing Files In Place (With 6-Point Audit):**
+   - Upgrade every shallow `topics/<nn>-<subtopic-slug>.md` file to full **8-Block Standard** compliance, and partition `atomic/*.md` cards with `L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH` markers.
+   - Run the **Mandatory 6-Point Writer -> Critic Audit** (`references/STUDY-AND-GLOSSARY.md` §6) before saving every deepened file.
    - Update `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, `04-GLOSSARY.md` (1–2 sentence definitions + `_Avoid_:` aliases), and `06-DERIVATIONS-AND-PROOFS.md` with the newly added depth.
 4. **Generate All Missing Related Subtopic Files:**
-   - Create dedicated `topics/<nn>-<new-subtopic-slug>.md` files and corresponding `atomic/<concept-slug>.md` Zettelkasten cards for every missing related subtopic discovered.
+   - Create dedicated **8-Block Standard** `topics/<nn>-<new-subtopic-slug>.md` files (each passing the **6-Point Writer -> Critic Audit**) and corresponding `atomic/<concept-slug>.md` Zettelkasten cards for every missing related subtopic discovered.
 5. **Update Navigation & Graphs:**
-   - Register all newly created `topics/*.md` and `atomic/*.md` files in `00-MOC-INDEX.md` with status checkboxes (`[ ]`), difficulty tags, and updated **Mermaid + ASCII prerequisite dependency graphs** (preserving existing `[x]` checkmarks on previously mastered subtopics).
+   - Register all newly created `topics/*.md` and `atomic/*.md` files in `00-MOC-INDEX.md` (with status checkboxes `[ ]`, difficulty tags, and updated **Mermaid + ASCII prerequisite dependency graphs**) and update `00-SESSION-STATE.md` (`< 60` lines) while preserving existing `[x]` checkmarks on previously mastered subtopics.
 6. **Report Expansion Summary:** Print a concise summary in chat listing which pre-existing files were deepened and which new subtopic files were added.
 
 ---
 
 ### 8. `/teachme verify <topic>` *(alias: `/teachme audit <topic>`)* (Vault Integrity & Auto-Repair)
 
-Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan and auto-repair loop across **every `.md` file** inside `~/notes/<topic-slug>/` until **zero** broken links or broken formulas remain:
+Run an exhaustive, multi-pass structural, mathematical, and link-integrity scan and auto-repair loop across **every `.md` file** inside `~/notes/<topic-slug>/` until **zero** broken links, **zero** broken formulas, and **100% 8-Block Standard compliance** are confirmed:
 
-1. **Pass 1 — Exhaustive Link & Reference Audit + Auto-Repair:**
+1. **Pass 1 — Exhaustive Link, Typed Edge & Topology Audit + Auto-Repair:**
    - Scan **every `.md` file** in `~/notes/<topic-slug>/` (root files, `topics/*.md`, `atomic/*.md`, `learning-records/*.md`) for:
      - Obsidian wikilinks: `[[target]]`, `[[target|alias]]`, and heading/block links `[[target#Section]]`.
+     - YAML typed semantic edges (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`) and Block 7 semantic links in `topics/*.md`.
      - Standard relative Markdown links: `[label](relative/path.md)`.
      - Mermaid graph nodes and navigation footers (`Previous:`, `Next:`, `Index:`).
+     - Presence and `< 60`-line compliance of `00-SESSION-STATE.md`, presence of `scratchpad/`, and `<!-- SECTION: L1-ANCHOR -->`..`<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->` markers in every `topics/*.md` and `atomic/*.md` file.
    - **Auto-Fix Actions:**
-     - Strip stray `.md` extensions inside `[[wikilinks]]` if inconsistent, resolve case/slug mismatches to the real file on disk, fix broken `Previous:` / `Next:` neighbor chains in `topics/*.md`, and validate `#Section` anchor headings against actual headings in the target file.
-     - Remove placeholder `[[none]]` frontmatter links (`prerequisites: []`). If a link points to a missing subtopic or concept file that *should* exist, generate that missing `.md` file immediately rather than leaving a dead link; if it is an invalid/typo link with no valid target, clean or remap it.
-     - Detect any orphaned `.md` files in `topics/` or `atomic/` not listed in `00-MOC-INDEX.md` or `03-CORNELL-STUDY-GUIDE.md` and register them into the checklists and Mermaid/ASCII dependency graphs.
+     - Strip stray `.md` extensions inside `[[wikilinks]]` if inconsistent, resolve case/slug mismatches to the real file on disk, repair broken `depends_on` / `unlocks` / `contrasts_with` / `fixes_failure_of` typed edges and `Previous:` / `Next:` neighbor chains, and validate `#Section` anchor headings against actual headings in the target file.
+     - Remove placeholder `[[none]]` frontmatter links (use `[]`). If a link points to a missing subtopic or concept file that *should* exist, generate that missing `.md` file immediately following the 8-Block Standard rather than leaving a dead link; if it is an invalid/typo link with no valid target, clean or remap it.
+     - Detect any orphaned `.md` files in `topics/` or `atomic/` not listed in `00-MOC-INDEX.md` or `03-CORNELL-STUDY-GUIDE.md` and register them into the checklists, `00-SESSION-STATE.md` compact map, and Mermaid/ASCII dependency graphs.
 
-2. **Pass 2 — Exhaustive LaTeX Formula Syntax & Anatomy Audit + Auto-Repair:**
+2. **Pass 2 — Exhaustive LaTeX Hygiene & Mandatory 6-Point Writer -> Critic Audit + Auto-Repair:**
    - Scan **every `.md` file** in `~/notes/<topic-slug>/` for:
-     - **Backtick-wrapped LaTeX:** Any `` `$...$` `` or `` `$$...$$` `` → strip the outer backticks immediately so it becomes pure `$...$` / `$$...$$`.
+     - **Backtick-wrapped LaTeX:** Any `$` or `$$` math wrapped inside code backticks → strip outer backticks immediately so it becomes pure `$` / `$$` math.
      - **Table-breaking pipes in math:** Any `$... | ...$` inside Markdown table rows `| ... |` → replace raw `|` with `\mid` or `\lvert` / `\rvert` (or `\lVert` / `\rVert`).
-     - **Unclosed or mismatched delimiters:** Odd numbers of `$` on a line, unclosed `$$` blocks, stray currency `$` colliding with math, unescaped newlines inside single-line `$...$`, or broken braces `{` / `}`.
+     - **Unclosed or mismatched delimiters:** Odd numbers of `$` on a line, unclosed `$$` blocks, stray currency `$` colliding with math, unescaped newlines inside single-line inline math, or broken braces `{` / `}`.
      - **Double-escaped or malformed commands:** Fix broken commands like `\\mathbf` where single `\mathbf` is needed, or missing backslashes on standard operators (`frac`, `sum`, `mathbf`, `partial`, `nabla`).
-     - **Missing Formula Anatomy Breakdowns:** Any display equation `$$...$$` in `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, or `topics/*.md` lacking its Plain-English Intuition, complete symbol/operator breakdown table, units/domain, directional sensitivity, boundary limits, or worked numerical walkthrough → generate and insert the complete breakdown block in place.
+     - **Missing Formula Anatomy Breakdowns & 8-Block Standard Violations:** Run all **6 Writer -> Critic Audit** checks on every `topics/*.md` file (every Layer 4 symbol defined in Block 2 or Symbol Table; zero skipped algebraic steps in Block 4; zero backtick-wrapped math & `\mid` in tables; ASCII diagram + Contrastive "Is vs. Is Not" table + "Where the Analogy Breaks Down" warning present; runnable 10–18 line Python/NumPy `assert` verification snippet in Block 5; valid typed links), plus check `02-DEEP-RESEARCH.md` & `03-CORNELL-STUDY-GUIDE.md` for complete Formula Anatomy Breakdowns. Generate and insert any missing block in place.
 
 3. **Pass 3 — Mandatory Re-Verification Loop (Zero-Remaining Guarantee) & Cross-File Glossary Check:**
    - Ensure canonical terms used across `topics/*.md` and `atomic/*.md` match `04-GLOSSARY.md` (adding any undefined domain terms to `04-GLOSSARY.md`).
-   - After applying all file edits, **re-run** the link scanner and LaTeX regex/delimiter check across the entire `~/notes/<topic-slug>/` directory to confirm **0 broken links** and **0 broken formulas** remain before finishing.
+   - After applying all file edits, **re-run** the link scanner, typed-edge check, 6-Point Writer -> Critic Audit, and LaTeX regex/delimiter check across the entire `~/notes/<topic-slug>/` directory to confirm **0 broken links**, **0 broken formulas**, and **0 missing 8-Block sections** remain before finishing.
    - Output a clear verification report table in chat:
 
 ```markdown
-| File | Links Checked / Fixed | Formulas Checked / Fixed | Status |
-|---|---|---|---|
-| `00-MOC-INDEX.md` | 20 / 0 | 0 / 0 | PASS |
-| `topics/01-...md` | 4 / 1 | 2 / 1 | PASS |
+| File | Links Checked / Fixed | Formulas Checked / Fixed | 8-Block Audit | Status |
+|---|---|---|---|---|
+| `00-SESSION-STATE.md` | 1 / 0 | 0 / 0 | <60 lines | PASS |
+| `00-MOC-INDEX.md` | 20 / 0 | 0 / 0 | — | PASS |
+| `topics/01-...md` | 6 / 0 | 2 / 0 | 6/6 | PASS |
 ```

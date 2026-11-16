@@ -218,112 +218,191 @@ NN. [[topics/<nn>-<subtopic-slug>]] — <1-line summary>
 
 ---
 
-## 6. Phase 4B: Dedicated Per-Subtopic Deep-Dive Files (`topics/<nn>-<subtopic-slug>.md`)
+## 6. Phase 4B: Detailed Subtopic Notes — 8-Block Standard (`topics/<nn>-<subtopic-slug>.md`)
 
-For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a full-length, standalone Markdown file inside `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` numbered sequentially (`01-...`, `02-...`, etc.).
+For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a deep, self-contained, zero-baseline-to-mastery reference file at `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` (`01-...`, `02-...`, etc.) partitioned with the strict Three-Tier Progressive Disclosure HTML anchors (`L1-ANCHOR`, `L2-PREREQS-AND-MOTIVATION`, `L3-FOUR-LAYER-THEORY`, `L4-DERIVATION-AND-CODE`, `L5-WORKBOOK-AND-GRAPH`).
 
-**Progressive Absolute-Zero-to-Mastery Architecture (Matches Live Phase 6 Lessons):**
-Every saved subtopic file MUST mirror the progressive 3-stage escalation used in live teaching—starting from **zero assumed prerequisites** and escalating cleanly to formal equations, complete worked steps, and adversarial edge cases:
-1. **Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation:** Define every new symbol, operator, or technical term from scratch in 2–3 plain-English lines with a tiny 2-number example, then state in 2 sentences what failed or was clumsy previously.
-2. **Depth Stage 1 — Intuition, Visuals & Mechanism:** Vivid daily-life analogy + 1-line Mental Hook, step-by-step causal mechanism (`Input → Internal Transformation → Output`), clean ASCII visual diagram, Contrastive Boundary ("What It Is vs. What It Is NOT"), and **Where the Analogy Breaks Down**.
-3. **Depth Stage 2 — Mathematical Intuition, Formal Equation & `I Do` Trace:** Plain-English mathematical intuition *before* symbols, formal governing equation in pure display LaTeX (zero backticks, `\mid` in tables), complete Symbol & Operator Anatomy Table, and a thinking-aloud `I Do` walkthrough skipping zero algebraic steps.
-4. **Depth Stage 3 — Deeper Nuances, Limiting Behaviors & Advanced Connections:** Scaling/limiting behaviors ($0, 1, \infty$, negative/degenerate inputs), why alternative formulations fail, and links to advanced downstream topics.
-5. **Worked Code + Progressive Self-Check Ladder:** Guided (`We Do` with 2 faded blanks), Cold Solo (`You Do`), and Adversarial Edge-Case + 2-sentence Feynman Teach-Back inside `<details>` blocks.
+### Exact 8-Block Subtopic Note Template
 
 ````markdown
 ---
-topic: "<Topic Title>"
-subtopic: "<Subtopic Title>"
-order: <nn>
-prerequisites:
-  - "[[topics/<prereq-subtopic>]]" # or [] if none
-parent: "[[03-CORNELL-STUDY-GUIDE]]"
+id: topic-<nn>
+title: <Subtopic Title>
+status: unstarted # unstarted | in-progress | mastered
+checkpoint: 0/4
+depends_on: [topic-<prev>-<slug>]
+unlocks: [topic-<next>-<slug>]
+contrasts_with: [topic-<lookalike>-<slug>]
+fixes_failure_of: [topic-<broken-method>-<slug>]
+key_equations:
+  - "<clean LaTeX equation>"
 ---
 
 # <nn>. <Subtopic Title>
 
-## 1. Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation
-- **Prerequisite Micro-Bridge (Absolute-0 Guarantee):**
-  - **<New Term / Symbol 1>:** <2–3 plain-English lines defining it from scratch, followed by a tiny 2-number example.>
-  - **<New Term / Symbol 2>:** <2–3 plain-English lines + tiny 2-number example.>
-- **Why This Exists (Engineering Motivation):** <2 sentences explaining what failed or was clumsy in the previous subtopic/baseline that forced this concept to be invented.>
+<!-- SECTION: L1-ANCHOR -->
+## 1. The 30-Second Executive Anchor
+- **Core Thesis:** <2–3 sentences max stating clearly what problem this subtopic solves, how it works at a high level, and its single unbreakable invariant.>
+- **One-Line Mental Hook:** <A vivid, memorable 1-sentence takeaway you can recall instantly during revision.>
 
-## 2. Depth Stage 1 — Intuition, Visuals & Mechanism
-- **Daily-Life Intuition:** <Vivid, relatable physical or real-world analogy explaining the core behavior without jargon.>
-- **1-Line Mental Hook:** <One crisp sentence locking in the core intuition.>
-- **Step-by-Step Mechanism (`Input → Internal Transformation → Output`):**
-  1. **Input:** <What enters the mechanism using **bolded canonical terms** from `04-GLOSSARY.md`.>
-  2. **Internal Transformation:** <Exact causal rule/state transition and why it works [Source].>
-  3. **Output:** <What comes out and what invariant holds.>
+<!-- SECTION: L2-PREREQS-AND-MOTIVATION -->
+## 2. Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation
+
+> [!note] Zero-Baseline Prerequisites
+> Before using ANY mathematical symbol, operator, matrix/tensor notation, or domain term in this file, define every single one from absolute scratch in plain English with a tiny 2-number concrete micro-example (assuming zero prior math or domain knowledge):
+> - **<Term / Symbol 1>:** <Plain-English definition from scratch + tiny 2-number example.>
+> - **<Term / Symbol 2>:** <Plain-English definition from scratch + tiny 2-number example.>
+
+### Engineering Motivation ("Why This Had to Be Invented")
+<3–4 sentence causal explanation of what broke, scaled poorly, or failed in the previous subtopic that forced researchers/engineers to invent this exact concept [Source].>
+
+<!-- SECTION: L3-FOUR-LAYER-THEORY -->
+## 3. 4-Layer Deep Theory Stack
+
+### Layer 1 — Daily-Life Intuition
+<Rich, thorough prose—never terse bullet stubs—using a relatable, everyday physical or human analogy explaining the core behavior with zero jargon.>
+
+### Layer 2 — Theoretical Mechanism, Visual Diagram & Contrastive Boundaries
+- **Causal Mechanism (`Input → Internal State/Transformation → Output`):** <Detailed step-by-step walkthrough using **bolded canonical terms** from `04-GLOSSARY.md` and inline [Source] citations.>
 
 ```text
-<Clean ASCII coordinate, flow, or geometry diagram illustrating the concept visually>
+<Mandatory ASCII diagram illustrating the geometry, vector projection, data pipeline, or state transition>
 ```
 
-- **Contrastive Boundary ("What It Is vs. What It Is NOT"):** <Explicitly distinguish this concept from lookalike mechanisms and explain why the lookalike fails [Source].>
-- **Where the Analogy Breaks Down:** <Explicit boundary where the everyday analogy stops matching mathematical/system reality.>
+#### Contrastive "Is vs. Is Not" Table
+| Dimension | <This Concept> (What It IS) | <Closest Lookalike> (What It Is NOT) |
+|---|---|---|
+| **Core Mechanism** | <Exact mechanism> | <How the lookalike differs or fails> |
+| **Invariant / Guarantee** | <What strictly holds> | <Where the lookalike breaks> |
+| **Failure Mode** | <Real edge behavior> | <Lookalike trap> |
 
-## 3. Depth Stage 2 — Mathematical Intuition, Formal Equation & `I Do` Trace
-- **Mathematical Intuition (Before Symbols):** <Plain-English geometric, scaling, or behavioral explanation of what the math is doing before writing formal notation.>
+> [!warning] Where the Analogy Breaks Down
+> <State clearly where Layer 1's everyday analogy stops matching the true mathematical or system mechanics.>
+
+### Layer 3 — Mathematical Intuition (Before Symbols)
+<Explain the geometric, scaling, directional, and limiting behavior of the math in rich plain English BEFORE writing any Greek symbols or formal equations.>
+
+### Layer 4 — Formal Governing Mathematics & Complete Formula Anatomy
+*(If a purely non-mathematical subtopic has no formal equations, explicitly state "No formal equations govern this mechanism" and provide exact complexity/capacity bounds or invariant inequalities with full breakdown.)*
 
 $$
 <Display LaTeX Equation>
 $$
 
-| Symbol / Operator | Name, Domain / Shape & Physical Role | Directional Sensitivity |
-|---|---|---|
-| $x$ | <Name, plain-language role, units / domain / shape> | <Effect on output when $x$ increases or decreases> |
-| ... | ... | ... |
+| Symbol / Operator | Name & Physical Role | Tensor Shape / Domain / Units | Directional Sensitivity |
+|---|---|---|---|
+| $x$ | <Name & plain-English role> | <Shape / domain / units> | <Effect when $x$ increases or decreases> |
+| ... | ... | ... | ... |
 
-*(If a purely non-mathematical subtopic has no formal equations, explicitly state "No formal equations govern this mechanism" and provide exact complexity/capacity bounds or invariant inequalities with full breakdown.)*
+- **Directional Sensitivity & Boundary Limits:**
+  - As key input $\to 0$: <Exact behavior>.
+  - As key input $\to 1$ / $-1$: <Exact behavior>.
+  - Negative inputs / degenerate cases: <Exact sign-flip, clamping, or failure behavior>.
+  - As key input $\to \infty$: <Exact asymptotic / saturation behavior>.
 
-- **`I Do` (Thinking-Aloud Worked Walkthrough):**
-  1. **Concrete Inputs:** <Realistic scalar/numeric inputs with units/shapes>.
-  2. **Step-by-Step Arithmetic (Zero Skipped Algebraic Steps):** <Narrate why every single arithmetic operation happens>.
-  3. **Final Answer & Plain-English Meaning:** <Result + intuitive interpretation>.
+<!-- SECTION: L4-DERIVATION-AND-CODE -->
+## 4. Step-by-Step Axiom Derivation
+<Complete, zero-skip algebraic/logical derivation from base axioms to the final equation—zero "it is trivial to see that..." jumps.>
+1. **Step 1 (Starting Axiom):**
+   $$<Starting expression>$$
+   *Why this step holds:* <1-sentence explicit justification>.
+2. **Step 2 (Intermediate Transition):**
+   $$<Intermediate step showing exact algebraic rule applied>$$
+   *Why this step holds:* <1-sentence explicit justification>.
+3. **Step 3 (Final Governing Equation):**
+   $$<Final equation>$$
+   *Why this step holds:* <1-sentence explicit justification>.
 
-## 4. Depth Stage 3 — Deeper Nuances, Limiting Behaviors & Advanced Connections
-- **Limiting Behaviors & Boundary Cases:**
-  - Input $= 0$: <Exact behavior>.
-  - Input $= 1$ (if applicable): <Exact behavior>.
-  - Input $\to \infty$: <Exact asymptotic/saturation behavior>.
-  - Negative / degenerate inputs: <Exact failure, clamping, or boundary behavior>.
-- **Why Alternative Formulations Fail & Trade-offs:** <What breaks in naive alternatives and what this formulation optimizes vs. sacrifices [Source].>
-- **Connections to Advanced Topics:** <How this mechanism scales or connects forward to [[topics/<next-subtopic>]] and downstream architectures.>
+## 5. Executable "Code-as-Truth" Verification Block
+```python
+import numpy as np
 
-## 5. Worked Examples / Annotated Code
-```<language>
-// Realistic, end-to-end annotated example (never foo/bar placeholders)
+# Self-contained 10-18 line verification matching the worked example
+# Explicit variable shapes, concrete numbers, and assert invariants
+x = np.array([2.0, 3.0], dtype=float)  # shape: (2,)
+# ... compute expected vs. formula output ...
+assert np.allclose(actual, expected), f"Invariant failed: {actual} != {expected}"
 ```
 
-## 6. Progressive Self-Check Ladder (`We Do` → `You Do` → Feynman Gate)
-- **Guided Practice (`We Do`):** <Richer problem with ~60% of steps completed and `[Step 2: ___]`, `[Step 4: ___]` blanks.>
-  <details><summary>Reveal Guided Steps</summary>
-  <Exact step-by-step fill-ins with zero skipped arithmetic.>
-  </details>
-- **Cold Solo Problem (`You Do`):** <Fresh problem with zero scaffolding.>
-  <details><summary>Reveal Solo Solution</summary>
-  <Complete step-by-step derivation and final answer.>
-  </details>
-- **Adversarial Edge-Case & 2-Sentence Feynman Check:** <Tricky boundary/failure input + "Explain this in 2 plain-English sentences with zero unstated jargon.">
-  <details><summary>Reveal Mastery Answer</summary>
-  <Boundary outcome + model 2-sentence plain-English Feynman explanation.>
-  </details>
+<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->
+## 6. Gradual-Release Practice Workbook (`I Do` → `We Do` → `You Do`)
+
+### `I Do` (Fully Worked 3-Number Trace)
+1. **Concrete Inputs:** <3 specific numbers matching the Code-as-Truth block>.
+2. **Step-by-Step Arithmetic:** <Complete walkthrough with every arithmetic step narrated aloud>.
+3. **Final Evaluation & Interpretation:** <Exact number + plain-English meaning>.
+
+### `We Do` (Faded Fill-in-the-Blank)
+<Second problem with ~60% of the steps shown and `[Step 2: ___]`, `[Step 4: ___]` missing for self-testing.>
+<details><summary>Reveal Step-by-Step Solution</summary>
+<Exact missing steps and final answer with zero skipped arithmetic.>
+</details>
+
+### `You Do` (Cold Solo + Adversarial Edge-Case Drill)
+<Boundary-breaking problem (zero vector, degenerate input, or extreme scaling) with zero scaffolding.>
+<details><summary>Reveal Step-by-Step Solution</summary>
+<Verified solution, failure/boundary analysis, and 2-sentence plain-English Feynman check.>
+</details>
+
+## 7. Typed Knowledge Graph Footer & 4-Checkpoint Mastery Ledger
+
+### Typed Semantic Links
+- **Depends On:** [[topics/<prev>-<slug>]]
+- **Unlocks:** [[topics/<next>-<slug>]]
+- **Contrasts With:** [[topics/<lookalike>-<slug>]]
+- **Fixes Failure Of:** [[topics/<broken-method>-<slug>]]
+- **Atomic Concepts:** [[atomic/<concept-slug>]]
+
+### 4-Checkpoint Mastery Ledger
+- [ ] `[1/4]` Discovery Prediction
+- [ ] `[2/4]` We-Do Faded Step
+- [ ] `[3/4]` You-Do Cold Drill
+- [ ] `[4/4]` Edge-Case & Feynman Gate
 
 ---
 **Navigation:** ← [[<prev-subtopic>|Previous]] | [[03-CORNELL-STUDY-GUIDE|Study Guide]] | [[<next-subtopic>|Next]] →
 ````
 
+### Mandatory 6-Point Writer -> Critic Audit (Before Saving Any `topics/*.md` File)
+Before writing any generated or expanded `topics/<nn>-<subtopic-slug>.md` file to disk, self-audit all 6 checks and repair any failure immediately:
+1. Every symbol in Block 3 (Layer 4) is defined in Block 2 (Prerequisite Micro-Bridge) or the Symbol & Operator Anatomy Table.
+2. Zero skipped algebraic steps in Block 4 (every step carries an explicit `Why this step holds` justification).
+3. Zero backtick-wrapped LaTeX delimiters (`$` or `$$` never enclosed in code ticks) and `\mid` used instead of raw `|` inside every Markdown table.
+4. Includes an ASCII diagram, Contrastive "Is vs. Is Not" table, and `> [!warning] Where the Analogy Breaks Down` callout.
+5. Includes a valid, runnable 10–18 line Python/NumPy `assert` verification snippet in Block 5.
+6. All typed links (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of`, and Block 7 links) resolve to valid vault files on disk (or `[]` where none apply).
+
 ---
 
-## 7. Phase 4C: Master Map of Content (`00-MOC-INDEX.md`)
+## 7. Phase 4C: Hot-State Resume (`00-SESSION-STATE.md`), Master MOC (`00-MOC-INDEX.md`) & Working Buffer (`scratchpad/`)
 
+### A. Hot-State Resume Pointer (`~/notes/<topic-slug>/00-SESSION-STATE.md` — Strictly `< 60` Lines)
+Create and continuously maintain `00-SESSION-STATE.md` at the vault root storing **ONLY** these 4 items (never exceeding 60 lines):
+
+```markdown
+# Session State: <Topic Title>
+
+- **Active Subtopic:** `topics/01-<subtopic-slug>.md`
+- **Live Stage & Checkpoint:** `Depth Stage 1/3 | Checkpoint [1/4]`
+- **Last Verified Invariant:** <1-sentence invariant most recently passed by the learner, or "Vault initialized — ready for Lesson 1/Y.">
+
+## Compact Subtopic Status Map
+`[ ] 01` `[ ] 02` `[ ] 03` `[ ] 04`
+<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->
+```
+
+### B. Ephemeral Working Buffer (`scratchpad/`) & Auto-Compaction
+- Write raw intermediate research notes in `~/notes/<topic-slug>/scratchpad/raw-research.md` and rough algebra/derivation trials in `~/notes/<topic-slug>/scratchpad/derivation-drafts.md` so canonical `topics/` and `atomic/` files stay spotless.
+- **Auto-Compaction (Every 3 Completed Subtopics):** Append a 5-line **Cumulative Synthesis Strip** to `00-MOC-INDEX.md` and roll up verified formulas into `09-CHEAT-SHEET.md`.
+
+### C. Master Map of Content (`00-MOC-INDEX.md`)
 Create `~/notes/<topic-slug>/00-MOC-INDEX.md` as the central navigation dashboard so Obsidian and Markdown navigation stays effortless regardless of vault size:
 
 ````markdown
 # Map of Content (MOC): <Topic Title>
 
 ## Vault Navigation
+- [[00-SESSION-STATE]] — Hot-state resume pointer (<60 lines)
 - [[00-MISSION]] — Target outcome, success criteria & scope boundaries
 - [[01-RESOURCES]] — Primary Knowledge, practitioner Wisdom, exhaustive syllabus & gaps
 - [[02-DEEP-RESEARCH]] — Primary-source research dossier & benchmarks
@@ -333,7 +412,7 @@ Create `~/notes/<topic-slug>/00-MOC-INDEX.md` as the central navigation dashboar
 - [[06-DERIVATIONS-AND-PROOFS]] — Step-by-step axiom-to-formula derivations
 - [[07-PRACTICE-PROBLEMS]] — Applied problem sets & scenarios (if generated)
 - [[08-FLASHCARDS]] — Spaced-repetition & cloze active-recall deck
-- [[09-CHEAT-SHEET]] — Distilled 1-page executive cheat sheet (via `/teachme distill`)
+- [[09-CHEAT-SHEET]] — Distilled 1-page executive cheat sheet (via `/teachme distill` & auto-compaction)
 
 ---
 
@@ -365,6 +444,11 @@ graph TD
 - [ ] **01.** [[topics/01-<subtopic-slug>]] `[Beginner]` — *Prereqs: None*
 - [ ] **02.** [[topics/02-<subtopic-slug>]] `[Intermediate]` — *Prereqs: [[topics/01-<subtopic-slug>]]*
 - [ ] **03.** [[topics/03-<subtopic-slug>]] `[Advanced]` — *Prereqs: [[topics/02-<subtopic-slug>]]*
+
+---
+
+## Cumulative Synthesis Strips (Auto-Compacted Every 3 Subtopics)
+<!-- Append a 5-line synthesis strip here after completing every 3 subtopics and roll up verified formulas into 09-CHEAT-SHEET.md -->
 
 ---
 
@@ -405,7 +489,7 @@ For `<Formula Name>`: increasing ==$<variable>$== causes the output to ==<increa
 
 ## 9. Phase 5: Atomic Zettelkasten Cards (`atomic/`)
 
-Create standalone Markdown cards inside `~/notes/<topic-slug>/atomic/<concept-slug>.md` for every key mechanism, theorem, invariant, and failure mode (no arbitrary card cap). Each card must express **one atomic concept** in 150-300 words so it is reusable across vaults:
+Create standalone Markdown cards inside `~/notes/<topic-slug>/atomic/<concept-slug>.md` for every key mechanism, theorem, invariant, and failure mode (no arbitrary card cap). Each card must express **one atomic concept** in 150-300 words and include the strict Three-Tier Progressive Disclosure HTML section markers (`L1-ANCHOR`..`L5-WORKBOOK-AND-GRAPH`) so prerequisite cards can be progressively disclosed via `L0 + L1` without bloating context:
 
 ```markdown
 ---
@@ -419,8 +503,19 @@ parent: "[[03-CORNELL-STUDY-GUIDE]]"
 
 # <Atomic Concept Title>
 
-<150-300 words explaining this single concept clearly in your own words, grounded in 04-GLOSSARY.md terminology and citing primary sources [Source]. Include a brief concrete example or invariant.>
+<!-- SECTION: L1-ANCHOR -->
+<2-sentence core thesis + 1-line mental hook for 30-second recall.>
 
+<!-- SECTION: L2-PREREQS-AND-MOTIVATION -->
+<1-2 sentence prerequisite terms and why this invariant/concept exists.>
+
+<!-- SECTION: L3-FOUR-LAYER-THEORY -->
+<Core mechanism grounded in 04-GLOSSARY.md terminology and primary sources [Source], including intuition and boundary condition.>
+
+<!-- SECTION: L4-DERIVATION-AND-CODE -->
+<Brief concrete example, invariant check, or governing equation if applicable.>
+
+<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->
 ## Related Concepts
 - [[<sibling-concept-1>]] — <Explicit explanation of how or why it connects (e.g., "Enforces the invariant required by...")>
 - [[<sibling-concept-2>]] — <Explicit explanation of dependency or contrast>

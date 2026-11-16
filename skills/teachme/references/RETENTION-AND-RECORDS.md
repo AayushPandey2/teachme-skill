@@ -2,10 +2,17 @@
 
 ---
 
-## 1. Vault Launch & Interleaved Cumulative Recall
+## 1. Vault Launch, Hot-State Resume & Three-Tier Progressive Disclosure
 
-1. **Vault Summary:** After generating the vault files at `~/notes/<topic-slug>/`, present a crisp executive overview (<250 words) and list the generated files (highlighting `00-MOC-INDEX.md` and `topics/*.md`).
-2. **Interleaved Cumulative Recall (Starting at `Lesson 3` and Every 2 Lessons Thereafter):**
+1. **Hot-State Resume Pointer (`00-SESSION-STATE.md` — Strictly `< 60` Lines):**
+   - Whenever resuming an existing vault, read `~/notes/<topic-slug>/00-SESSION-STATE.md` **FIRST** instead of scanning the entire vault.
+   - `00-SESSION-STATE.md` stores ONLY: (a) active subtopic path (`topics/<nn>-<slug>.md`), (b) current live depth stage & checkpoint (`Depth Stage X/3 | Checkpoint [Y/4]`), (c) compact 1-line status map of all subtopics (`[x] 01`, `[x] 02`, `[~] 03`, `[ ] 04`...), and (d) the last verified invariant.
+   - Update `00-SESSION-STATE.md` (keeping it strictly `< 60` lines) and the active subtopic's frontmatter (`status`, `checkpoint`) + Block 7 checklist as each checkpoint progresses.
+2. **Three-Tier Progressive Disclosure (`L0` / `L1` / `L2`):**
+   - Every `topics/*.md` and `atomic/*.md` file is partitioned with strict HTML markers (`<!-- SECTION: L1-ANCHOR -->`, `<!-- SECTION: L2-PREREQS-AND-MOTIVATION -->`, `<!-- SECTION: L3-FOUR-LAYER-THEORY -->`, `<!-- SECTION: L4-DERIVATION-AND-CODE -->`, `<!-- SECTION: L5-WORKBOOK-AND-GRAPH -->`).
+   - When teaching Subtopic $N$, load ONLY **L0 (YAML Frontmatter) + L1 (`<!-- SECTION: L1-ANCHOR -->`, ~25 lines per file)** of prerequisite Subtopics $1 \dots N-1$, and load the full **L2** body ONLY for active Subtopic $N$.
+3. **Vault Summary:** After generating the vault files at `~/notes/<topic-slug>/`, present a crisp executive overview (<250 words) and list the generated files (highlighting `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, and `topics/*.md`).
+4. **Interleaved Cumulative Recall (Starting at `Lesson 3` and Every 2 Lessons Thereafter):**
    - At `Lesson 3`, `Lesson 5`, `Lesson 7`, etc. (starting at Lesson 3 and every 2 lessons thereafter), open with a **quick 1-question warm-up that blends a previous lesson's concept with the current lesson** before starting Component 1.
    - Wait for the user's reply (applying the **Strict Anti-Spoiler Rule** below if they struggle or say `"idk"`), reinforce concisely, and then begin `Lesson X/Y` Component 1.
 
@@ -85,9 +92,10 @@ Lesson X/Y: <Lesson Title> | Depth Stage: 3/3 (Solo Execution, Deeper Theory & M
   1. Test a tricky boundary/failure input (e.g., zero vector, equal-to-threshold boundary, scaling invariance, or degenerate case).
   2. Ask for a **2-sentence plain-English Feynman Teach-Back** with zero unstated jargon.
 - Wait for the user's reply.
-- **Auto-Log & Advance:** Once `[4/4]` passes:
-  - Check off `- [x]` for this lesson/subtopic in `~/notes/<topic-slug>/00-MOC-INDEX.md`.
+- **Auto-Log, State Update & Auto-Compaction:** Once `[4/4]` passes:
+  - Check off `- [x]` for this lesson/subtopic in `~/notes/<topic-slug>/00-MOC-INDEX.md`, mark Block 7's 4-checkpoint ledger and YAML `status: mastered`, `checkpoint: 4/4` in `topics/<nn>-<subtopic-slug>.md`, and update `00-SESSION-STATE.md` (<60 lines) to point to `Lesson X+1`.
   - Record any struggled concepts, micro-steps needed, or corrected misconceptions into `~/notes/<topic-slug>/learning-records/000N-<slug>.md`.
+  - **Auto-Compaction (Every 3 Completed Subtopics):** Every 3 completed subtopics, append a 5-line **Cumulative Synthesis Strip** to `~/notes/<topic-slug>/00-MOC-INDEX.md` and roll up verified formulas into `~/notes/<topic-slug>/09-CHEAT-SHEET.md`.
   - Unlock `Lesson X+1` (opening with an **Interleaved Cumulative Recall** warm-up at `Lesson 3` and every 2 lessons thereafter).
 
 ---
