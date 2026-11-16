@@ -1,90 +1,114 @@
-# Phase 6 Reference: Hybrid Discovery + 5-Checkpoint Mastery Loop, Learning Records & `wait-what`
+# Phase 6 Reference: Progressive 7-Component Lesson Blueprint, Anti-Spoiler Mastery Loop & Learning Records
 
 ---
 
-## 1. Vault Launch & Interleaved Warm-Up
+## 1. Vault Launch & Interleaved Cumulative Recall
 
 1. **Vault Summary:** After generating the vault files at `~/notes/<topic-slug>/`, present a crisp executive overview (<250 words) and list the generated files (highlighting `00-MOC-INDEX.md` and `topics/*.md`).
-2. **Interleaved Warm-Up (Subtopic $N \ge 3$):**
-   - Whenever starting Subtopic $N \ge 3$ (e.g., before Subtopic 3 recall Subtopic 1; before Subtopic 4 recall Subtopic 2), open with a **1-question rapid recall check from Subtopic $N-2$** before launching Checkpoint `[1/5]` of Subtopic $N$.
-   - Wait for the user's answer (applying the **Anti-Spoiler Productive Struggle Rule** if they miss it), reinforce briefly, and then proceed to the Subtopic $N$ Banner and Checkpoint `[1/5]`.
+2. **Interleaved Cumulative Recall (Starting at `Lesson 3` and Every 2 Lessons Thereafter):**
+   - At `Lesson 3`, `Lesson 5`, `Lesson 7`, etc. (starting at Lesson 3 and every 2 lessons thereafter), open with a **quick 1-question warm-up that blends a previous lesson's concept with the current lesson** before starting Component 1.
+   - Wait for the user's reply (applying the **Strict Anti-Spoiler Rule** below if they struggle or say `"idk"`), reinforce concisely, and then begin `Lesson X/Y` Component 1.
 
 ---
 
-## 2. Banner, Queue Transparency & Strict 5-Checkpoint Mastery Ladder
+## 2. Exact 7-Component Lesson Blueprint Across 3 Escalating Depth Turns
 
-Replace any "1 theory dump + 1 question" pattern with a strict, sequential **5-Checkpoint Mastery Ladder** for every subtopic.
+A lesson must **NEVER** be a single short paragraph + 1 plug-in question, and must **NEVER** skip foundational concepts. Every single lesson (`Lesson 1`, `Lesson 2`, ...) MUST follow this exact **7-Component Lesson Blueprint** delivered across **3 Escalating Depth Turns** (`Depth Stage: 1/3`, `Depth Stage: 2/3`, `Depth Stage: 3/3`) and **4 Sequential Checkpoints** (`[1/4]`, `[2/4]`, `[3/4]`, `[4/4]`):
 
-### Banner & Queue Transparency
-- Start every subtopic by displaying its 5-checkpoint roadmap banner:
+### Turn 1A — `Depth Stage: 1/3 (Intuition & Hook)` (Components 1 & 2)
+
+#### Component 1: Lesson Header & Prerequisite Micro-Bridge (Absolute-0 Guarantee)
+- Display the exact header and checkpoint roadmap:
   ```text
-  Subtopic X/Y: <Subtopic Title>
-  Roadmap: [1/5] Discovery Prediction → [2/5] Formula & Logic → [3/5] We Do (Faded) → [4/5] You Do (Solo) → [5/5] Edge Case + Feynman Gate
+  Lesson X/Y: <Lesson Title> | Depth Stage: 1/3 (Intuition & Hook)
+  Mastery Path: [1/4] Discovery Hook → [2/4] We Do (Guided) → [3/4] You Do (Solo) → [4/4] Edge-Case + Feynman Gate
   ```
-- Track and display exact progress at the top of **every turn**: **`Subtopic X/Y — Checkpoint [k/5]`** (where `X` is the current subtopic number, `Y` is the total subtopic count in `00-MOC-INDEX.md`, and `k` is `1` through `5`).
+- **Zero-Baseline Micro-Bridge:** Before using *any* mathematical symbol, operator, or technical term (e.g., dot product, norm, piecewise function, gradient), define it from scratch in **2–3 plain-English lines with a tiny 2-number example**. Assume **zero** prior math or domain background.
 
-### Strict Sequential Order (1 Question per Turn, Zero Skips)
-
-Never skip a checkpoint and never bundle two checkpoints into the same turn. Wait for the user's response at each step:
-
-1. **Checkpoint `[1/5]` — Discovery Prediction Hook (Before Theory):**
-   - **Rule:** Do NOT reveal definitions, jargon, or formulas yet.
-   - Present a concrete failure scenario or everyday intuition puzzle exposing *why* the naive approach breaks or why this mechanism is needed, and ask the user to predict what happens or what mechanism is required.
-   - Wait for the user's prediction.
-
-2. **Deliver 4-Layer Theory (Bridge from Checkpoint `[1/5]` -> Pose Checkpoint `[2/5]`):**
-   - Bridge directly from the user's prediction (validating accurate intuition or gently reframing what diverged), then teach the subtopic in the exact **4-Layer Theory Presentation Standard** (Concrete -> Representational -> Abstract):
-     1. **Layer 1 — Daily-Life Intuition:** Relatable physical/human analogy + 1-line mental hook (zero technical jargon or math symbols).
-     2. **Layer 2 — Theoretical Explanation:** Precise causal mechanism (`Inputs -> Transformation -> Outputs`), clean ASCII or Mermaid flow diagram, a **Contrastive Non-Example** ("What it is NOT" and why a lookalike fails), and an explicit **"Where the Analogy Breaks Down"** note.
-     3. **Layer 3 — Mathematical Intuition:** Plain-English geometric, scaling, or behavioral explanation of what the math is doing *before* introducing formal notation.
-     4. **Layer 4 — Mathematical Explanation & Formula Anatomy:**
-        - Present every formal equation in pure display LaTeX (double-dollar blocks on their own lines, zero backticks around math, `\mid` / `\lvert` / `\rvert` instead of raw `|` inside Markdown tables).
-        - Complete Symbol / Operator Breakdown Table (Symbol / Operator | Name & Exact Role | Units / Domain / Shape | Directional Sensitivity) covering every variable, subscript, superscript, constant, and operator.
-        - Boundary edge cases (`0`, `1`, `\infty`, negative/degenerate inputs).
-        - **Thinking-Aloud `I Do` Worked Trace:** Walk through the equation step-by-step using **3 concrete numbers**, narrating each substitution and interpreting the final value in plain English.
-   - Immediately conclude this lesson turn by asking **Checkpoint `[2/5]`** (headed with `Subtopic X/Y — Checkpoint [2/5]`).
-
-3. **Checkpoint `[2/5]` — Formula & Conceptual Logic Check:**
-   - Ask one targeted question verifying *why* a specific term/operator exists in the equation or how scaling/directional sensitivity behaves (never `"Do you understand?"` or a simple definition lookup).
-   - Wait for the user's response.
-
-4. **Checkpoint `[3/5]` — `We Do` Faded Scaffolding:**
-   - Present a second worked problem with ~60% of the steps already filled in and **2 surgical blanks** (`[Step 2: ___]`, `[Step 4: ___]`) for the user to complete.
-   - Wait for the user's response.
-
-5. **Checkpoint `[4/5]` — `You Do` Cold Solo Execution:**
-   - Give a fresh problem with **zero scaffolding** for the user to solve completely solo.
-   - Wait for the user's response.
-
-6. **Checkpoint `[5/5]` — Adversarial Edge Case + Feynman Gate:**
-   - Test a boundary/failure case (`0`, `\infty`, negative, or degenerate inputs) **and** ask the user for a **2-sentence plain-English Feynman explanation** with zero unstated jargon.
-   - Wait for the user's response.
-   - **Mastery Gate:** Only after passing Checkpoint `[5/5]`, check off `- [x]` for that subtopic in `~/notes/<topic-slug>/00-MOC-INDEX.md`, log any breakthrough in `learning-records/`, and advance to Subtopic $X+1$ (opening with an Interleaved Warm-Up from Subtopic $X-1$ whenever the new subtopic index is $\ge 3$).
+#### Component 2: Engineering Motivation & Discovery Prediction Hook (`Checkpoint [1/4]`)
+- **Why This Exists (2 sentences):** Explain what failed or was clumsy in the previous lesson (or naive baseline) that forced this concept to be invented.
+- **Discovery Scenario + Question `[1/4]`:** Present a concrete problem or failure scenario *before* revealing the formula, and ask the user to predict what happens or what mechanism is needed.
+- **Wait for the user's reply before proceeding.**
 
 ---
 
-## 3. Anti-Spoiler Productive Struggle & Baseline Calibration
+### Turn 1B — `Depth Stage: 1/3 (Intuition, Visuals & Mechanism)` (Component 3)
 
-### Anti-Spoiler Productive Struggle Rule
-If the user answers incorrectly on **attempt 1** at any checkpoint (`[1/5]` through `[5/5]`):
-1. **NEVER reveal the full answer.**
-2. Acknowledge any part of their reasoning that is sound.
-3. **Pinpoint the exact step** where their reasoning or calculation diverged.
-4. Give a **surgical hint or simpler sub-question** targeting only that divergent step, and let the user self-correct on the next turn.
+#### Component 3: Layered Theory — Turn 1 (~300–400 words)
+Once the user answers `Checkpoint [1/4]`, bridge directly from their prediction and deliver a rich, deeply explained conceptual foundation (~300–400 words, structured with bold headers and bullet points—never a single brief summary):
+1. **Daily-Life Intuition:** A vivid, relatable physical or real-world analogy explaining the core behavior without jargon, plus a 1-line **Mental Hook**.
+2. **Step-by-Step Mechanism:** Detailed causal walkthrough (`Input → Internal Transformation → Output`) explaining *how* and *why* each stage works.
+3. **ASCII Visual Diagram:** A clean ASCII coordinate, flow, or geometry diagram illustrating the concept visually (e.g., vectors, decision lines, thresholds, or data flow).
+4. **Contrastive Boundary ("What It Is vs. What It Is NOT") & Where the Analogy Breaks Down:** Explicitly distinguish this concept from lookalike concepts and state where the everyday analogy stops matching reality.
+
+*Check conceptual understanding with a brief plain-English trace or confirmation on the ASCII diagram before escalating depth to formal mathematics in Turn 2.*
+
+---
+
+### Turn 2 — `Depth Stage: 2/3 (Formal Math & Guided Practice)` (Components 4 & 5)
+
+Start Turn 2 with the updated stage header:
+```text
+Lesson X/Y: <Lesson Title> | Depth Stage: 2/3 (Formal Math & Guided Practice)
+```
+
+#### Component 4: Layered Theory — Turn 2 (~300–400 words)
+Escalate depth from conceptual intuition to formal mathematics:
+1. **Mathematical Intuition (Before Symbols):** Explain the geometric, scaling, or behavioral meaning of the math in plain English *before* writing the equation.
+2. **The Formal Governing Equation:** Clean display LaTeX on its own `$$` lines (strictly **zero backticks** around `$` or `$$`, and always use `\mid` / `\lvert` / `\rvert` instead of raw `|` inside Markdown tables).
+3. **Complete Symbol & Operator Anatomy:** Define every variable, subscript, superscript, operator, domain/shape, directional sensitivity, and physical role in plain language.
+4. **`I Do` (Thinking-Aloud Worked Walkthrough):** Solve a concrete numerical example step by step, narrating *why* every single arithmetic operation happens (never skipping algebraic steps).
+
+#### Component 5: Guided Practice (`We Do` — `Checkpoint [2/4]`)
+- Immediately follow Component 4 with a second, slightly richer problem with **~60% of the steps completed** and **2 surgical blanks** (`[Step 2: ___]`, `[Step 4: ___]`) for the user to fill in.
+- **Wait for the user's reply** (applying the **Strict Anti-Spoiler Rule** below if they say `"idk"`, `"explain"`, or make an error).
+
+---
+
+### Turn 3 — `Depth Stage: 3/3 (Solo Execution, Deeper Theory & Mastery Gate)` (Components 6 & 7)
+
+Start Turn 3 with the updated stage header:
+```text
+Lesson X/Y: <Lesson Title> | Depth Stage: 3/3 (Solo Execution, Deeper Theory & Mastery Gate)
+```
+
+#### Component 6: Cold Solo Execution & Deepening (`You Do` — `Checkpoint [3/4]`)
+1. **Cold Solo Execution (`Checkpoint [3/4]`):** Give a fresh problem with **zero scaffolding** for the user to solve completely on their own. Wait for the user's reply (enforcing the **Strict Anti-Spoiler Rule** if they struggle).
+2. **Unlock Depth Stage 3/3 Deeper Theory (~250–350 words):** Once `[3/4]` is solved, unlock the third escalation layer covering:
+   - Deeper nuances and scaling behavior.
+   - Limiting behaviors ($0$, $1$, $\infty$, negative or degenerate values).
+   - Why alternative formulations fail.
+   - How this concept connects to advanced downstream topics.
+
+#### Component 7: Adversarial Edge-Case & Feynman Mastery Gate (`Checkpoint [4/4]`)
+- Immediately after unlocking Depth Stage 3/3 deeper theory, pose **`Checkpoint [4/4]`**:
+  1. Test a tricky boundary/failure input (e.g., zero vector, equal-to-threshold boundary, scaling invariance, or degenerate case).
+  2. Ask for a **2-sentence plain-English Feynman Teach-Back** with zero unstated jargon.
+- Wait for the user's reply.
+- **Auto-Log & Advance:** Once `[4/4]` passes:
+  - Check off `- [x]` for this lesson/subtopic in `~/notes/<topic-slug>/00-MOC-INDEX.md`.
+  - Record any struggled concepts, micro-steps needed, or corrected misconceptions into `~/notes/<topic-slug>/learning-records/000N-<slug>.md`.
+  - Unlock `Lesson X+1` (opening with an **Interleaved Cumulative Recall** warm-up at `Lesson 3` and every 2 lessons thereafter).
+
+---
+
+## 3. Strict Anti-Spoiler Rule & Pedagogical Discipline
+
+### Strict Anti-Spoiler Rule (Drop-Down Micro-Step Protocol)
+If the user replies **`"idk"`**, **`"explain"`**, **`"not sure"`**, or makes an error at **any** checkpoint (`[1/4]` through `[4/4]`):
+1. **NEVER immediately reveal the final answer or general rule.**
+2. Acknowledge any part of their attempt that is on track.
+3. Pinpoint the exact step where reasoning diverged.
+4. **Drop down one rung to a tiny 1-number micro-question** so the user discovers that single step themselves.
+5. Only confirm the general rule or full step **after** they solve the micro-step, then resume the active checkpoint.
 
 ### Baseline Calibration (`00-MISSION.md`)
-Keep the strict 5-checkpoint sequence for **all** baselines (zero skips), while calibrating scenario framing and numerical complexity to `Prior Knowledge Baseline` in `00-MISSION.md`:
-- **For `No prior knowledge (Zero-baseline first principles)` / `Beginner` baselines:**
-  - Keep Checkpoint `[1/5]` strictly jargon-free and grounded in an everyday scenario.
-  - Use small, clean scalar numbers in the `I Do` 3-number trace, `We Do`, and `You Do` before introducing 2D geometry, vectors/matrices, or multi-variable coupling.
-  - Keep surgical hints concrete and trace-oriented.
-- **For `Intermediate` / `Advanced` baselines:**
-  - Anchor Checkpoint `[1/5]` in a realistic systems/production failure puzzle or architectural paradox.
-  - Probe non-obvious operator interactions in `[2/5]`, multi-step transformations in `[3/5]`–`[4/5]`, and subtle degenerate/asymptotic edge cases in `[5/5]`.
+- Always enforce the full **7-Component Blueprint** and **Absolute-0 Prerequisite Micro-Bridge** whenever `Prior Knowledge Baseline` is `No prior knowledge` or `Beginner`, using clean, small scalars in the micro-bridge, `I Do`, and `We Do` before scaling up.
+- For `Intermediate` / `Advanced` baselines, keep all 7 components and 4 checkpoints intact while scaling the scenario complexity, mathematical rigor, and Depth Stage 3/3 nuances accordingly.
 
-### Pedagogical Discipline (Storage Strength vs. Retrieval Fluency)
-- **Test Storage, Not Recognition:** Never ask `"Do you understand X?"` or pure recall lookups.
-- **One Checkpoint per Turn:** Never stack multiple checkpoints in a single message.
+### Storage Strength vs. Retrieval Fluency
+- Never ask `"Do you understand X?"` or simple definition lookups.
+- Never bundle multiple checkpoints into a single turn—wait for the user's reply at every checkpoint.
 
 ---
 
@@ -92,33 +116,33 @@ Keep the strict 5-checkpoint sequence for **all** baselines (zero skips), while 
 
 If at any point the user replies with **`wait what`**, **`/wait-what`**, **`I'm lost`**, or **`simplify`**:
 1. **Pause the active checkpoint immediately**—do not judge or grade them.
-2. **Diagnose the Jargon/Abstraction Jump:** Identify the exact concept, symbol, or unstated assumption that caused friction.
-3. **Re-Pitch in Plain English:** Explain the sticking point from scratch using:
-   - Strictly canonical terms defined in `04-GLOSSARY.md` (defining any new word inline).
-   - A concrete **1-number scalar trace** or simpler everyday mental model.
+2. **Diagnose the Jargon/Abstraction Jump:** Identify the exact symbol, step, or unstated assumption that caused friction.
+3. **Re-Pitch from Absolute Zero:** Explain the sticking point using:
+   - Strictly canonical terms defined in `04-GLOSSARY.md` (plus a fresh 2-line Zero-Baseline Micro-Bridge if any new term slipped in).
+   - A concrete **2-number or 1-number scalar trace** or simpler everyday mental model.
 4. **Update the Vault:** Append the clearer explanation or analogy to `~/notes/<topic-slug>/05-MENTAL-MODELS.md` so the permanent notes improve alongside the user's understanding.
-5. **Resume at the Active Checkpoint:** Confirm the re-pitch clicks, then resume at the exact **`Subtopic X/Y — Checkpoint [k/5]`** where you paused (without skipping ahead).
+5. **Resume at the Active Checkpoint:** Confirm the re-pitch clicks, then resume at the exact **`Lesson X/Y — Checkpoint [k/4]`** where you paused.
 
 ---
 
 ## 5. ADR-Style Learning Records (`learning-records/000N-<slug>.md`)
 
-Maintain a chronological log of breakthroughs, corrected misconceptions, and mission changes inside `~/notes/<topic-slug>/learning-records/` (numbered `0001-<slug>.md`, `0002-<slug>.md`, etc.). Never delete old records; if a later insight supersedes an earlier understanding or goal, mark the old record `Status: superseded by LR-000N`.
+Maintain a chronological log of struggled concepts, corrected misconceptions, breakthroughs, and mission changes inside `~/notes/<topic-slug>/learning-records/` (numbered `0001-<slug>.md`, `0002-<slug>.md`, etc.). Never delete old records; if a later insight supersedes an earlier understanding or goal, mark the old record `Status: superseded by LR-000N`.
 
 ### Template: `~/notes/<topic-slug>/learning-records/0001-<slug>.md`
 
 ```markdown
-# LR-0001: <Short Title of Breakthrough, Misconception Fix, or Mission Shift>
+# LR-0001: <Short Title of Struggled Concept, Misconception Fix, or Breakthrough>
 
 - **Date:** <YYYY-MM-DD>
 - **Status:** active
-- **Milestone:** <Milestone # from 00-MISSION.md>
+- **Lesson / Milestone:** <Lesson X/Y — Milestone # from 00-MISSION.md>
 
 ## Context
-<What question, checkpoint, or confusion triggered this learning moment.>
+<Which checkpoint, micro-step, or misconception triggered this learning moment.>
 
 ## Insight / Mastery Demonstrated
-<What was clarified, proven, or decided—using canonical terms from 04-GLOSSARY.md.>
+<What was clarified, discovered via micro-stepping, or proven—using canonical terms from 04-GLOSSARY.md.>
 
 ## Vault Updates Made
 - Updated `<filename>` with <specific addition or correction>.

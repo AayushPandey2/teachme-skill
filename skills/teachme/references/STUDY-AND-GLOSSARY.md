@@ -89,39 +89,42 @@ $$
 
 ---
 
-## 4. Mandatory Formula Anatomy Breakdown Standard (Layer 3 + Layer 4 Schema)
+## 4. Mandatory Formula Anatomy Breakdown Standard (Progressive Depth Stage 2 & 3 Schema)
 
 **Non-Negotiable Rules:**
-- Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and **every** `topics/<nn>-<subtopic-slug>.md` file, **no mathematical formula, equation, recurrence, objective/loss function, or complexity bound** may appear without **Layer 3 (Mathematical Intuition before formal notation)** and an immediate **Layer 4 Formula Anatomy Breakdown** following this exact structure.
+- Across `02-DEEP-RESEARCH.md`, `03-CORNELL-STUDY-GUIDE.md`, and **every** `topics/<nn>-<subtopic-slug>.md` file, **no mathematical formula, equation, recurrence, objective/loss function, or complexity bound** may appear without:
+  1. **Zero-Baseline Micro-Bridge** for any new symbol/operator not yet defined in plain English (2–3 lines + tiny 2-number example).
+  2. **Mathematical Intuition (Before Symbols)** explaining the geometric, scaling, or behavioral meaning in plain English before formal notation.
+  3. **Complete Formula Anatomy Breakdown** immediately following the equation (`I Do` walkthrough skipping zero algebraic steps + Depth Stage 3 limiting behaviors).
 - **Zero Backtick-Wrapped Math:** **NEVER** wrap inline or display LaTeX delimiters in backticks anywhere—especially not inside Markdown table cells. Always write raw `$` / `$$` math delimiters directly without code ticks.
 - **Table-Safe LaTeX Delimiters & Escaping:** Inside Markdown table cells, **NEVER** use raw pipe `|` characters inside math (always use `\mid`, `\lvert`, `\rvert`, `\lVert`, `\rVert`). Keep single-line inline math free of unescaped newlines and verify every opening and closing math delimiter matches.
 - **Zero-Dead-Link Generation:** Only emit `[[wikilinks]]` or `[text](path.md)` links whose exact target file exists on disk (never link to hypothetical files or `[[none]]`).
 
 ```markdown
-- **Mathematical Intuition (Before Notation):** <1–3 sentences of plain-English geometric, scaling, or behavioral intuition explaining what the math is doing before showing formal symbols.>
+- **Mathematical Intuition (Before Symbols):** <2–3 sentences of plain-English geometric, scaling, or behavioral intuition explaining what the math is doing before showing formal notation.>
 
 $$
 <Display LaTeX Equation>
 $$
 
-| Symbol / Operator | Name & Exact Role in the Equation | Units / Domain / Shape | Directional Sensitivity |
-|---|---|---|---|
-| $x$ | <Name & exact role> | <e.g., $\mathbb{R}^d$, scalar $>0$, bytes> | <What happens to the output when $x$ increases or decreases> |
-| $\sum_{i=1}^{n}$ | <Summation operator over all $n$ items> | <Dimensionless aggregator> | <More terms / larger positive terms increase the sum linearly> |
-| ... | ... | ... | ... |
+| Symbol / Operator | Name, Domain / Shape & Physical Role | Directional Sensitivity |
+|---|---|---|
+| $x$ | <Name, plain-language role, units / domain / shape, e.g. $\mathbb{R}^d$> | <What happens to the output when $x$ increases or decreases> |
+| $\sum_{i=1}^{n}$ | <Summation operator over all $n$ items; dimensionless aggregator> | <More terms / larger positive terms increase the sum linearly> |
+| ... | ... | ... |
 
-- **Boundary & Limiting Cases:**
-  - As $<var> \to 0$: <Exact mathematical & physical/system behavior>.
-  - As $<var> \to 1$ (if applicable): <Exact behavior>.
-  - As $<var> \to \infty$: <Exact behavior / asymptote / saturation>.
-  - Negative / degenerate inputs (if applicable): <Exact failure or clamping behavior>.
-- **Concrete 3-Number Worked Trace (`I Do`):**
-  1. **Inputs (3 Concrete Numbers):** <3 specific, realistic numbers with units/shapes>.
-  2. **Step-by-Step Substitution:** <Plug the 3 numbers step-by-step into the equation, thinking aloud>.
-  3. **Evaluation & Plain-English Interpretation:** <Final number + what it means intuitively>.
+- **`I Do` (Thinking-Aloud Worked Walkthrough):**
+  1. **Inputs (Concrete Numbers):** <Concrete numbers with units/shapes—start simple before scaling>.
+  2. **Step-by-Step Algebraic Substitution (Zero Skipped Steps):** <Narrate why every single arithmetic operation happens, line by line>.
+  3. **Final Evaluation & Plain-English Meaning:** <Final number + intuitive interpretation>.
+- **Limiting Behaviors & Edge Cases (Depth Stage 3):**
+  - Input $= 0$: <Exact mathematical & physical/system behavior>.
+  - Input $= 1$ (if applicable): <Exact behavior>.
+  - Input $\to \infty$: <Exact behavior / asymptote / saturation>.
+  - Negative / degenerate inputs (if applicable): <Exact failure, clamping, or sign-flip behavior>.
 ```
 
-*Every single variable, subscript, superscript, constant, and mathematical operator ($\sum$, $\prod$, $\nabla$, $\log$, $\arg\max$, $\mathbb{E}$, norms, matrices, etc.) in the equation MUST have a row in the Component & Operator Breakdown Table.*
+*Every single variable, subscript, superscript, constant, and mathematical operator ($\sum$, $\prod$, $\nabla$, $\log$, $\arg\max$, $\mathbb{E}$, norms, matrices, etc.) in the equation MUST have a row in the Symbol & Operator Anatomy Table.*
 
 ---
 
@@ -219,12 +222,13 @@ NN. [[topics/<nn>-<subtopic-slug>]] — <1-line summary>
 
 For **every single topic and subtopic** in the Phase 2 exhaustive syllabus (no arbitrary file cap; never compress, merge, or skip subtopics), generate a full-length, standalone Markdown file inside `~/notes/<topic-slug>/topics/<nn>-<subtopic-slug>.md` numbered sequentially (`01-...`, `02-...`, etc.).
 
-**Mandatory 4-Layer Theory Presentation Standard (Concrete -> Representational -> Abstract):**
-Every subtopic file MUST present its core concept in this exact 4-layer sequence before moving to code examples, edge cases, and self-checks:
-1. **Layer 1 — Daily-Life Intuition:** Relatable everyday physical/human analogy + 1-line mental hook (written *before* introducing any technical jargon or math symbols).
-2. **Layer 2 — Theoretical Explanation:** Precise causal mechanism (`Inputs -> Transformation -> Outputs`), ASCII/Mermaid flow diagram, a **Contrastive Non-Example** ("What it is NOT" and why a lookalike fails), and an explicit **"Where the Analogy Breaks Down"** note.
-3. **Layer 3 — Mathematical Intuition:** Plain-English geometric, scaling, or behavioral explanation of what the math is doing *before* showing formal notation.
-4. **Layer 4 — Mathematical Explanation & Formula Anatomy:** Formal LaTeX equation in pure display math (zero backticks around math, `\mid` instead of `|` inside tables), complete Symbol/Operator Breakdown Table with directional sensitivity, boundary edge cases (`0`, `1`, `\infty`, negative/degenerate), and a concrete 3-number worked trace (`I Do`).
+**Progressive Absolute-Zero-to-Mastery Architecture (Matches Live Phase 6 Lessons):**
+Every saved subtopic file MUST mirror the progressive 3-stage escalation used in live teaching—starting from **zero assumed prerequisites** and escalating cleanly to formal equations, complete worked steps, and adversarial edge cases:
+1. **Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation:** Define every new symbol, operator, or technical term from scratch in 2–3 plain-English lines with a tiny 2-number example, then state in 2 sentences what failed or was clumsy previously.
+2. **Depth Stage 1 — Intuition, Visuals & Mechanism:** Vivid daily-life analogy + 1-line Mental Hook, step-by-step causal mechanism (`Input → Internal Transformation → Output`), clean ASCII visual diagram, Contrastive Boundary ("What It Is vs. What It Is NOT"), and **Where the Analogy Breaks Down**.
+3. **Depth Stage 2 — Mathematical Intuition, Formal Equation & `I Do` Trace:** Plain-English mathematical intuition *before* symbols, formal governing equation in pure display LaTeX (zero backticks, `\mid` in tables), complete Symbol & Operator Anatomy Table, and a thinking-aloud `I Do` walkthrough skipping zero algebraic steps.
+4. **Depth Stage 3 — Deeper Nuances, Limiting Behaviors & Advanced Connections:** Scaling/limiting behaviors ($0, 1, \infty$, negative/degenerate inputs), why alternative formulations fail, and links to advanced downstream topics.
+5. **Worked Code + Progressive Self-Check Ladder:** Guided (`We Do` with 2 faded blanks), Cold Solo (`You Do`), and Adversarial Edge-Case + 2-sentence Feynman Teach-Back inside `<details>` blocks.
 
 ````markdown
 ---
@@ -238,63 +242,72 @@ parent: "[[03-CORNELL-STUDY-GUIDE]]"
 
 # <nn>. <Subtopic Title>
 
-## 1. Layer 1 — Daily-Life Intuition
-<Relatable, everyday physical or human analogy explaining why this mechanism exists—written BEFORE introducing any technical jargon or math symbols.>
+## 1. Zero-Baseline Prerequisite Micro-Bridge & Engineering Motivation
+- **Prerequisite Micro-Bridge (Absolute-0 Guarantee):**
+  - **<New Term / Symbol 1>:** <2–3 plain-English lines defining it from scratch, followed by a tiny 2-number example.>
+  - **<New Term / Symbol 2>:** <2–3 plain-English lines + tiny 2-number example.>
+- **Why This Exists (Engineering Motivation):** <2 sentences explaining what failed or was clumsy in the previous subtopic/baseline that forced this concept to be invented.>
 
+## 2. Depth Stage 1 — Intuition, Visuals & Mechanism
+- **Daily-Life Intuition:** <Vivid, relatable physical or real-world analogy explaining the core behavior without jargon.>
 - **1-Line Mental Hook:** <One crisp sentence locking in the core intuition.>
-
-## 2. Layer 2 — Theoretical Explanation
-- **Causal Mechanism (Inputs → Transformation → Outputs):** <Precise step-by-step mechanics with zero hand-waving: exact inputs, state transitions/transformations, invariants, and outputs using **bolded canonical terms** from `04-GLOSSARY.md` and inline [Source] citations.>
+- **Step-by-Step Mechanism (`Input → Internal Transformation → Output`):**
+  1. **Input:** <What enters the mechanism using **bolded canonical terms** from `04-GLOSSARY.md`.>
+  2. **Internal Transformation:** <Exact causal rule/state transition and why it works [Source].>
+  3. **Output:** <What comes out and what invariant holds.>
 
 ```text
-<Clean ASCII or Mermaid flow diagram showing Inputs -> Transformation -> Outputs>
+<Clean ASCII coordinate, flow, or geometry diagram illustrating the concept visually>
 ```
 
-- **Contrastive Non-Example ("What it is NOT"):** <Describe a common lookalike or naive alternative and explain specifically why it fails or behaves differently [Source].>
-- **Where the Analogy Breaks Down:** <Explicit boundary explaining where Layer 1's everyday analogy diverges from the true formal mechanism.>
+- **Contrastive Boundary ("What It Is vs. What It Is NOT"):** <Explicitly distinguish this concept from lookalike mechanisms and explain why the lookalike fails [Source].>
+- **Where the Analogy Breaks Down:** <Explicit boundary where the everyday analogy stops matching mathematical/system reality.>
 
-## 3. Layer 3 — Mathematical Intuition
-<Plain-English geometric, scaling, or behavioral explanation of what the math is doing—how terms compete, grow, normalize, or project—written BEFORE showing formal equations or notation.>
-
-## 4. Layer 4 — Mathematical Explanation & Formula Anatomy
-<Every formal equation, recurrence, objective/loss function, or complexity bound for this subtopic rendered in pure display LaTeX (zero backticks, `\mid` / `\lvert` / `\rvert` inside tables) and immediately followed by its full Formula Anatomy Breakdown. If a purely non-mathematical subtopic has no formal equations, explicitly state "No formal equations govern this mechanism" and provide exact complexity/capacity bounds or invariant inequalities with full breakdown.>
+## 3. Depth Stage 2 — Mathematical Intuition, Formal Equation & `I Do` Trace
+- **Mathematical Intuition (Before Symbols):** <Plain-English geometric, scaling, or behavioral explanation of what the math is doing before writing formal notation.>
 
 $$
 <Display LaTeX Equation>
 $$
 
-| Symbol / Operator | Name & Exact Role in the Equation | Units / Domain / Shape | Directional Sensitivity |
-|---|---|---|---|
-| $x$ | <Name & exact role> | <Units / domain / shape> | <Effect on output when $x$ increases or decreases> |
-| ... | ... | ... | ... |
+| Symbol / Operator | Name, Domain / Shape & Physical Role | Directional Sensitivity |
+|---|---|---|
+| $x$ | <Name, plain-language role, units / domain / shape> | <Effect on output when $x$ increases or decreases> |
+| ... | ... | ... |
 
-- **Boundary Edge Cases:**
+*(If a purely non-mathematical subtopic has no formal equations, explicitly state "No formal equations govern this mechanism" and provide exact complexity/capacity bounds or invariant inequalities with full breakdown.)*
+
+- **`I Do` (Thinking-Aloud Worked Walkthrough):**
+  1. **Concrete Inputs:** <Realistic scalar/numeric inputs with units/shapes>.
+  2. **Step-by-Step Arithmetic (Zero Skipped Algebraic Steps):** <Narrate why every single arithmetic operation happens>.
+  3. **Final Answer & Plain-English Meaning:** <Result + intuitive interpretation>.
+
+## 4. Depth Stage 3 — Deeper Nuances, Limiting Behaviors & Advanced Connections
+- **Limiting Behaviors & Boundary Cases:**
   - Input $= 0$: <Exact behavior>.
   - Input $= 1$ (if applicable): <Exact behavior>.
-  - Input $\to \infty$: <Exact limiting behavior>.
-  - Negative / degenerate inputs (if applicable): <Exact behavior>.
-- **Concrete 3-Number Worked Trace (`I Do`):**
-  1. **Inputs (3 Concrete Numbers):** <3 specific, realistic numbers with units/shapes>.
-  2. **Step-by-Step Substitution:** <Plug the 3 numbers step-by-step into the equation>.
-  3. **Evaluation & Plain-English Interpretation:** <Final value + plain-English meaning>.
+  - Input $\to \infty$: <Exact asymptotic/saturation behavior>.
+  - Negative / degenerate inputs: <Exact failure, clamping, or boundary behavior>.
+- **Why Alternative Formulations Fail & Trade-offs:** <What breaks in naive alternatives and what this formulation optimizes vs. sacrifices [Source].>
+- **Connections to Advanced Topics:** <How this mechanism scales or connects forward to [[topics/<next-subtopic>]] and downstream architectures.>
 
 ## 5. Worked Examples / Annotated Code
 ```<language>
 // Realistic, end-to-end annotated example (never foo/bar placeholders)
 ```
 
-## 6. Edge Cases, Failure Modes & Trade-offs
-- **Edge Case / Failure Mode 1:** <Trigger, blast radius, and mitigation> [Source].
-- **Trade-offs:** <What this design optimizes for vs. what it sacrifices>.
-
-## 7. Subtopic Self-Check Questions
-- **Question 1:** <Diagnostic, mechanism-tracing, or failure-prediction question?>
-  <details><summary>Reveal Answer</summary>
-  <Complete answer grounded in first principles and primary sources.>
+## 6. Progressive Self-Check Ladder (`We Do` → `You Do` → Feynman Gate)
+- **Guided Practice (`We Do`):** <Richer problem with ~60% of steps completed and `[Step 2: ___]`, `[Step 4: ___]` blanks.>
+  <details><summary>Reveal Guided Steps</summary>
+  <Exact step-by-step fill-ins with zero skipped arithmetic.>
   </details>
-- **Question 2:** <Transfer or edge-case question?>
-  <details><summary>Reveal Answer</summary>
-  <Complete answer.>
+- **Cold Solo Problem (`You Do`):** <Fresh problem with zero scaffolding.>
+  <details><summary>Reveal Solo Solution</summary>
+  <Complete step-by-step derivation and final answer.>
+  </details>
+- **Adversarial Edge-Case & 2-Sentence Feynman Check:** <Tricky boundary/failure input + "Explain this in 2 plain-English sentences with zero unstated jargon.">
+  <details><summary>Reveal Mastery Answer</summary>
+  <Boundary outcome + model 2-sentence plain-English Feynman explanation.>
   </details>
 
 ---
