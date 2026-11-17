@@ -34,9 +34,9 @@ Never hand-generate scaffolding or scan Markdown when a CLI call answers it. Res
 | Call | Use |
 |---|---|
 | `connect <vault> [--mode ...]` / `mode [mode]` | Connect existing Obsidian vault or view/switch operating mode |
-| `discover <vault>` / `profile [vault]` / `reindex [vault]` | Profile vault folders, metadata, tags, style & plugins; refresh search index |
-| `search <vault> --query "<T>"` / `plan <vault> --topic "<T>"` | Retrieve relevant existing notes and compute placement, template, tags & links |
-| `generate <vault> --topic "<T>" [--dry-run\|--apply]` / `audit <vault>` | Preview/write vault-native notes safely and audit TeachMe-managed notes only |
+| `discover <vault>` / `profile [vault]` / `reindex [vault]` | Profile folders, tags, MOCs, Mermaid conventions, metadata & plugins; refresh index |
+| `search <vault> --query "<T>"` / `plan <vault> --topic "<T>"` | Retrieve relevant notes and build reviewed plan (placement, tags, MOCs, Mermaid, links, hashes) |
+| `generate <vault> --topic "<T>" [--dry-run\|--apply\|--plan <id>]` / `apply` / `audit` | Preview or execute reviewed plan transactionally and audit TeachMe-managed edits only |
 | `init <vault> --topic "<T>" --subtopics <file.json>` | Standalone: scaffold dirs, `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, `00-GRAPH.json`, topic stubs |
 | `context <vault> --topic <nn>` | Standalone default per-turn load: state + node + stage slice + 1-hop `L0-L1` anchors |
 | `state` / `graph` / `slice <file> --section <S>` | Resume pointer / rebuild `00-GRAPH.json` / single section (`L0-L1`, `L1-ANCHOR`…`L5-WORKBOOK-AND-GRAPH`) |

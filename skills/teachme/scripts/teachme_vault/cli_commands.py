@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 from .discovery import discover_vault, load_or_discover_profile, summarize_profile_for_display
@@ -48,6 +49,14 @@ def _resolve_target_vault(raw_path: str | None) -> Path:
 def _opt_state_dir(vault: Path, args: argparse.Namespace) -> Path:
     raw = getattr(args, "state_dir", None)
     return resolve_state_dir(vault, explicit_state_dir=raw)
+
+
+def _load_optional_json(raw_path: str | None) -> dict[str, Any] | None:
+    if not raw_path:
+        return None
+    p = expand_path(raw_path)
+    data = json.loads(read_text_safe(p))
+    return data if isinstance(data, dict) else None
 
 
 def cmd_connect(args: argparse.Namespace) -> int:
@@ -179,45 +188,108 @@ def cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compact_plan_for_cli(plan: dict[str, Any]) -> dict[str, Any]:
+    """Strip full file bodies from CLI stdout while preserving diffs, hashes, and decisions."""
+    out = dict(plan)
+    out["affected_files"] = [
+        {k: v for k, v in af.items() if k != "new_text"}
+        for af in plan.get("affected_files", [])
+    ]
+    return out
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
-    """Preview destination, template, frontmatter, verified links, and style plan."""
+    """Preview placement, template, tags, MOC, Mermaid, and exact affected file edits."""
     vault = _resolve_target_vault(args.vault_path)
     sdir = _opt_state_dir(vault, args)
     keywords = [k.strip() for k in (args.keywords or "").split(",") if k.strip()]
-    plan = plan_note(
-        vault_root=vault,
-        topic=args.topic,
-        explicit_folder=args.folder,
-        explicit_template=args.template,
-        keywords=keywords or None,
-        refresh=args.refresh,
-        state_dir=sdir,
-    )
-    print(_dump_json(plan))
+    content_payload = _load_optional_json(getattr(args, "content_json", None))
+    proposal_payload = _load_optional_json(getattr(args, "proposal_json", None))
+    try:
+        plan = plan_note(
+            vault_root=vault,
+            topic=args.topic,
+            explicit_folder=args.folder,
+            explicit_template=args.template,
+            keywords=keywords or None,
+            refresh=args.refresh,
+            state_dir=sdir,
+            content=content_payload,
+            proposal=proposal_payload,
+            extend_rel_path=getattr(args, "extend", None),
+            mermaid_mode=getattr(args, "mermaid", "auto"),
+            mindmap_supported=not bool(getattr(args, "no_mindmap", False)),
+            min_moc_cluster_size=getattr(args, "min_moc_cluster_size", None),
+            allow_moc=not bool(getattr(args, "no_moc", False)),
+            save_plan=not bool(getattr(args, "no_save_plan", False)),
+        )
+    except (ValueError, RuntimeError, FileNotFoundError) as exc:
+        print(_dump_json({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 1
+
+    print(_dump_json(_compact_plan_for_cli(plan)))
     return 0
 
 
 def cmd_generate(args: argparse.Namespace) -> int:
-    """Generate or non-destructively extend a vault-native note (dry-run by default)."""
+    """Generate or non-destructively extend vault-native notes + MOCs + Mermaid (dry-run default)."""
     vault = _resolve_target_vault(args.vault_path)
     sdir = _opt_state_dir(vault, args)
-    content_payload: dict[str, Any] | None = None
-    if args.content_json:
-        cpath = expand_path(args.content_json)
-        content_payload = json.loads(read_text_safe(cpath))
+    content_payload = _load_optional_json(getattr(args, "content_json", None))
+    proposal_payload = _load_optional_json(getattr(args, "proposal_json", None))
+    keywords = [k.strip() for k in (getattr(args, "keywords", "") or "").split(",") if k.strip()]
 
     apply_write = bool(args.apply) and not bool(args.dry_run)
-    res = generate_vault_note(
-        vault_root=vault,
-        topic=args.topic,
-        apply=apply_write,
-        explicit_folder=args.folder,
-        explicit_template=args.template,
-        extend_rel_path=args.extend,
-        content=content_payload,
-        expected_hash=args.expected_hash,
-        state_dir=sdir,
-    )
+    try:
+        res = generate_vault_note(
+            vault_root=vault,
+            topic=args.topic or "",
+            apply=apply_write,
+            explicit_folder=args.folder,
+            explicit_template=args.template,
+            extend_rel_path=args.extend,
+            content=content_payload,
+            expected_hash=args.expected_hash,
+            state_dir=sdir,
+            keywords=keywords or None,
+            proposal=proposal_payload,
+            plan_ref=getattr(args, "plan", None),
+            expected_plan_hash=getattr(args, "plan_hash", None),
+            mermaid_mode=getattr(args, "mermaid", "auto"),
+            mindmap_supported=not bool(getattr(args, "no_mindmap", False)),
+            min_moc_cluster_size=getattr(args, "min_moc_cluster_size", None),
+            allow_moc=not bool(getattr(args, "no_moc", False)),
+        )
+    except (ValueError, RuntimeError, FileNotFoundError) as exc:
+        print(_dump_json({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 1
+
+    if "plan" in res and isinstance(res["plan"], dict):
+        res = dict(res)
+        res["plan"] = _compact_plan_for_cli(res["plan"])
+    print(_dump_json(res))
+    return 0 if res.get("ok", True) else 1
+
+
+def cmd_apply(args: argparse.Namespace) -> int:
+    """Apply a previously previewed/saved plan exactly (or reject if stale)."""
+    vault = _resolve_target_vault(args.vault_path)
+    sdir = _opt_state_dir(vault, args)
+    try:
+        res = generate_vault_note(
+            vault_root=vault,
+            apply=True,
+            plan_ref=args.plan,
+            expected_plan_hash=getattr(args, "plan_hash", None),
+            state_dir=sdir,
+        )
+    except (ValueError, RuntimeError, FileNotFoundError) as exc:
+        print(_dump_json({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 1
+
+    if "plan" in res and isinstance(res["plan"], dict):
+        res = dict(res)
+        res["plan"] = _compact_plan_for_cli(res["plan"])
     print(_dump_json(res))
     return 0 if res.get("ok", True) else 1
 
@@ -270,28 +342,51 @@ def register_vault_native_subcommands(subparsers: Any) -> None:
     p_search.add_argument("--state-dir", default=None)
     p_search.set_defaults(func=cmd_search)
 
-    p_plan = subparsers.add_parser("plan", help="Preview placement, template, metadata, and link plan.")
+    p_plan = subparsers.add_parser("plan", help="Preview placement, template, tags, MOC, Mermaid, and link plan.")
     p_plan.add_argument("vault_path", nargs="?", default=None, help="Path to Obsidian vault.")
     p_plan.add_argument("--topic", required=True, help="Target topic title.")
     p_plan.add_argument("--folder", default=None, help="Optional explicit destination folder.")
     p_plan.add_argument("--template", default=None, help="Optional explicit template path/name.")
     p_plan.add_argument("--keywords", default="", help="Comma-separated extra keywords.")
+    p_plan.add_argument("--extend", default=None, help="Optional relative path to extend.")
+    p_plan.add_argument("--content-json", default=None, help="JSON file with structured educational fields.")
+    p_plan.add_argument("--proposal-json", default=None, help="JSON file with semantic tag/diagram/link proposals.")
+    p_plan.add_argument("--mermaid", choices=["auto", "mindmap", "flowchart", "none"], default="auto")
+    p_plan.add_argument("--no-mindmap", action="store_true", help="Use flowchart fallback instead of mindmap.")
+    p_plan.add_argument("--min-moc-cluster-size", type=int, default=None)
+    p_plan.add_argument("--no-moc", action="store_true", help="Disable MOC creation/updates for this plan.")
+    p_plan.add_argument("--no-save-plan", action="store_true", help="Do not persist plan snapshot to .teachme/plans/.")
     p_plan.add_argument("--refresh", action="store_true")
     p_plan.add_argument("--state-dir", default=None)
     p_plan.set_defaults(func=cmd_plan)
 
     p_gen = subparsers.add_parser("generate", help="Generate or extend a vault-native note (dry-run default).")
     p_gen.add_argument("vault_path", nargs="?", default=None, help="Path to Obsidian vault.")
-    p_gen.add_argument("--topic", required=True, help="Target topic title.")
+    p_gen.add_argument("--topic", default="", help="Target topic title (optional if --plan is provided).")
     p_gen.add_argument("--apply", action="store_true", help="Write changes to disk.")
     p_gen.add_argument("--dry-run", action="store_true", help="Preview only (default).")
     p_gen.add_argument("--folder", default=None)
     p_gen.add_argument("--template", default=None)
+    p_gen.add_argument("--keywords", default="", help="Comma-separated extra keywords.")
     p_gen.add_argument("--extend", default=None, help="Existing relative note path to extend non-destructively.")
     p_gen.add_argument("--content-json", default=None, help="JSON file with structured educational fields.")
+    p_gen.add_argument("--proposal-json", default=None, help="JSON file with semantic tag/diagram/link proposals.")
+    p_gen.add_argument("--plan", default=None, help="Reviewed plan ID or path to execute without recomputing.")
+    p_gen.add_argument("--plan-hash", default=None, help="Expected plan_hash when applying a reviewed plan.")
     p_gen.add_argument("--expected-hash", default=None, help="Optional SHA-256 conflict check for --extend.")
+    p_gen.add_argument("--mermaid", choices=["auto", "mindmap", "flowchart", "none"], default="auto")
+    p_gen.add_argument("--no-mindmap", action="store_true")
+    p_gen.add_argument("--min-moc-cluster-size", type=int, default=None)
+    p_gen.add_argument("--no-moc", action="store_true")
     p_gen.add_argument("--state-dir", default=None)
     p_gen.set_defaults(func=cmd_generate)
+
+    p_apply = subparsers.add_parser("apply", help="Execute a previously previewed/saved plan (or reject if stale).")
+    p_apply.add_argument("vault_path", nargs="?", default=None, help="Path to Obsidian vault.")
+    p_apply.add_argument("--plan", required=True, help="Reviewed plan ID or JSON file path.")
+    p_apply.add_argument("--plan-hash", default=None, help="Optional expected plan_hash verification.")
+    p_apply.add_argument("--state-dir", default=None)
+    p_apply.set_defaults(func=cmd_apply)
 
     p_audit = subparsers.add_parser("audit", help="Audit TeachMe-managed vault-native notes safely.")
     p_audit.add_argument("vault_path", nargs="?", default=None, help="Path to Obsidian vault.")

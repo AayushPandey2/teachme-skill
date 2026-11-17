@@ -3,7 +3,7 @@
 Deepen notes in place or add missing related concepts, respecting the active operating mode (`SKILL.md §A–§C`).
 
 ## Mode Branch
-- **Vault-Native Mode (`.obsidian/` or `mode: vault-native`):** Follow `VAULT-NATIVE.md` — run `vault_cli.py search` + `plan`, then use `generate --extend <relpath> --dry-run` -> `--apply` (or create linked companion notes). NEVER rewrite user-authored YAML, comments, block IDs, or impose the 7-section layout on existing user notes. Finish with `vault_cli.py audit`.
+- **Vault-Native Mode (`.obsidian/` or `mode: vault-native`):** Follow `VAULT-NATIVE.md` — run `vault_cli.py search` + `plan` (automatically selects/creates tags, MOC links, and Mermaid diagrams), preview via `--dry-run`, then execute `apply --plan <plan_id>` (or `generate --extend <relpath> --apply`). NEVER rewrite user-authored YAML, comments, block IDs, user Mermaid blocks, or impose the 7-section layout on existing user notes. Finish with `vault_cli.py audit`.
 - **Standalone Mode:** Deepen shallow notes to the 7-Section Blueprint (`STUDY-AND-GLOSSARY.md §2–§3`) without touching `[x]` progress or `learning-records/`.
 
 ## Standalone Steps

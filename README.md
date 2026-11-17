@@ -51,13 +51,13 @@ python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault"
 # Inspect inferred folders, tags, metadata schema, note style, and plugin capabilities
 python skills/teachme/scripts/vault_cli.py profile "/path/to/MyObsidianVault"
 
-# Search existing knowledge and preview placement/template/links before writing
+# Search existing knowledge and preview placement, tags, MOC updates, Mermaid & links before writing
 python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent"
 python skills/teachme/scripts/vault_cli.py plan "/path/to/MyObsidianVault" --topic "Gradient Descent"
 
-# Dry-run preview, then write atomically and audit only TeachMe-managed notes
+# Dry-run preview, apply the exact reviewed plan transactionally, and audit TeachMe-managed edits
 python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --dry-run
-python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --apply
+python skills/teachme/scripts/vault_cli.py apply "/path/to/MyObsidianVault" --plan "<plan_id>"
 python skills/teachme/scripts/vault_cli.py audit "/path/to/MyObsidianVault"
 ```
 

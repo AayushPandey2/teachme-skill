@@ -46,8 +46,8 @@ def _add_token_variants(tok: str, out: list[str]) -> None:
 
 
 def tokenize(text: str) -> list[str]:
-    """Tokenize text into lowercase alphanumeric terms excluding stopwords."""
-    tokens = re.findall(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", text.lower())
+    """Tokenize text into lowercase alphanumeric/Unicode terms excluding stopwords."""
+    tokens = re.findall(r"[^\W_]+(?:[-_][^\W_]+)*", text.lower())
     out: list[str] = []
     for tok in tokens:
         if len(tok) <= 1 or tok in STOP_WORDS:
@@ -278,12 +278,34 @@ def build_or_update_index(
     return index_obj
 
 
+def _is_index_stale(root: Path, cached_idx: dict[str, Any]) -> bool:
+    """Fast check for added, deleted, renamed, or modified Markdown files."""
+    docs = cached_idx.get("docs", {})
+    if not isinstance(docs, dict):
+        return True
+    current_files = [
+        p for p in safe_iter_files(root, extensions=(".md",))
+        if not p.name.lower().endswith(".excalidraw.md")
+    ]
+    if len(current_files) != len(docs):
+        return True
+    for p in current_files:
+        rel = p.relative_to(root).as_posix()
+        doc = docs.get(rel)
+        if not isinstance(doc, dict):
+            return True
+        st = p.stat()
+        if doc.get("mtime_ns") != st.st_mtime_ns or doc.get("size") != st.st_size:
+            return True
+    return False
+
+
 def load_or_build_index(
     vault_root: Path,
     refresh: bool = False,
     state_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Load index.json if present or build/update incrementally."""
+    """Load index.json if present and fresh, else build/update incrementally."""
     root = vault_root.resolve()
     sdir = state_dir or resolve_state_dir(root)
     index_path = sdir / "index.json"
@@ -291,7 +313,8 @@ def load_or_build_index(
         try:
             data = json.loads(read_text_safe(index_path))
             if isinstance(data, dict) and data.get("vault_path") == str(root):
-                return data
+                if not _is_index_stale(root, data):
+                    return data
         except (OSError, json.JSONDecodeError):
             pass
     return build_or_update_index(root, full=refresh, state_dir=sdir)
@@ -395,7 +418,7 @@ def search_vault(
                 }
             )
 
-    results.sort(key=lambda r: (r["score"], r["incoming_count"]), reverse=True)
+    results.sort(key=lambda r: (-r["score"], -r["incoming_count"], r["rel_path"]))
     return {
         "query": query,
         "total_matches": len(results),
@@ -404,36 +427,126 @@ def search_vault(
     }
 
 
+def resolve_link_to_rel_path(
+    raw_link_target: str,
+    index: dict[str, Any],
+    extra_rel_paths: set[str] | None = None,
+) -> dict[str, Any]:
+    """Resolve a wikilink/Markdown link target (without alias) to vault rel_path & ambiguity info."""
+    docs: dict[str, dict[str, Any]] = index.get("docs", {})
+    note_part = raw_link_target.split("|", 1)[0].strip()
+    anchor = ""
+    if "#" in note_part:
+        note_part, anchor = note_part.split("#", 1)
+        note_part = note_part.strip()
+        anchor = anchor.strip()
+
+    if not note_part:
+        return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": []}
+
+    clean = note_part[:-3] if note_part.endswith(".md") else note_part
+    cand_rel = f"{clean}.md"
+    if cand_rel in docs or (extra_rel_paths and cand_rel in extra_rel_paths):
+        return {"resolved": cand_rel, "ambiguous": False, "anchor": anchor, "candidates": [cand_rel]}
+
+    # Case-insensitive exact relpath match
+    cand_low = cand_rel.lower()
+    for rel in docs:
+        if rel.lower() == cand_low:
+            return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel]}
+    if extra_rel_paths:
+        for rel in extra_rel_paths:
+            if rel.lower() == cand_low:
+                return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel]}
+
+    base_low = Path(clean).name.lower()
+    stem_matches = [r for r, d in docs.items() if d.get("stem", "").lower() == base_low]
+    if extra_rel_paths:
+        for er in extra_rel_paths:
+            if Path(er).stem.lower() == base_low and er not in stem_matches:
+                stem_matches.append(er)
+
+    if len(stem_matches) == 1:
+        return {"resolved": stem_matches[0], "ambiguous": False, "anchor": anchor, "candidates": stem_matches}
+    if len(stem_matches) > 1:
+        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": stem_matches}
+
+    # Fallback: title / alias match
+    alias_matches = [
+        r for r, d in docs.items()
+        if d.get("title", "").lower() == base_low
+        or any(str(a).lower() == base_low for a in d.get("aliases", []))
+    ]
+    if len(alias_matches) == 1:
+        return {"resolved": alias_matches[0], "ambiguous": False, "anchor": anchor, "candidates": alias_matches}
+    if len(alias_matches) > 1:
+        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": alias_matches}
+
+    return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": []}
+
+
+def links_equivalent(
+    link_a: str,
+    link_b: str,
+    index: dict[str, Any],
+    extra_rel_paths: set[str] | None = None,
+) -> bool:
+    """Return True if two link targets (even with aliases or path spellings) refer to the same note."""
+    a_clean = link_a.strip()
+    b_clean = link_b.strip()
+    if a_clean.startswith("[[") and a_clean.endswith("]]"):
+        a_clean = a_clean[2:-2]
+    if b_clean.startswith("[[") and b_clean.endswith("]]"):
+        b_clean = b_clean[2:-2]
+
+    res_a = resolve_link_to_rel_path(a_clean, index, extra_rel_paths=extra_rel_paths)
+    res_b = resolve_link_to_rel_path(b_clean, index, extra_rel_paths=extra_rel_paths)
+    if res_a["resolved"] and res_b["resolved"]:
+        return res_a["resolved"].lower() == res_b["resolved"].lower()
+
+    # Fallback normalized stem comparison when not yet indexed
+    na = Path(a_clean.split("|", 1)[0].split("#", 1)[0].strip()).stem.lower()
+    nb = Path(b_clean.split("|", 1)[0].split("#", 1)[0].strip()).stem.lower()
+    return bool(na and na == nb)
+
+
 def resolve_safe_wikilink(
     target_stem_or_rel: str,
     index: dict[str, Any],
     preferred_style: str = "wikilink",
     alias: str = "",
+    anchor: str = "",
 ) -> str | None:
     """Resolve an existing note in index into a verified Obsidian wikilink, or None if missing."""
     docs: dict[str, dict[str, Any]] = index.get("docs", {})
     ambiguous: dict[str, list[str]] = index.get("ambiguous_titles", {})
 
-    # Check exact relative path
-    cand_rel = target_stem_or_rel if target_stem_or_rel.endswith(".md") else f"{target_stem_or_rel}.md"
-    doc = docs.get(cand_rel)
-    if doc is None:
-        # Match by stem
-        matches = [r for r, d in docs.items() if d["stem"].lower() == target_stem_or_rel.lower()]
-        if len(matches) == 1:
-            cand_rel = matches[0]
-            doc = docs[cand_rel]
-        elif len(matches) > 1:
-            cand_rel = matches[0]
-            doc = docs[cand_rel]
+    raw_part = target_stem_or_rel.strip()
+    parsed_anchor = anchor.strip()
+    if "#" in raw_part and not parsed_anchor:
+        raw_part, parsed_anchor = raw_part.split("#", 1)
+        raw_part = raw_part.strip()
+        parsed_anchor = parsed_anchor.strip()
+
+    res = resolve_link_to_rel_path(raw_part, index)
+    cand_rel = res["resolved"]
+    if cand_rel is None:
+        if res["ambiguous"] and res["candidates"]:
+            cand_rel = res["candidates"][0]
         else:
             return None
 
+    doc = docs.get(cand_rel)
+    if doc is None:
+        return None
+
     stem = doc["stem"]
     no_ext = cand_rel[:-3] if cand_rel.endswith(".md") else cand_rel
-    is_ambiguous = stem.lower() in ambiguous
+    is_ambiguous = stem.lower() in ambiguous or res["ambiguous"]
     use_folder = is_ambiguous or preferred_style == "wikilink_folder_qualified"
     link_target = no_ext if (use_folder and "/" in no_ext) else stem
+    if parsed_anchor:
+        link_target = f"{link_target}#{parsed_anchor}"
 
     display = alias or (doc["title"] if doc["title"] != stem and is_ambiguous else "")
     if display and display != link_target:

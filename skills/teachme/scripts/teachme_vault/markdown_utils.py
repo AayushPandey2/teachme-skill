@@ -10,7 +10,7 @@ HEADING_RE = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*$")
 WIKILINK_RE = re.compile(r"(!?)\[\[([^\[\]\r\n]+)\]\]")
 MDLINK_RE = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)]+)\)")
 INLINE_TAG_RE = re.compile(
-    r"(?:^|(?<=[\s,(]))#([A-Za-z_][A-Za-z0-9_/-]*[A-Za-z0-9_]|[A-Za-z][A-Za-z0-9_-]*)"
+    r"(?:^|(?<=[\s,(]))#((?=[^\s#]*[^\W\d_])[\w][\w/-]*[\w]|[^\W\d_])"
 )
 CALLOUT_RE = re.compile(r"^\s*>\s*\[!([A-Za-z0-9_-]+)\]", re.IGNORECASE)
 BLOCK_ID_RE = re.compile(r"(?:^|\s)\^([A-Za-z0-9-]+)\s*$")
@@ -23,6 +23,150 @@ SR_SINGLE_RE = re.compile(r"^.+?\s*::\s*.+$")
 SR_MULTI_RE = re.compile(r"^\?\s*$")
 CLOZE_RE = re.compile(r"(?:==[^=\r\n]+==|\{\{c\d+::[^}]+\}\})")
 DATE_VALUE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?$")
+MERMAID_HEADER_RE = re.compile(
+    r"^\s*(flowchart|graph|mindmap|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|gantt|pie|gitGraph)\b(?:\s+(TD|TB|LR|RL|BT))?",
+    re.IGNORECASE,
+)
+CLASSDEF_RE = re.compile(r"^\s*classDef\s+([A-Za-z0-9_-]+)\s+(.+)$")
+INIT_DIRECTIVE_RE = re.compile(r"%%\{init:[\s\S]*?\}%%")
+
+WORKFLOW_TAG_EXACT = frozenset(
+    {
+        "moc",
+        "index",
+        "map-of-content",
+        "hub",
+        "template",
+        "daily",
+        "weekly",
+        "monthly",
+        "draft",
+        "wip",
+        "todo",
+        "done",
+        "seedling",
+        "sprout",
+        "evergreen",
+        "reviewed",
+        "mastered",
+        "unreviewed",
+        "cards",
+        "flashcard",
+        "flashcards",
+        "task",
+        "tasks",
+        "to-read",
+        "toread",
+        "archive",
+        "archived",
+    }
+)
+WORKFLOW_TAG_PREFIXES = (
+    "status/",
+    "state/",
+    "stage/",
+    "workflow/",
+    "flashcards/",
+    "cards/",
+    "review/",
+    "srs/",
+    "type/",
+)
+
+
+def is_workflow_or_status_tag(tag: str, plugin_tags: set[str] | None = None) -> bool:
+    """Return True if tag represents workflow, lifecycle status, MOC marker, or plugin control."""
+    norm = normalize_tag(tag).lower()
+    if not norm:
+        return True
+    if norm in WORKFLOW_TAG_EXACT:
+        return True
+    if any(norm.startswith(pref) for pref in WORKFLOW_TAG_PREFIXES):
+        return True
+    if plugin_tags and norm in {t.lstrip("#").lower() for t in plugin_tags}:
+        return True
+    return False
+
+
+def classify_tag_case(tag: str) -> str:
+    """Classify casing/separator convention of a tag (analyzing leaf segment if nested)."""
+    leaf = normalize_tag(tag).split("/")[-1]
+    if not leaf:
+        return "unknown"
+    if "-" in leaf and leaf == leaf.lower():
+        return "kebab_case"
+    if "_" in leaf and leaf == leaf.lower():
+        return "snake_case"
+    if any(c.isupper() for c in leaf):
+        if leaf[0].isupper() and "-" not in leaf and "_" not in leaf:
+            return "pascal_case"
+        if leaf[0].islower() and "-" not in leaf and "_" not in leaf:
+            return "camel_case"
+        return "mixed_case"
+    return "lowercase"
+
+
+def _parse_mermaid_block(lines: list[str], nearest_heading: str) -> dict[str, Any]:
+    """Extract structural metadata from a Mermaid code fence."""
+    diagram_type = "unknown"
+    direction = ""
+    class_defs: list[str] = []
+    init_directives: list[str] = []
+    has_subgraph = False
+    node_ids: set[str] = set()
+    quoted_labels = 0
+    unquoted_labels = 0
+
+    full_text = "\n".join(lines)
+    for im in INIT_DIRECTIVE_RE.finditer(full_text):
+        init_directives.append(im.group(0).strip())
+
+    for raw in lines:
+        s = raw.strip()
+        if not s or s.startswith("%%"):
+            continue
+        if diagram_type == "unknown":
+            hm = MERMAID_HEADER_RE.match(s)
+            if hm:
+                raw_type = hm.group(1)
+                diagram_type = "flowchart" if raw_type.lower() == "graph" else raw_type.lower()
+                if hm.group(2):
+                    direction = hm.group(2).upper()
+                continue
+        if s.lower().startswith("subgraph "):
+            has_subgraph = True
+            continue
+        cm = CLASSDEF_RE.match(s)
+        if cm:
+            class_defs.append(s)
+            continue
+        if diagram_type == "mindmap":
+            node_ids.add(s[:40])
+            if '"' in s:
+                quoted_labels += 1
+            else:
+                unquoted_labels += 1
+        elif diagram_type in ("flowchart", "graph"):
+            if '["' in s or '("' in s or '{"' in s:
+                quoted_labels += 1
+            elif "[" in s or "(" in s or "{" in s:
+                unquoted_labels += 1
+            for nm in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*(?:\[|\(|\{|<--|-->|---)", s):
+                nid = nm.group(1)
+                if nid.lower() not in ("subgraph", "end", "style", "classdef", "linkstyle", "click"):
+                    node_ids.add(nid)
+
+    return {
+        "diagram_type": diagram_type,
+        "direction": direction,
+        "has_subgraph": has_subgraph,
+        "class_defs": class_defs[:5],
+        "init_directives": init_directives[:2],
+        "nearest_heading": nearest_heading,
+        "node_count": len(node_ids),
+        "uses_quoted_labels": quoted_labels >= unquoted_labels and quoted_labels > 0,
+        "snippet": "\n".join(lines[:20]),
+    }
 
 
 def _strip_quotes(val: str) -> str:
@@ -282,8 +426,26 @@ def heading_slug(heading_text: str) -> str:
     return slug.strip("-")
 
 
+def extract_frontmatter_links(meta: dict[str, Any]) -> dict[str, list[str]]:
+    """Extract wikilinks found inside frontmatter properties (e.g., up, parent, moc)."""
+    found: dict[str, list[str]] = {}
+    for k, v in meta.items():
+        vals = v if isinstance(v, list) else [v]
+        links: list[str] = []
+        for item in vals:
+            if not isinstance(item, str):
+                continue
+            for wm in WIKILINK_RE.finditer(item):
+                parsed = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
+                if parsed["note"]:
+                    links.append(parsed["note"])
+        if links:
+            found[str(k)] = links
+    return found
+
+
 def analyze_markdown_body(body: str) -> dict[str, Any]:
-    """Extract headings, links, inline tags, block IDs, and style signals from Markdown body."""
+    """Extract headings, links, inline tags, block IDs, Mermaid blocks, and style signals."""
     lines = body.splitlines()
     headings: list[dict[str, Any]] = []
     wikilinks: list[dict[str, Any]] = []
@@ -295,6 +457,8 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
     dv_fields: dict[str, list[str]] = {}
     dv_queries: list[str] = []
     tasks: list[dict[str, str]] = []
+    mermaid_examples: list[dict[str, Any]] = []
+    base_embeds: list[str] = []
 
     in_fence = False
     fence_char = ""
@@ -304,6 +468,7 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
     display_math_count = 0
     inline_math_count = 0
     bullet_lines = 0
+    bullet_link_lines = 0
     prose_lines = 0
     table_lines = 0
     mermaid_blocks = 0
@@ -313,7 +478,22 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
     paragraph_lengths: list[int] = []
     cur_para_words = 0
 
-    for line in lines:
+    current_heading = ""
+    section_stats: list[dict[str, Any]] = [
+        {
+            "heading": "",
+            "level": 0,
+            "line_idx": 0,
+            "link_count": 0,
+            "bullet_link_count": 0,
+            "bullet_prefixes": [],
+            "annotation_seps": [],
+            "has_query": False,
+            "links": [],
+        }
+    ]
+
+    for line_idx, line in enumerate(lines):
         fm = FENCE_RE.match(line)
         if fm:
             marker = fm.group(1)
@@ -330,6 +510,9 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
             elif marker[0] == fence_char:
                 if fence_lang in ("dataview", "dataviewjs"):
                     dv_queries.append("\n".join(fence_lines))
+                    section_stats[-1]["has_query"] = True
+                elif fence_lang == "mermaid":
+                    mermaid_examples.append(_parse_mermaid_block(fence_lines, current_heading))
                 in_fence = False
                 fence_lang = ""
                 fence_lines = []
@@ -370,7 +553,21 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
                 cur_para_words = 0
             level = len(hm.group(1))
             htext = hm.group(2).strip()
-            headings.append({"level": level, "text": htext, "slug": heading_slug(htext)})
+            current_heading = htext
+            headings.append({"level": level, "text": htext, "slug": heading_slug(htext), "line_idx": line_idx})
+            section_stats.append(
+                {
+                    "heading": htext,
+                    "level": level,
+                    "line_idx": line_idx,
+                    "link_count": 0,
+                    "bullet_link_count": 0,
+                    "bullet_prefixes": [],
+                    "annotation_seps": [],
+                    "has_query": False,
+                    "links": [],
+                }
+            )
             continue
 
         cm = CALLOUT_RE.match(line)
@@ -394,18 +591,29 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
                 inline_tags.append(tag)
 
         # Wikilinks & embeds
+        line_links: list[str] = []
         for wm in WIKILINK_RE.finditer(no_code):
             parsed = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
             wikilinks.append(parsed)
+            if parsed["embed"] and parsed["note"].lower().endswith(".base"):
+                base_embeds.append(parsed["note"])
+                section_stats[-1]["has_query"] = True
+            elif parsed["note"]:
+                line_links.append(parsed["note"])
+                section_stats[-1]["link_count"] += 1
+                section_stats[-1]["links"].append(parsed["note"])
 
         # Markdown links
         for mm in MDLINK_RE.finditer(no_code):
-            md_links.append({"label": mm.group(1), "href": mm.group(2).strip()})
+            href = mm.group(2).strip()
+            md_links.append({"label": mm.group(1), "href": href})
+            if not href.startswith(("http://", "https://", "mailto:")):
+                line_links.append(href)
+                section_stats[-1]["link_count"] += 1
+                section_stats[-1]["links"].append(href)
 
         # Dataview inline fields
         dvm = DV_INLINE_FIELD_RE.match(no_code)
-        if dvm and not SR_SINGLE_RE.match(no_code.split("::", 1)[0] + "::"):
-            pass
         if dvm:
             k = dvm.group(1).strip()
             v = dvm.group(2).strip()
@@ -426,10 +634,25 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
         inline_math_count += len(re.findall(r"(?<!\\)\$[^$\r\n]+?(?<!\\)\$", no_code))
 
         # Line classification
+        bullet_m = re.match(r"^(\s*(?:[-*+]|\d+\.)(?:\s+\[[ xX/\->!?]\])?\s+)", line)
         if stripped.startswith("|") and stripped.endswith("|"):
             table_lines += 1
-        elif re.match(r"^(?:[-*+]|\d+\.)\s+", stripped):
+        elif bullet_m:
             bullet_lines += 1
+            if line_links:
+                bullet_link_lines += 1
+                sec = section_stats[-1]
+                sec["bullet_link_count"] += 1
+                pref = bullet_m.group(1).lstrip()
+                if pref not in sec["bullet_prefixes"]:
+                    sec["bullet_prefixes"].append(pref)
+                # Detect annotation separator after link
+                after_link = re.sub(r".*(?:\[\[[^\]]+\]\]|\[[^\]]*\]\([^)]+\))\s*", "", stripped)
+                for sep in (" — ", " - ", ": ", " | "):
+                    if after_link.startswith(sep.strip()):
+                        if sep not in sec["annotation_seps"]:
+                            sec["annotation_seps"].append(sep)
+                        break
         elif not stripped.startswith(">"):
             prose_lines += 1
             cur_para_words += len(stripped.split())
@@ -450,9 +673,13 @@ def analyze_markdown_body(body: str) -> dict[str, Any]:
         "dv_queries": dv_queries,
         "tasks": tasks,
         "mermaid_blocks": mermaid_blocks,
+        "mermaid_examples": mermaid_examples,
+        "base_embeds": base_embeds,
+        "section_stats": section_stats,
         "display_math_count": display_math_count,
         "inline_math_count": inline_math_count,
         "bullet_lines": bullet_lines,
+        "bullet_link_lines": bullet_link_lines,
         "prose_lines": prose_lines,
         "table_lines": table_lines,
         "sr_single_cards": sr_single_cards,
