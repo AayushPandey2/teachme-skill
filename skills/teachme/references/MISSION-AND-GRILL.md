@@ -56,7 +56,9 @@ Write `00-MISSION.md` (record defaults verbatim so Phase 6 calibrates Turn 1 to 
 4. Keep raw notes in `scratchpad/raw-research.md`; write `01-RESOURCES.md` then `02-DEEP-RESEARCH.md`.
 
 ## Phase 3 — Deterministic Vault Scaffold (Zero LLM Boilerplate)
-Save the syllabus as `scratchpad/subtopics.json`, then run `vault_cli.py init`:
+**Check Operating Mode (`SKILL.md §A`):**
+- **Vault-Native Mode (`.obsidian/` or `mode: vault-native`):** Do NOT scaffold `topics/`, `00-MOC-INDEX.md`, or `01`–`09` at the Obsidian vault root. Instead run `vault_cli.py discover`, `search --query "<topic>"`, and `plan --topic "<topic>"` (which resolves placement, tags, MOC selection/creation, and Mermaid diagrams with `plan_id` + `expected_hashes`), preview via `--dry-run`, execute `apply --plan <plan_id>` (or `generate --apply`), keep `scratchpad/` inside `<vault>/.teachme/sessions/<topic-slug>/`, and finish with `vault_cli.py audit` (`references/VAULT-NATIVE.md`).
+- **Standalone Mode:** Save the syllabus as `scratchpad/subtopics.json`, then run `vault_cli.py init`:
 
 ```json
 [

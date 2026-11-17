@@ -1,8 +1,12 @@
 # `/teachme-expand <topic>`
 
-Deepen shallow notes to the 7-Section Blueprint and add missing subtopics, never touching `[x]` progress or `learning-records/`. Laws: `SKILL.md §B–§C`. Blueprint + Critic Gate: `STUDY-AND-GLOSSARY.md §2–§3`.
+Deepen notes in place or add missing related concepts, respecting the active operating mode (`SKILL.md §A–§C`).
 
-## Steps
+## Mode Branch
+- **Vault-Native Mode (`.obsidian/` or `mode: vault-native`):** Follow `VAULT-NATIVE.md` — run `vault_cli.py search` + `plan` (automatically selects/creates tags, MOC links, and Mermaid diagrams), preview via `--dry-run`, then execute `apply --plan <plan_id>` (or `generate --extend <relpath> --apply`). NEVER rewrite user-authored YAML, comments, block IDs, user Mermaid blocks, or impose the 7-section layout on existing user notes. Finish with `vault_cli.py audit`.
+- **Standalone Mode:** Deepen shallow notes to the 7-Section Blueprint (`STUDY-AND-GLOSSARY.md §2–§3`) without touching `[x]` progress or `learning-records/`.
+
+## Standalone Steps
 1. **Discover (zero tokens):** `vault_cli.py state`, `graph`, `verify`. Flagged `missing_section_marker`, `non_sequential_section_numbers`, or missing tables = shallow file.
 2. **Gap audit:** read `00-MISSION.md`, `01-RESOURCES.md`, `00-MOC-INDEX.md`, and only `slice --section L0-L1` of each topic to find missing prerequisites or related subtopics.
 3. **Deepen in place:** open each flagged topic individually and fill it to `§2`; partition `atomic/` cards with the 5 markers.

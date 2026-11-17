@@ -2,6 +2,8 @@
 
 Formatting, linking, and CLI laws live in `SKILL.md §B–§C` only. Templates below already comply; keep them compliant.
 
+> **Vault-Native Mode Note:** When writing into an existing Obsidian vault (`SKILL.md §A`, `references/VAULT-NATIVE.md`), preserve the **educational content requirements** (Formula Anatomy, first-principles intuition, zero-skip derivations, working examples, practice/Feynman checks, primary sources, verified links) while adapting Markdown layout, headings, YAML properties, tags, and atomic vs. comprehensive granularity to the vault's inferred style rather than forcing the fixed standalone `topics/` + `01`–`09` file layout.
+
 ## §1. Formula Anatomy Breakdown (Every Equation, Every File)
 1. **Zero-Baseline Micro-Bridge:** each new symbol gets 2–3 plain-English lines + a 2-number example before use.
 2. **Intuition Before Symbols:** geometry, scaling, and direction in words first.

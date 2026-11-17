@@ -1,8 +1,12 @@
 # `/teachme-verify <topic>` (alias `audit`)
 
-Deterministic integrity sweep; repair ONLY flagged lines until zero errors. Laws: `SKILL.md §B`.
+Deterministic integrity sweep (`SKILL.md §B`).
 
-## Steps
+## Mode Guard
+- **Vault-Native Mode:** `vault_cli.py verify` automatically delegates to `audit` (checks ONLY TeachMe-managed notes in `.teachme/managed-notes.json` for YAML, math parity, and broken wikilinks) and `vault_cli.py fix` skips user-authored notes. NEVER run standalone format-repair across an existing Obsidian vault.
+- **Standalone Mode:** Repair ONLY flagged lines until zero errors.
+
+## Standalone Steps
 1. `vault_cli.py graph` → `fix` (auto-repairs `<details>` shape + unambiguous bare LaTeX) → `verify`.
 2. Read only the JSON `errors`/`warnings` (`file`, `line`, `type`, `detail`); never read clean files. Confirm `00-SESSION-STATE.md` (`<60` lines) and `scratchpad/` exist.
 3. Repair by type:
