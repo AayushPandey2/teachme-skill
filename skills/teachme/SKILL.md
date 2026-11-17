@@ -1,69 +1,61 @@
 ---
 name: teachme
-description: "Unified end-to-end learning, deep primary-source research, frontier grilling, Socratic teaching, and structured Markdown note-taking pipeline. Invoke with /teachme <topic> or when the user asks to deeply research, learn, build a study guide, generate Cornell notes, create Zettelkasten cards, or master any topic from first principles into a central vault (<VAULT_ROOT>/<topic-slug>/, defaulting to ~/notes)."
+description: "Interactive first-principles teaching, learner calibration, Socratic coaching, spaced-repetition review, and durable learning-state tracking. Invoke with /teachme <topic> or when the user asks to learn, practice, review, or be quizzed on any topic. Delegates study-note, cheat-sheet, flashcard, and summary artifact creation to Scriptorium."
 ---
 
 # `/teachme` Master Router & Core Laws
 
-This file is the **single source of truth** for vault location, formatting, linking, and CLI laws. Reference files never restate these laws; they cite `SKILL.md §A–§D`.
+This file is the **single source of truth** for TeachMe's teaching invariants, operational learning-state paths, intent routing, and CLI laws. Reference files cite `SKILL.md §A–§D`.
 
-## §A. Vault Root & Operating Mode Resolution
-TeachMe supports two compatible operating modes (auto-detected or explicitly configured in `~/.teachme-config.json`):
-1. **Standalone Mode (Legacy):** `<VAULT_ROOT>` = `notes_root` in `~/.teachme-config.json` (fallback `~/notes`). Write ONLY inside `<VAULT_ROOT>/<topic-slug>/` (comparisons: `<VAULT_ROOT>/comparisons/`).
-2. **Vault-Native Mode (Existing Obsidian Vault):** Activated when `.obsidian/` is detected, `mode` is `vault-native`, or `obsidian_vault` is connected via `/teachme-vault connect`. Adapt to the vault's folders, templates, tags, metadata, links, and style (`references/VAULT-NATIVE.md`). Store TeachMe learning state in `<vault>/.teachme/` (or configured `--state-dir`), isolated from ordinary user notes.
-- If `<topic>` is omitted, run `vault_cli.py state` (auto-selects active standalone or vault-native vault) or ask ONE clarifying question.
+## §A. Learning-State Root & Operating Mode Resolution
+TeachMe persists **operational learning state only** (never study notes) in two compatible modes configured via `~/.teachme-config.json`:
+1. **Standalone Mode:** `<STATE_ROOT>` = `notes_root` in `~/.teachme-config.json` (fallback `~/notes`). Session state lives at `<STATE_ROOT>/<topic-slug>/` (`00-SESSION-STATE.md`, `00-GRAPH.json`, `learning-records/`, `scratchpad/`).
+2. **Vault-Native Mode (Existing Obsidian Vault):** Activated when `.obsidian/` is detected, `mode` is `vault-native`, or `obsidian_vault` is connected via `/teachme-vault connect`. Isolated state lives at `<vault>/.teachme/sessions/<topic-slug>/` (or configured `--state-dir`). Existing vault notes are **read-only learning sources only**.
+- Scriptorium's study-note vault (`SCRIPTORIUM_VAULT_PATH` or `~/.scriptorium-config.json`) is completely independent; never substitute TeachMe's `notes_root` or `.teachme/` as Scriptorium's vault.
+- If `<topic>` is omitted, run `vault_cli.py state` to auto-select the active session, or ask ONE clarifying question.
 
-## §B. Non-Negotiable Formatting & Hygiene Laws
-**Scope Boundary (Mandatory):**
-- **Standalone TeachMe files** (`00`–`09`, `topics/*.md`, `atomic/*.md`): enforce all 8 laws below.
-- **Vault-Native generated notes**: preserve math hygiene (`§B.2–3`), valid YAML, and verified non-fabricated links (`§B.7`), while adapting YAML keys, tags, headings, callouts, and note length to the target vault's inferred conventions (`VAULT-NATIVE.md`).
-- **Existing user-authored notes**: NEVER overwrite, reformat, rename, or run legacy `fix`/`verify` repairs on user notes, and never inject TeachMe IDs/markers into user prose. Explicit `--extend --apply` (with backup) appends only an isolated TeachMe extension section with scoped boundary comments (`<!-- teachme:extension:start/end -->`, `<!-- teachme:mermaid:start/end -->`) leaving user YAML, comments, block IDs, and diagrams untouched.
+## §B. Teaching, Memory & Non-Destructive Invariants
+1. **Teaching & Memory Only:** TeachMe owns interactive teaching, calibration, curriculum dependency planning, Socratic questioning, worked examples, live drills, Feynman checks, spaced review, checkpoints, and `learning-records/`.
+2. **No Study-Note Generation:** TeachMe must NEVER create, expand, format, tag, link-repair, or write study notes, study guides, cheat sheets, flashcards, glossaries, atomic Zettelkasten cards, MOCs, or requested study-summary artifacts (not even in chat as a fallback if Scriptorium is unavailable).
+3. **Existing Notes Are Read-Only:** Never modify, rename, reformat, or delete user notes or legacy study-note files. `flush` updates operational state (`00-GRAPH.json`, `00-SESSION-STATE.md`, `scratchpad/curriculum.json`) only.
+4. **Accurate Evidence:** Never fabricate mastery scores, checkpoint passes, examples, or citations. Note generation/completion NEVER counts as mastery evidence.
+5. **Math & Clarity in Chat:** When explaining formulas in chat, define every symbol before use (`Formula Anatomy`), use clean `$...$` / `$$...$$` delimiters, and state any unverified claim explicitly.
 
-1. **Pure Markdown + Strict YAML:** Double-quote `title`, `description`, `checkpoint`, `key_equations` items, and any YAML string containing `: | [ ] { } < > * & # ? \`. Spaces (never tabs) for indentation.
-2. **Math Delimiter Law (100% coverage):** Every math symbol, Greek letter, sub/superscripted variable, arrow, set operator, or LaTeX macro (`\theta \in \to \implies \iff \sum \hat \mathbf \le \ge \neq \approx \frac \sqrt \lVert \rVert \mathbb \text \operatorname`) anywhere in prose, lists, headings, tables, or `<details>` MUST sit inside `$...$` or `$$...$$`. Zero bare backslashes outside code fences/inline code.
-3. **Math Hygiene:** Never wrap `$`/`$$` math in backticks. No space before a closing `$`. Keep inline math single-line and balanced. Inside tables use `\mid \lvert \rvert \lVert \rVert`, never a raw `|`.
-4. **`<details>` Block Law:** `<details>` and `</details>` each stand alone at column 0 (never inline, never inside a `-`/`1.` list item). Required shape — blank line, `<details>`, `<summary>…</summary>`, blank line, body, blank line, `</details>`. Put the question in a `####` heading above the block.
-5. **Zero Black-Box Formulas:** Every equation gets a Formula Anatomy Breakdown (`references/STUDY-AND-GLOSSARY.md §1`).
-6. **Dual-Layer Deep-Linking:** Never cite bare `[Author, Year]` or a bare homepage. Inline format: `([Author, Year](<doi-or-exact-url>) · [[01-RESOURCES#<anchor>|Source]] · [[02-DEEP-RESEARCH#<anchor>|Research]])` (`references/RESEARCH-TOOLCHAIN.md §3`). In Vault-Native Mode, adapt citation links to vault conventions while keeping exact external URLs.
-7. **Zero Dead Links:** Every `[[wikilink]]`, relative link, and typed YAML edge (`depends_on`, `unlocks`, `contrasts_with`, `fixes_failure_of` → `topic-<nn>` IDs) resolves to an existing vault file. Never fabricate a wikilink target. Empty edge = `[]`, never `[[none]]`.
-8. **Exhaustive Coverage:** In Standalone Mode, one `topics/<nn>-<slug>.md` per syllabus subtopic + `atomic/` cards. In Vault-Native Mode, adapt granularity (atomic split vs. comprehensive note) to the vault's inferred style.
-
-## §C. CLI-First Execution Mandate (`scripts/vault_cli.py`, Python 3 stdlib)
-Never hand-generate scaffolding or scan Markdown when a CLI call answers it. Resolve the script at `../teachme/scripts/vault_cli.py` or `~/.gemini/antigravity/skills/teachme/scripts/vault_cli.py`.
+## §C. Operational State CLI (`scripts/vault_cli.py`, Python 3 stdlib)
+Resolve the script at `../teachme/scripts/vault_cli.py` or `~/.gemini/antigravity/skills/teachme/scripts/vault_cli.py`.
 
 | Call | Use |
 |---|---|
-| `connect <vault> [--mode ...]` / `mode [mode]` | Connect existing Obsidian vault or view/switch operating mode |
-| `discover <vault>` / `profile [vault]` / `reindex [vault]` | Profile folders, tags, MOCs, Mermaid conventions, metadata & plugins; refresh index |
-| `search <vault> --query "<T>"` / `plan <vault> --topic "<T>"` | Retrieve relevant notes and build reviewed plan (placement, tags, MOCs, Mermaid, links, hashes) |
-| `generate <vault> --topic "<T>" [--dry-run\|--apply\|--plan <id>]` / `apply` / `audit` | Preview or execute reviewed plan transactionally and audit TeachMe-managed edits only |
-| `init <vault> --topic "<T>" --subtopics <file.json>` | Standalone: scaffold dirs, `00-SESSION-STATE.md`, `00-MOC-INDEX.md`, `00-GRAPH.json`, topic stubs |
-| `context <vault> --topic <nn>` | Standalone default per-turn load: state + node + stage slice + 1-hop `L0-L1` anchors |
-| `state` / `graph` / `slice <file> --section <S>` | Resume pointer / rebuild `00-GRAPH.json` / single section (`L0-L1`, `L1-ANCHOR`…`L5-WORKBOOK-AND-GRAPH`) |
-| `tick <vault> --topic <nn> --cp <1-4> --status <pass\|retry>` | Log checkpoints to `scratchpad/events.jsonl` |
-| `flush <vault> --topic <nn> --note "<invariant>"` | Persist mastery once on `[4/4]` |
-| `fix <vault>` → `verify <vault>` | Standalone: auto-repair `<details>`/bare LaTeX, then audit until `errors: []` (auto-skips user notes in vault-native mode) |
+| `init <path> --topic "<T>" --subtopics <file.json>` | Initialize operational state only (`00-SESSION-STATE.md`, `00-GRAPH.json`, `learning-records/`, `scratchpad/curriculum.json`) |
+| `context [path] --topic <nn>` | Per-turn load: state + curriculum node + queue + recent events + active learning records + 1-hop neighbors |
+| `state [path]` / `graph [path]` | Resume pointer / rebuild curriculum dependency `00-GRAPH.json` |
+| `tick [path] --topic <nn> --cp <1-4> --status <pass\|retry>` | Append checkpoint evidence to `scratchpad/events.jsonl` and update operational state |
+| `flush [path] --topic <nn> --note "<invariant>"` | Persist `[4/4]` mastery into operational state only (never mutates study notes) |
+| `validate-state [path]` | Validate operational state files (`00-SESSION-STATE.md` `<60` lines, DAG acyclicity, JSONL) |
+| `import-legacy <vault> [--target <dir>]` | Non-destructively import legacy note-embedded memory into operational state |
+| `handoff [path] --request "<req>"` | Build versioned teaching-context JSON envelope for Scriptorium |
+| `connect <vault>` / `mode` / `reindex` / `search <vault> --query "<T>"` | Connect Obsidian vault for isolated `.teachme/` state and read-only source search |
 
-- **1-Hop Rule & Bounded Context:** Load only relevant indexed slices/neighbors; never dump an entire vault into LLM context.
-- **Exit Gate:** Standalone write-phases end with `fix` → `verify` (`errors: []`). Vault-Native write-phases end with `audit <vault>` (`errors: []`).
+## §D. Intent-Based Routing (Load ONLY the Listed File)
 
-## §D. Routing (Load ONLY the Listed File)
+Classify user intent first:
+- **Teaching request** (`/teachme <topic>`, explanations, live practice, review, Feynman): Teach, adapt, assess, and persist learning state. Do **not** invoke Scriptorium or load `SCRIPTORIUM-HANDOFF.md`.
+- **Notes-only request** (create study notes, study guide, cheat sheet, flashcards, glossary, atomic notes, MOC, or `/teachme-distill`): Route directly to Scriptorium via `references/SCRIPTORIUM-HANDOFF.md`. Do **not** force calibration, a lesson, or a checkpoint first.
+- **Mixed request** (e.g., *"teach me X, then make revision notes"*): Teach normally. At the requested boundary, persist accurate teaching state (`tick`/`flush` as earned), generate the context envelope (`vault_cli.py handoff`), and delegate ONCE via `references/SCRIPTORIUM-HANDOFF.md`. Preserve the exact lesson/checkpoint for later resumption.
+- **Existing-note expansion** (expand/enrich existing notes, or `/teachme-expand`): Route to Scriptorium (`/scribe-expand`) via `references/SCRIPTORIUM-HANDOFF.md`.
+- **Doubt clarification**: Ordinary conceptual questions during learning -> TeachMe. Explicit `/scribe-doubt <topic> <doubt>` -> Scriptorium's read-only route (never use `/scribe-doubt` to create notes).
+- **Ambiguous "summarize"**: A brief conversational recap for teaching continuity -> TeachMe in chat (never produce a requested study-summary artifact in chat). A requested revision summary or reusable study artifact -> Scriptorium (`references/SCRIPTORIUM-HANDOFF.md`). Ask ONE focused question only if the distinction materially affects the action.
 
-| Trigger | Reference | Output |
+| Trigger | Reference to Load | Operational Output |
 |---|---|---|
-| Vault-Native Obsidian workflow (any write to an existing Obsidian vault) | `references/VAULT-NATIVE.md` | `profile.json`, `index.json`, vault-native notes |
-| `/teachme-vault <subcommand>` | `references/cmd-vault.md` | `~/.teachme-config.json`, `.teachme/`, vault notes |
-| `/teachme <topic>` Phases 1–3 (grill, research, scaffold); skip grilling on `--auto`/`defaults`/`go` | `references/MISSION-AND-GRILL.md` (+ `RESEARCH-TOOLCHAIN.md` in Phase 2) | `00-MISSION.md`, `01-RESOURCES.md`, `02-DEEP-RESEARCH.md`, scaffold |
-| Phases 4–5 (notes, glossary, models, Cornell, flashcards, atomic) | `references/STUDY-AND-GLOSSARY.md` | `topics/`, `03`–`09`, `atomic/` |
-| Phase 6 live Socratic coaching | `references/RETENTION-AND-RECORDS.md` | `events.jsonl`, `learning-records/` |
+| `/teachme <topic>` Phases 1–3 (calibration, research, curriculum `init`; skip grilling on `--auto`/`defaults`/`go`) | `references/MISSION-AND-GRILL.md` (+ `RESEARCH-TOOLCHAIN.md` in Phase 2) | `scratchpad/mission.json`, `00-SESSION-STATE.md`, `00-GRAPH.json`, `scratchpad/curriculum.json` |
+| Phase 4 live Socratic coaching & pedagogy | `references/RETENTION-AND-RECORDS.md` | `scratchpad/events.jsonl`, `learning-records/` |
+| Any note/summary/expansion/Scriptorium handoff or legacy note command (`/teachme-distill`, `-expand`, `-compare`, `-verify`) | `references/SCRIPTORIUM-HANDOFF.md` *(load ONLY on handoff)* | Context envelope + Scriptorium delegation or blocked handoff |
+| `/teachme-vault <connect\|mode\|search\|reindex\|state>` | `references/cmd-vault.md` (+ `VAULT-NATIVE.md` for isolation rules) | `~/.teachme-config.json`, `<vault>/.teachme/` |
 | `/teachme-notes-path [path\|reset]` | `references/cmd-notes-path.md` | `~/.teachme-config.json` |
-| `/teachme-expand <topic>` | `references/cmd-expand.md` | `topics/`, `atomic/` |
-| `/teachme-verify <topic>` (alias `audit`) | `references/cmd-verify.md` | repaired vault |
-| `/teachme-ingest <topic> <source>` | `references/cmd-ingest.md` | merged vault |
-| `/teachme-distill <topic>` | `references/cmd-distill.md` | `09-CHEAT-SHEET.md`, `08-FLASHCARDS.md` |
-| `/teachme-review <topic>` | `references/cmd-review.md` | coaching session |
-| `/teachme-feynman <concept>` | `references/cmd-feynman.md` | `learning-records/` |
-| `/teachme-drill <topic> [1\|2\|3]` | `references/cmd-drill.md` | `07-PRACTICE-PROBLEMS.md` |
-| `/teachme-compare <A> vs <B>` | `references/cmd-compare.md` | `comparisons/<a-vs-b>.md` |
+| `/teachme-ingest <topic> <source>` | `references/cmd-ingest.md` | `scratchpad/ingested-sources.json`, `curriculum.json`, `learning-records/` |
+| `/teachme-review <topic>` | `references/cmd-review.md` | `scratchpad/events.jsonl`, `learning-records/` |
+| `/teachme-feynman <concept>` | `references/cmd-feynman.md` | `learning-records/`, `events.jsonl` |
+| `/teachme-drill <topic> [1\|2\|3]` | `references/cmd-drill.md` | `scratchpad/events.jsonl`, `learning-records/` |
 
-Space-separated aliases (`/teachme expand <topic>`) route identically.
+Space-separated aliases (`/teachme review <topic>`) route identically.

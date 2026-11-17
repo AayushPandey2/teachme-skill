@@ -49,7 +49,10 @@ def today_iso() -> str:
 
 
 def config_path() -> Path:
-    """Return path to ~/.teachme-config.json."""
+    """Return path to ~/.teachme-config.json (or TEACHME_CONFIG_PATH override)."""
+    env_cfg = os.environ.get("TEACHME_CONFIG_PATH", "").strip()
+    if env_cfg:
+        return Path(os.path.expandvars(env_cfg)).expanduser()
     return Path.home() / ".teachme-config.json"
 
 
@@ -309,9 +312,18 @@ def detect_vault_mode(
         }
 
     has_obsidian = (target_path / ".obsidian").is_dir()
-    has_teachme_state = (target_path / "00-SESSION-STATE.md").is_file()
-    has_teachme_dirs = (target_path / "topics").is_dir() or (target_path / "00-MOC-INDEX.md").is_file()
-    has_vault_profile = (target_path / ".teachme" / "profile.json").is_file()
+    has_teachme_state = (target_path / "00-SESSION-STATE.md").is_file() or (
+        target_path / "00-GRAPH.json"
+    ).is_file()
+    has_teachme_dirs = (
+        (target_path / "topics").is_dir()
+        or (target_path / "00-MOC-INDEX.md").is_file()
+        or (target_path / "learning-records").is_dir()
+        or (target_path / "scratchpad").is_dir()
+    )
+    has_vault_profile = (target_path / ".teachme" / "profile.json").is_file() or (
+        target_path / ".teachme" / "index.json"
+    ).is_file() or (target_path / ".teachme" / "sessions").is_dir()
 
     if has_obsidian:
         return {
@@ -329,7 +341,7 @@ def detect_vault_mode(
             "has_teachme_state": False,
         }
 
-    if has_teachme_state and has_teachme_dirs:
+    if has_teachme_state and (has_teachme_dirs or not has_obsidian):
         return {
             "mode": MODE_STANDALONE,
             "reason": "standalone_teachme_layout_detected",

@@ -1,73 +1,50 @@
-# `/teachme` — Primary-Source Research & Mastery Agent Skill
+# `/teachme` — Socratic Teaching & Learning-Memory Agent Skill
 
-An AI agent skill suite (`/teachme` + 9 autocomplete `/teachme-*` subcommands) that deeply researches any topic from primary sources, builds an interlinked Obsidian/Markdown study vault at `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`, customizable via `/teachme-notes-path`), and teaches it to you from **Absolute Zero** to **Complete Mastery**.
+An AI agent skill suite (`/teachme` + 6 `/teachme-*` subcommands) for **interactive first-principles teaching, learner calibration, curriculum progression, and durable learning memory**. Works alongside **[Scriptorium](https://github.com/AayushPandey2/scriptorium)**, which owns study-note creation, expansion, formatting, linking, and vault validation.
 
-Works out of the box with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
+Works with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
 
-## Why `/teachme`?
+## Separation of Responsibilities
 
-Standard LLM explanations dump a wall of text you forget five minutes later. `/teachme` acts as an end-to-end learning OS:
+- **TeachMe owns:**
+  - Interactive teaching, Socratic questioning, live Formula Anatomy walkthroughs, worked examples (`I Do` → `We Do` → `You Do`), and live Tier 1–3 practice.
+  - Learner calibration (4-question Frontier Grilling with zero-baseline defaults), adaptive pacing, and curriculum dependency progression (`00-GRAPH.json`).
+  - Checkpoints (`[1/4]`–`[4/4]`), append-only event history (`scratchpad/events.jsonl`), misconceptions and breakthroughs (`learning-records/`), interleaved spaced review, session recovery (`00-SESSION-STATE.md`), and compact context handoff (`vault_cli.py handoff`).
+- **Scriptorium owns:**
+  - Creating, expanding, organizing, formatting, linking, and validating study notes (`/scribe-notes`, `/scribe-expand`, `/scribe-doubt`, `scripts/vault_index.py`, `scripts/verify_vault_notes.py`).
+  - Study guides, requested study-summary artifacts, and Obsidian note presentation.
 
-1. **Zero-Baseline & Absolute Mastery Defaults:** Starts every new session with 4 calibrated `❓` questions defaulting to **No prior knowledge** (build from absolute zero) and **Absolute mastery covering all topics** (zero-omission syllabus decomposition)—or jump straight in with `--auto`.
-2. **Primary-Source Research Toolchain:** Separates vetted **Knowledge** (RFCs, papers, official docs, textbooks) from practitioner **Wisdom** (post-mortems, talks, benchmarks), captures rough drafts in `scratchpad/`, and logs unresolved gaps explicitly.
-3. **7-Section Subtopic Notes & 7-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
-4. **Zero-Token CLI, Spreading Activation & Delta-Flush (`scripts/vault_cli.py` + `00-GRAPH.json`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer, `00-GRAPH.json` typed adjacency map, and a standard-library Python CLI (`init`, `context`, `state`, `graph`, `slice`, `tick`, `flush`, `fix`, `verify`) so the agent bundles 1-hop `L0-L1` neighbors + active depth-stage slices in a single `context` call, tracks checkpoints via `scratchpad/events.jsonl` + `queue-<nn>.json`, and flushes Markdown updates once on mastery.
-5. **Progressive 7-Component Socratic Loop:** Escalates across 3 depth stages (`1/3`, `2/3`, `3/3`) and 4 checkpoints (`[1/4]` Discovery Hook → `[2/4]` `We Do` → `[3/4]` `You Do` → `[4/4]` Adversarial Edge-Case + Feynman Gate), enforcing a strict **Anti-Spoiler Rule** with drop-down 1-number micro-steps and an inline `wait what` / `simplify` escape hatch.
-6. **Autocomplete Slash-Command Suite & Custom Vault Root:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 10 commands appear immediately in your editor or CLI slash-command dropdown, and lets you redirect where vaults live via `/teachme-notes-path` (`~/.teachme-config.json`).
+*(Note: Scriptorium generates 7-section Markdown lessons and validates Obsidian notes; it does not replicate TeachMe's retired standalone `03-CORNELL-STUDY-GUIDE.md`, `08-FLASHCARDS.md`, `09-CHEAT-SHEET.md`, or `atomic/` layouts.)*
 
-## Generated Vault Architecture
+## Operational State Architecture
 
-Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`; change or reset anytime with `/teachme-notes-path`):
+TeachMe creates **operational learning state only** — never study-note scaffolds:
+
+- **Standalone Mode** (`<STATE_ROOT>/<topic-slug>/`, defaulting to `~/notes/<topic-slug>/`, customizable via `/teachme-notes-path`):
 
 ```text
-<VAULT_ROOT>/<topic-slug>/
-├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines), status map & last verified invariant
-├── 00-GRAPH.json                  # Compact typed adjacency map built by scripts/vault_cli.py graph
-├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid + ASCII dependency graph, synthesis strips & checkboxes
-├── 00-MISSION.md                  # Target outcome, baseline (0 prior knowledge), scope & success criteria
-├── 01-RESOURCES.md                # Primary sources (Knowledge), practitioner signal (Wisdom) & Gaps
-├── 02-DEEP-RESEARCH.md            # Primary-source cited research dossier with full formula anatomy
-├── 03-CORNELL-STUDY-GUIDE.md      # Master synthesis notes & <details> active-recall cues
-├── 04-GLOSSARY.md                 # Crisp 1–2 sentence definitions + "_Avoid_:" aliases
-├── 05-MENTAL-MODELS.md            # Feynman analogies, first-principles axioms & failure pre-mortems
-├── 06-DERIVATIONS-AND-PROOFS.md   # Step-by-step algebraic & logical derivations from base axioms
-├── 07-PRACTICE-PROBLEMS.md        # Graded Tier 1–3 problems with hidden step-by-step solutions
-├── 08-FLASHCARDS.md               # Obsidian Spaced Repetition / Anki-ready Q&A & cloze cards
-├── 09-CHEAT-SHEET.md              # Single-page executive cheat sheet (/teachme-distill & auto-compaction)
-├── topics/                        # Dedicated 8-Block deep-dive .md file for EVERY subtopic (with L1-L5 anchors)
-├── atomic/                        # Interlinked evergreen Zettelkasten cards ([[wikilinks]] + L1-L5 anchors)
+<STATE_ROOT>/<topic-slug>/
+├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines) & status map
+├── 00-GRAPH.json                  # Curriculum dependency & progression graph
 ├── learning-records/              # ADR-style chronological mastery & misconception logs
-└── scratchpad/                    # Ephemeral buffer (raw-research.md, derivation-drafts.md, events.jsonl, queue-<nn>.json)
+└── scratchpad/                    # curriculum.json, subtopics.json, mission.json,
+                                   # ingested-sources.json, events.jsonl, queue-<nn>.json
 ```
 
-## Vault-Native Mode (Existing Obsidian Vaults)
-
-Connect an existing Obsidian vault without restructuring folders or imposing standalone filenames:
+- **Vault-Native Mode (Existing Obsidian Vaults):** Connect an existing Obsidian vault to isolate TeachMe's operational state inside `<vault>/.teachme/sessions/<topic-slug>/` and search existing notes **read-only** as optional learning context:
 
 ```bash
-# Connect and profile your Obsidian vault (auto-detects .obsidian/)
+# Connect your Obsidian vault (isolated state + read-only search index)
 python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault"
 
-# Inspect inferred folders, tags, metadata schema, note style, and plugin capabilities
-python skills/teachme/scripts/vault_cli.py profile "/path/to/MyObsidianVault"
-
-# Search existing knowledge and preview placement, tags, MOC updates, Mermaid & links before writing
+# Search existing notes read-only as optional teaching context
 python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent"
-python skills/teachme/scripts/vault_cli.py plan "/path/to/MyObsidianVault" --topic "Gradient Descent"
-
-# Dry-run preview, apply the exact reviewed plan transactionally, and audit TeachMe-managed edits
-python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --dry-run
-python skills/teachme/scripts/vault_cli.py apply "/path/to/MyObsidianVault" --plan "<plan_id>"
-python skills/teachme/scripts/vault_cli.py audit "/path/to/MyObsidianVault"
+python skills/teachme/scripts/vault_cli.py reindex "/path/to/MyObsidianVault"
 ```
-
-- **State Isolation:** TeachMe stores `profile.json`, `index.json`, `managed-notes.json`, backups, and session logs inside `<vault>/.teachme/` (or a custom `--state-dir`).
-- **Non-Destructive Guarantee:** Legacy `fix` and `verify` never alter or complain about existing user-authored notes in Vault-Native Mode; `--extend` creates a timestamped backup before appending.
-- **Slash Commands in Antigravity:** Use `/teachme-vault connect <path>`, `/teachme-vault plan --topic "<topic>"`, or `/teachme <topic>` after connecting your vault.
 
 ## Installation
 
-Clone this repository and copy all `skills/teachme*` folders into your AI tool's skills directory (so `/teachme` and all `/teachme-*` subcommands appear in slash-command autocomplete), and create your central `~/notes` vault folder:
+Clone this repository and copy all `skills/teachme*` folders into your AI tool's skills directory:
 
 ```bash
 git clone https://github.com/AayushPandey2/teachme-skill.git
@@ -87,26 +64,51 @@ mkdir -p ~/notes
 | **Cline** | `~/.cline/skills/` | `.cline/skills/` | `mkdir -p ~/.cline/skills && cp -r skills/teachme* ~/.cline/skills/` |
 | **Codex / Generic** | `~/.agents/skills/` | `.agents/skills/` | `mkdir -p ~/.agents/skills && cp -r skills/teachme* ~/.agents/skills/` |
 
-## Usage & Lifecycle Commands
+### Optional Scriptorium Companion Setup
 
-Open a new session in your agent and type `/teachme` to see all subcommands in your slash-command autocomplete dropdown *(space-separated aliases like `/teachme expand <topic>` also work)*:
+If you want TeachMe to hand off study-note creation or expansion to Scriptorium, install `scriptorium` separately in your agent's skills directory and configure its independent Obsidian vault path via `SCRIPTORIUM_VAULT_PATH` or `~/.scriptorium-config.json`:
+
+```json
+{
+  "vault_path": "C:\\path\\to\\YourObsidianVault"
+}
+```
+
+TeachMe never treats `~/.teachme-config.json` (`notes_root` or `.teachme/`) as Scriptorium's vault. If Scriptorium is not installed or its vault is unconfigured, TeachMe preserves your learning state and returns a blocked handoff with the exact `/scribe-*` command and context summary instead of generating study notes itself.
+
+## Usage & Lifecycle Commands
 
 | Autocomplete Command | Space-Separated Alias | What It Does |
 | :--- | :--- | :--- |
-| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `<VAULT_ROOT>/<topic-slug>/` (default `~/notes/`), and teaches interactively via the 7-Component Mastery Loop. |
-| `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `discover`, `profile`, `search`, `plan`, `generate`, `audit`, `mode`, `reindex`) in **Vault-Native Mode**, adapting placement, templates, metadata, tags, links, and style without restructuring your vault. |
-| `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views the active `<VAULT_ROOT>`, redirects vault storage to a custom folder (`~/.teachme-config.json`), or resets back to `~/notes`. |
-| `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 7-Section Standard, creates `.md` files for missing related subtopics, and runs the 7-Point Critic Audit. |
-| `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, `<details>` blocks, and malformed LaTeX across the vault. |
-| `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs new PDFs, URLs, lecture notes, or raw dumps into an existing vault, flags contradictions, and syncs `00-SESSION-STATE.md` without overwriting mastered checkpoints. |
-| `/teachme-distill <topic>` | `/teachme distill <topic>` | Compresses a vault into a high-density 1-page `09-CHEAT-SHEET.md` and refreshes the `08-FLASHCARDS.md` spaced-repetition deck. |
+| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs 4-question calibration (or `--auto` defaults), builds an acyclic curriculum in `00-GRAPH.json`, and teaches interactively via the 4-Turn ONE-question Socratic loop. |
 | `/teachme-review <topic>` | `/teachme review <topic>` | Launches an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in `00-SESSION-STATE.md` and `learning-records/`. |
-| `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching mastery audit: explain a concept and its formulas back in plain English with zero unstated jargon under Socratic probing. |
-| `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates and grades Tier 1 (recall), Tier 2 (multi-step), or Tier 3 (adversarial edge-case) practice problems into `07-PRACTICE-PROBLEMS.md`. |
-| `/teachme-compare <A> vs <B>` | `/teachme compare <A> vs <B>` | Builds a primary-source structural trade-off matrix at `<VAULT_ROOT>/comparisons/<a-vs-b>.md` contrasting two concepts, algorithms, or architectures. |
-| `wait what` / `simplify` | `/wait-what` | Pauses quizzing during Phase 6, re-explains the sticking point from absolute zero using a scalar trace, and saves the clearer analogy to `05-MENTAL-MODELS.md`. |
+| `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching mastery audit: explain a concept and its formulas in plain English with zero unstated jargon under Socratic probing. |
+| `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates and grades live Tier 1–3 practice problems interactively, logging evidence to `events.jsonl` and `learning-records/`. |
+| `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs PDFs, URLs, transcripts, or repos into lesson context (`scratchpad/ingested-sources.json`, `curriculum.json`, `learning-records/`) without modifying study notes or mastered checkpoints. |
+| `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `mode`, `search`, `reindex`, `state`) for isolated `.teachme/` state and read-only source lookup. |
+| `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views, changes, or resets TeachMe's standalone learning-state root in `~/.teachme-config.json` (independent of Scriptorium's vault). |
+| `wait what` / `simplify` | `/wait-what` | Pauses quizzing, re-explains from zero with a scalar trace, logs the clearer analogy to `learning-records/`, and resumes the exact checkpoint. |
 
-*(If your agent does not support `/slash` skill commands natively, prompt: `"Use the teachme skill to research and teach me <topic>."`)*
+### Removed Note Commands & Supported Replacements
+
+| Removed TeachMe Command | Replacement |
+| :--- | :--- |
+| `/teachme-distill <topic>` | Scriptorium `/scribe-notes <topic>` or `/scribe-expand <topic>` |
+| `/teachme-expand <topic>` | Scriptorium `/scribe-expand <topic>` |
+| `/teachme-compare <A> vs <B>` | Interactive contrast in `/teachme`, or Scriptorium `/scribe-notes "<A> vs <B>"` for a note artifact |
+| `/teachme-verify <topic>` | Scriptorium `scripts/verify_vault_notes.py "<vault_path>" [--fix]` for study notes; `vault_cli.py validate-state` for TeachMe operational state |
+
+### Operational State CLI (`scripts/vault_cli.py`)
+
+```bash
+python skills/teachme/scripts/vault_cli.py init <session_or_vault> --topic "<Topic>" --subtopics subtopics.json
+python skills/teachme/scripts/vault_cli.py context <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py tick <session_or_vault> --topic 01 --cp 2 --status pass
+python skills/teachme/scripts/vault_cli.py flush <session_or_vault> --topic 01 --note "<verified invariant>"
+python skills/teachme/scripts/vault_cli.py validate-state <session_or_vault>
+python skills/teachme/scripts/vault_cli.py import-legacy <legacy_vault> [--target <state_dir>]
+python skills/teachme/scripts/vault_cli.py handoff <session_or_vault> --topic 01 --request "revision notes"
+```
 
 ## Repository Structure
 
@@ -114,33 +116,33 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 teachme-skill/
 ├── README.md
 ├── LICENSE
+├── tests/
 └── skills/
-    ├── teachme/                           # Single source of truth: master router, operating laws, CLI & references
-    │   ├── SKILL.md
+    ├── teachme/
+    │   ├── SKILL.md                       # Master router, core invariants & intent routing
     │   ├── scripts/
-    │   │   └── vault_cli.py               # Zero-token CLI: init, context, state, graph, slice, tick, flush, fix & verify
+    │   │   ├── vault_cli.py               # Operational state CLI (init, context, state, graph, tick, flush, validate-state, import-legacy, handoff, connect, mode, reindex, search, slice)
+    │   │   └── teachme_vault/
+    │   │       ├── __init__.py
+    │   │       ├── cli_commands.py        # connect, mode, reindex, search handlers
+    │   │       ├── indexer.py             # Read-only incremental vault search index
+    │   │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
+    │   │       ├── models.py              # Config, mode detection, atomic writes, safety guards
+    │   │       └── state_store.py         # Curriculum state, legacy importer & handoff envelope
     │   └── references/
-    │       ├── MISSION-AND-GRILL.md       # Phases 1–3: Frontier grilling, Mission Lock & CLI vault scaffold
-    │       ├── RESEARCH-TOOLCHAIN.md      # Phase 2: Knowledge vs. Wisdom sourcing, deep-linking & scratchpad isolation
-    │       ├── STUDY-AND-GLOSSARY.md      # Phases 4–5: 7-Section Blueprint, 7-Point Critic Gate, templates & atomic cards
-    │       ├── RETENTION-AND-RECORDS.md   # Phase 6: 4-Turn pacing, ONE-question law, Anti-Spoiler & ADR records
-    │       ├── VAULT-NATIVE.md            # Vault-Native Mode workflow, plugin awareness & non-destructive writes
-    │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, vault, expand, verify, ingest, distill, review, feynman, drill, compare)
-    ├── teachme-vault/SKILL.md             # Wrapper -> /teachme-vault <subcommand> [args]
-    ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
-    ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>
-    ├── teachme-verify/SKILL.md            # Wrapper -> /teachme-verify <topic>
-    ├── teachme-ingest/SKILL.md            # Wrapper -> /teachme-ingest <topic> <source>
-    ├── teachme-distill/SKILL.md           # Wrapper -> /teachme-distill <topic>
-    ├── teachme-review/SKILL.md            # Wrapper -> /teachme-review <topic>
-    ├── teachme-feynman/SKILL.md           # Wrapper -> /teachme-feynman <concept>
-    ├── teachme-drill/SKILL.md             # Wrapper -> /teachme-drill <topic> [1|2|3]
-    └── teachme-compare/SKILL.md           # Wrapper -> /teachme-compare <A> vs <B>
+    │       ├── MISSION-AND-GRILL.md       # Calibration grilling, curriculum planning & state init
+    │       ├── RESEARCH-TOOLCHAIN.md      # Primary-source retrieval & provenance rules
+    │       ├── RETENTION-AND-RECORDS.md   # 4-Turn Socratic loop, Formula Anatomy, Anti-Spoiler & ADR records
+    │       ├── SCRIPTORIUM-HANDOFF.md     # Lazy-loaded Scriptorium delegation contract & context envelope
+    │       ├── VAULT-NATIVE.md            # Isolated .teachme/ state & read-only Obsidian lookup
+    │       └── cmd-*.md                   # Per-command workflows (drill, feynman, ingest, notes-path, review, vault)
+    ├── teachme-drill/SKILL.md
+    ├── teachme-feynman/SKILL.md
+    ├── teachme-ingest/SKILL.md
+    ├── teachme-notes-path/SKILL.md
+    ├── teachme-review/SKILL.md
+    └── teachme-vault/SKILL.md
 ```
-
-## Acknowledgments
-
-Inspired by workflow patterns from [`mattpocock/skills`](https://github.com/mattpocock/skills), [`rohankgeorge/the-researcher`](https://github.com/rohankgeorge/the-researcher), and [`rohankgeorge/thinking-tools`](https://github.com/rohankgeorge/thinking-tools).
 
 ## License
 

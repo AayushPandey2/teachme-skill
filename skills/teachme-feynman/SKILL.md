@@ -7,13 +7,13 @@ description: "Test plain-English mastery of any concept by explaining it back wi
 
 ## Arguments
 - Parse `<concept>` (optionally `<topic> <subtopic>`) from `$ARGUMENTS` (or text after `/teachme-feynman`).
-- If the topic is missing: run `vault_cli.py state` to auto-select the active vault, else ask ONE question.
+- If the topic is missing: run `vault_cli.py state` to auto-select the active session, else ask ONE question.
 
 ## Load (Minimal)
 Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/`:
 1. `teachme/SKILL.md` (laws §A–§D)
 2. `teachme/references/cmd-feynman.md`
-3. On demand only: `references/RETENTION-AND-RECORDS.md` (§3 only)
+3. On demand only: `references/RETENTION-AND-RECORDS.md` (§4 only)
 
 ## Execute
-Follow `cmd-feynman.md` end-to-end; finish writes with `vault_cli.py fix` -> `verify` (`errors: []`).
+Follow `cmd-feynman.md` end-to-end; persist operational mastery with `vault_cli.py tick` / `flush` and `learning-records/` without modifying study notes.
