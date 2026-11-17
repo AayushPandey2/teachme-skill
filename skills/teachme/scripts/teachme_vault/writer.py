@@ -25,7 +25,7 @@ from .models import (
     sha256_text,
     utc_now_iso,
 )
-from .planner import load_reviewed_plan, plan_note
+from .planner import load_reviewed_plan, plan_note, validate_reviewed_plan
 from .renderer import serialize_frontmatter  # noqa: F401  (re-exported for compatibility)
 
 PROTECTED_SUFFIXES = (".excalidraw.md", ".excalidraw", ".canvas", ".base")
@@ -33,11 +33,18 @@ TEACHME_MERMAID_BLOCK_RE = re.compile(
     r"<!--\s*teachme:mermaid:start\s+id=[^\s>]+\s*-->\s*```mermaid\s*([\s\S]*?)```\s*<!--\s*teachme:mermaid:end\s*-->",
     re.MULTILINE,
 )
+TEACHME_EXT_BLOCK_RE = re.compile(
+    r"<!--\s*teachme:extension:start\b[^>]*-->[\s\S]*?<!--\s*teachme:extension:end\s*-->",
+    re.MULTILINE,
+)
 
 
 def _slugify(text: str) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return s or "topic"
+    clean = re.sub(r"[^\w]+", "-", text.lower(), flags=re.UNICODE).strip("-_")
+    if clean and re.fullmatch(r"[a-z0-9-]+", clean):
+        return clean
+    digest = sha256_text(text)[:6]
+    return f"{clean}-{digest}" if clean else f"topic-{digest}"
 
 
 def _load_managed_manifest(state_dir: Path) -> dict[str, Any]:
@@ -109,46 +116,142 @@ def _is_protected_relpath(rel_path: str, protected_folders: list[str]) -> bool:
     return False
 
 
-def _validate_generated_text(
-    rel_path: str,
-    text: str,
-    role: str,
-    action: str,
-    inserted_line: str,
+def _check_wikilink_target(
+    parts: dict[str, Any],
+    rel: str,
+    line_no: int,
     index: dict[str, Any],
-    created_rel_paths: set[str],
-) -> list[str]:
-    """Validate proposed file content before writing any files to disk."""
-    errors: list[str] = []
+    vault_root: Path,
+    created_rel_paths: set[str] | None,
+    errors: list[dict[str, Any]],
+    warnings: list[dict[str, Any]],
+    check_anchors: bool = True,
+) -> None:
+    """Shared link & attachment resolution used identically by preflight and audit."""
+    target = parts.get("note", "")
+    if not target:
+        return
+    res = resolve_link_to_rel_path(
+        target,
+        index,
+        extra_rel_paths=created_rel_paths,
+        vault_root=vault_root,
+    )
+    if res.get("is_attachment"):
+        if res["resolved"]:
+            return
+        if res["ambiguous"]:
+            warnings.append(
+                {
+                    "file": rel,
+                    "line": line_no,
+                    "type": "ambiguous_attachment",
+                    "detail": f"Ambiguous attachment [[{target}]]",
+                }
+            )
+            return
+        errors.append(
+            {
+                "file": rel,
+                "line": line_no,
+                "type": "missing_attachment",
+                "detail": f"Missing attachment [[{parts['raw']}]]",
+            }
+        )
+        return
 
-    if role == "moc_update" and action == "insert_section_line":
-        for wm in WIKILINK_RE.finditer(inserted_line):
-            parts = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
-            if parts["note"]:
-                res = resolve_link_to_rel_path(parts["note"], index, extra_rel_paths=created_rel_paths)
-                if not res["resolved"] and not res["ambiguous"]:
-                    errors.append(f"{rel_path}: Inserted MOC link [[{parts['raw']}]] does not resolve")
-        return errors
+    if res["ambiguous"]:
+        warnings.append(
+            {
+                "file": rel,
+                "line": line_no,
+                "type": "ambiguous_wikilink",
+                "detail": f"Ambiguous target [[{target}]]",
+            }
+        )
+        return
 
-    if action in ("create",):
-        fm = parse_frontmatter_tolerant(text)
-        for w in fm["warnings"]:
-            errors.append(f"{rel_path}: YAML warning: {w}")
+    resolved_rel = res["resolved"]
+    if not resolved_rel:
+        errors.append(
+            {
+                "file": rel,
+                "line": line_no,
+                "type": "broken_wikilink",
+                "detail": f"Unresolved wikilink [[{parts['raw']}]]",
+            }
+        )
+        return
 
-    # Check math parity and wikilinks in newly generated text (or extension slice)
-    text_to_check = text
-    if action == "extend":
-        m = re.search(r"<!--\s*teachme:extension:start\b[\s\S]*?<!--\s*teachme:extension:end\s*-->", text)
-        if m:
-            text_to_check = m.group(0)
+    if check_anchors and parts.get("anchor"):
+        target_doc = index.get("docs", {}).get(resolved_rel)
+        if target_doc is not None:
+            anc = parts["anchor"]
+            if anc.startswith("^"):
+                bid = anc[1:]
+                if bid not in target_doc.get("block_ids", []):
+                    warnings.append(
+                        {
+                            "file": rel,
+                            "line": line_no,
+                            "type": "missing_block_id",
+                            "detail": f"Block ID ^{bid} not found in {resolved_rel}",
+                        }
+                    )
+            else:
+                slug = heading_slug(anc)
+                if slug not in target_doc.get("heading_slugs", []):
+                    warnings.append(
+                        {
+                            "file": rel,
+                            "line": line_no,
+                            "type": "missing_heading_anchor",
+                            "detail": f"Heading #{anc} not found in {resolved_rel}",
+                        }
+                    )
 
+
+def _extract_extension_regions(text: str) -> list[tuple[int, str]]:
+    """Return (start_line_no, region_text) for EVERY TeachMe extension region in text."""
+    regions: list[tuple[int, str]] = []
+    covered_spans: list[tuple[int, int]] = []
+
+    for m in TEACHME_EXT_BLOCK_RE.finditer(text):
+        start_line = text[: m.start()].count("\n") + 1
+        regions.append((start_line, m.group(0)))
+        covered_spans.append((m.start(), m.end()))
+
+    # Also detect any legacy unmarked `## TeachMe Extension:` tail outside marked spans
+    for m in re.finditer(r"^## TeachMe Extension:.*$", text, flags=re.MULTILINE):
+        pos = m.start()
+        if any(s <= pos <= e for s, e in covered_spans):
+            continue
+        start_line = text[:pos].count("\n") + 1
+        regions.append((start_line, text[pos:]))
+        break
+
+    return regions
+
+
+def _audit_lines_for_links_and_math(
+    rel: str,
+    text_lines: list[tuple[int, str]],
+    index: dict[str, Any],
+    vault_root: Path,
+    errors: list[dict[str, Any]],
+    warnings: list[dict[str, Any]],
+    check_math: bool = True,
+    created_rel_paths: set[str] | None = None,
+    check_anchors: bool = True,
+) -> None:
+    """Audit specific line ranges for math parity and broken/ambiguous wikilinks & attachments."""
     in_fence = False
     fence_char = ""
     in_display = False
-    for line_no, line in enumerate(text_to_check.splitlines(), start=1):
-        fm_m = FENCE_RE.match(line)
-        if fm_m:
-            mk = fm_m.group(1)
+    for line_no, line in text_lines:
+        fm_match = FENCE_RE.match(line)
+        if fm_match:
+            mk = fm_match.group(1)
             if not in_fence:
                 in_fence = True
                 fence_char = mk[0]
@@ -157,32 +260,137 @@ def _validate_generated_text(
             continue
         if in_fence:
             continue
+
         no_code = re.sub(r"`[^`\r\n]*`", "", line).replace(r"\$", "")
-        if no_code.count("$$") % 2 == 1:
-            in_display = not in_display
-        no_dd = no_code.replace("$$", "")
-        if not in_display and no_dd.count("$") % 2 == 1:
-            errors.append(f"{rel_path}:{line_no}: Unmatched '$' delimiter")
+        if check_math:
+            if no_code.count("$$") % 2 == 1:
+                in_display = not in_display
+            no_dd = no_code.replace("$$", "")
+            if not in_display and no_dd.count("$") % 2 == 1:
+                errors.append(
+                    {
+                        "file": rel,
+                        "line": line_no,
+                        "type": "unmatched_dollar",
+                        "detail": "Odd number of $ delimiters",
+                    }
+                )
 
         for wm in WIKILINK_RE.finditer(no_code):
             parts = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
-            if not parts["note"]:
-                continue
-            res = resolve_link_to_rel_path(parts["note"], index, extra_rel_paths=created_rel_paths)
-            if not res["resolved"] and not res["ambiguous"]:
-                errors.append(f"{rel_path}:{line_no}: Broken wikilink [[{parts['raw']}]]")
+            _check_wikilink_target(
+                parts=parts,
+                rel=rel,
+                line_no=line_no,
+                index=index,
+                vault_root=vault_root,
+                created_rel_paths=created_rel_paths,
+                errors=errors,
+                warnings=warnings,
+                check_anchors=check_anchors,
+            )
 
-    if in_display:
-        errors.append(f"{rel_path}: Unclosed $$ display math block")
+    if check_math and in_display:
+        errors.append(
+            {
+                "file": rel,
+                "line": 1,
+                "type": "unclosed_display_math",
+                "detail": "Unclosed $$ block",
+            }
+        )
 
-    # Validate any TeachMe-generated Mermaid blocks
-    for mm in TEACHME_MERMAID_BLOCK_RE.finditer(text_to_check):
-        m_val = validate_mermaid_syntax(mm.group(1))
-        if not m_val["valid"]:
-            for err in m_val["errors"]:
-                errors.append(f"{rel_path}: Invalid Mermaid diagram: {err}")
 
-    return errors
+def _validate_generated_text(
+    rel_path: str,
+    text: str,
+    orig_text: str,
+    role: str,
+    action: str,
+    inserted_line: str,
+    index: dict[str, Any],
+    vault_root: Path,
+    created_rel_paths: set[str],
+) -> list[str]:
+    """Validate proposed file content before writing any files to disk."""
+    errors_dicts: list[dict[str, Any]] = []
+    warnings_dicts: list[dict[str, Any]] = []
+
+    if role == "moc_update" and action == "insert_section_line":
+        for wm in WIKILINK_RE.finditer(inserted_line):
+            parts = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
+            _check_wikilink_target(
+                parts=parts,
+                rel=rel_path,
+                line_no=1,
+                index=index,
+                vault_root=vault_root,
+                created_rel_paths=created_rel_paths,
+                errors=errors_dicts,
+                warnings=warnings_dicts,
+                check_anchors=False,
+            )
+        return [f"{e['file']}: {e['detail']}" for e in errors_dicts]
+
+    if action == "create":
+        fm = parse_frontmatter_tolerant(text)
+        for w in fm["warnings"]:
+            errors_dicts.append({"file": rel_path, "line": 1, "type": "yaml_syntax", "detail": w})
+
+    if action == "extend":
+        # Validate EVERY newly added or modified TeachMe extension region (not just the first!)
+        orig_regions = {reg_text for _, reg_text in _extract_extension_regions(orig_text)}
+        new_regions = _extract_extension_regions(text)
+        regions_to_check = [
+            (start_ln, reg_text)
+            for start_ln, reg_text in new_regions
+            if reg_text not in orig_regions
+        ]
+        # If none differed by exact match (or unmarked), validate all extension regions found
+        if not regions_to_check and new_regions:
+            regions_to_check = new_regions
+        for start_ln, reg_text in regions_to_check:
+            numbered = [(start_ln + i, ln) for i, ln in enumerate(reg_text.splitlines())]
+            _audit_lines_for_links_and_math(
+                rel_path,
+                numbered,
+                index=index,
+                vault_root=vault_root,
+                errors=errors_dicts,
+                warnings=warnings_dicts,
+                check_math=True,
+                created_rel_paths=created_rel_paths,
+                check_anchors=False,
+            )
+            for mm in TEACHME_MERMAID_BLOCK_RE.finditer(reg_text):
+                m_val = validate_mermaid_syntax(mm.group(1))
+                if not m_val["valid"]:
+                    for err in m_val["errors"]:
+                        errors_dicts.append(
+                            {"file": rel_path, "line": start_ln, "type": "invalid_mermaid", "detail": f"Invalid Mermaid diagram: {err}"}
+                        )
+    else:
+        numbered = list(enumerate(text.splitlines(), start=1))
+        _audit_lines_for_links_and_math(
+            rel_path,
+            numbered,
+            index=index,
+            vault_root=vault_root,
+            errors=errors_dicts,
+            warnings=warnings_dicts,
+            check_math=True,
+            created_rel_paths=created_rel_paths,
+            check_anchors=False,
+        )
+        for mm in TEACHME_MERMAID_BLOCK_RE.finditer(text):
+            m_val = validate_mermaid_syntax(mm.group(1))
+            if not m_val["valid"]:
+                for err in m_val["errors"]:
+                    errors_dicts.append(
+                        {"file": rel_path, "line": 1, "type": "invalid_mermaid", "detail": f"Invalid Mermaid diagram: {err}"}
+                    )
+
+    return [f"{e['file']}:{e['line']}: {e['detail']}" for e in errors_dicts]
 
 
 def _execute_file_transaction(
@@ -228,22 +436,23 @@ def _execute_file_transaction(
                 )
 
         new_text = af.get("new_text", "")
-        if existed and read_text_safe(abs_path) == new_text:
-            # Idempotent no-op
+        orig_text = read_text_safe(abs_path) if existed else ""
+        if existed and orig_text == new_text:
             continue
 
         errs = _validate_generated_text(
             rel_path=rel,
             text=new_text,
+            orig_text=orig_text,
             role=af.get("role", "target_note"),
             action=af.get("action", "create"),
             inserted_line=af.get("inserted_line", ""),
             index=index,
+            vault_root=root,
             created_rel_paths=created_rel_paths,
         )
         validation_errors.extend(errs)
 
-        orig_text = read_text_safe(abs_path) if existed else ""
         prepared_ops.append(
             {
                 "rel_path": rel,
@@ -251,8 +460,11 @@ def _execute_file_transaction(
                 "role": af.get("role", "target_note"),
                 "action": af.get("action", "create"),
                 "existed": existed,
+                "must_not_exist": must_not_exist,
+                "expected_sha256": expected_sha,
                 "orig_text": orig_text,
                 "new_text": new_text,
+                "new_sha256": sha256_text(new_text),
                 "inserted_line": af.get("inserted_line", ""),
                 "backup_rel_path": "",
             }
@@ -265,9 +477,11 @@ def _execute_file_transaction(
         return {
             "tx_id": None,
             "status": "no_changes",
+            "writes_committed": False,
             "written_files": [],
             "backups": {},
             "atomicity": "per_file_atomic_with_rollback",
+            "post_commit_warnings": [],
         }
 
     # 2. Backups & transaction journal
@@ -284,7 +498,7 @@ def _execute_file_transaction(
             op["backup_rel_path"] = brel
             backups[op["rel_path"]] = brel
 
-    journal = {
+    journal: dict[str, Any] = {
         "tx_id": tx_id,
         "created_at": utc_now_iso(),
         "status": "pending",
@@ -296,49 +510,77 @@ def _execute_file_transaction(
                 "action": op["action"],
                 "existed": op["existed"],
                 "backup_rel_path": op["backup_rel_path"],
-                "new_sha256": sha256_text(op["new_text"]),
+                "new_sha256": op["new_sha256"],
             }
             for op in prepared_ops
         ],
     }
     atomic_write_text(journal_path, json.dumps(journal, indent=2, ensure_ascii=False) + "\n")
 
-    # 3. Apply per-file atomic writes with automatic rollback on failure
+    # 3. Apply per-file atomic writes with immediate pre-write concurrent-edit guard & safe rollback
     completed: list[dict[str, Any]] = []
     try:
         for op in prepared_ops:
-            writer(op["abs_path"], op["new_text"])
+            abs_p = op["abs_path"]
+            if op["must_not_exist"] and abs_p.exists():
+                raise RuntimeError(f"Concurrent creation detected right before write for '{op['rel_path']}'")
+            if op["expected_sha256"] is not None:
+                if not abs_p.is_file():
+                    raise RuntimeError(f"Concurrent deletion detected right before write for '{op['rel_path']}'")
+                cur_sha = sha256_text(read_text_safe(abs_p))
+                if cur_sha != op["expected_sha256"]:
+                    raise RuntimeError(f"Concurrent edit detected right before write for '{op['rel_path']}'")
+            writer(abs_p, op["new_text"])
             completed.append(op)
     except Exception as exc:
-        # Roll back already-written files in reverse order
         rollback_errors: list[str] = []
+        rollback_warnings: list[str] = []
         for comp in reversed(completed):
             try:
+                abs_c = comp["abs_path"]
+                if abs_c.is_file():
+                    post_write_sha = sha256_text(read_text_safe(abs_c))
+                    if post_write_sha != comp["new_sha256"]:
+                        rollback_warnings.append(
+                            f"Skipped rollback of '{comp['rel_path']}' because it was modified externally after write"
+                        )
+                        continue
                 if comp["existed"]:
-                    atomic_write_text(comp["abs_path"], comp["orig_text"])
+                    atomic_write_text(abs_c, comp["orig_text"])
                 else:
-                    if comp["abs_path"].exists():
-                        comp["abs_path"].unlink()
+                    if abs_c.exists():
+                        abs_c.unlink()
             except Exception as rb_exc:
                 rollback_errors.append(f"{comp['rel_path']}: {rb_exc}")
 
         journal["status"] = "rolled_back" if not rollback_errors else "rollback_partial_error"
         journal["error"] = str(exc)
         journal["rollback_errors"] = rollback_errors
-        atomic_write_text(journal_path, json.dumps(journal, indent=2, ensure_ascii=False) + "\n")
+        journal["rollback_warnings"] = rollback_warnings
+        try:
+            atomic_write_text(journal_path, json.dumps(journal, indent=2, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
         raise RuntimeError(f"Transaction {tx_id} failed and rolled back: {exc}") from exc
 
+    # All target writes succeeded and are committed on disk.
+    post_commit_warnings: list[str] = []
     journal["status"] = "committed"
     journal["committed_at"] = utc_now_iso()
-    atomic_write_text(journal_path, json.dumps(journal, indent=2, ensure_ascii=False) + "\n")
+    try:
+        atomic_write_text(journal_path, json.dumps(journal, indent=2, ensure_ascii=False) + "\n")
+    except Exception as j_exc:
+        post_commit_warnings.append(f"Target writes committed, but journal finalization failed: {j_exc}")
 
     return {
         "tx_id": tx_id,
         "journal_path": str(journal_path),
         "status": "committed",
+        "writes_committed": True,
         "written_files": [op["rel_path"] for op in prepared_ops],
         "backups": backups,
         "atomicity": "per_file_atomic_with_rollback",
+        "post_commit_warnings": post_commit_warnings,
         "ops": prepared_ops,
     }
 
@@ -362,6 +604,7 @@ def generate_vault_note(
     min_moc_cluster_size: int | None = None,
     allow_moc: bool = True,
     write_fn: Callable[[Path, str], None] | None = None,
+    post_commit_fn: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Plan and generate (or non-destructively extend) vault-native notes + MOCs + Mermaid."""
     root = vault_root.resolve()
@@ -369,10 +612,7 @@ def generate_vault_note(
 
     if plan_ref is not None:
         plan = load_reviewed_plan(root, plan_ref, state_dir=sdir)
-        if Path(str(plan.get("vault_path", ""))).resolve() != root:
-            raise ValueError("Reviewed plan belongs to a different vault path")
-        if expected_plan_hash and plan.get("plan_hash") != expected_plan_hash:
-            raise RuntimeError("Reviewed plan hash mismatch")
+        validate_reviewed_plan(plan, root, expected_plan_hash=expected_plan_hash)
         topic = topic or str(plan.get("topic", ""))
     else:
         if not topic:
@@ -413,10 +653,15 @@ def generate_vault_note(
     if target_af.get("conflict"):
         return {
             "ok": False,
+            "status": "conflict",
             "conflict": True,
+            "applied": False,
+            "writes_committed": False,
+            "audit_passed": None,
             "mode": mode,
             "target_rel_path": target_rel,
             "reason": target_af.get("conflict_reason") or "Target note already exists. Use --extend or choose another title/folder.",
+            "resolution_options": plan.get("resolution_options", []),
             "plan_id": plan.get("plan_id"),
             "plan_hash": plan.get("plan_hash"),
             "plan": plan,
@@ -426,6 +671,7 @@ def generate_vault_note(
     backup_rel = ""
     tx_info: dict[str, Any] = {}
     audit_report: dict[str, Any] | None = None
+    post_commit_errors: list[str] = []
 
     if apply:
         index = load_or_build_index(root, refresh=False, state_dir=sdir)
@@ -439,44 +685,83 @@ def generate_vault_note(
             write_fn=write_fn,
         )
         backup_rel = tx_info.get("backups", {}).get(target_rel, "")
+        post_commit_errors.extend(tx_info.get("post_commit_warnings", []))
 
-        manifest = _load_managed_manifest(sdir)
-        for op in tx_info.get("ops", []):
-            rel = op["rel_path"]
-            role = op["role"]
-            if role == "moc_update":
-                entry = manifest["moc_updates"].get(rel, {"added_lines": [], "backups": []})
-                if op["inserted_line"] and op["inserted_line"] not in entry["added_lines"]:
-                    entry["added_lines"].append(op["inserted_line"])
-                if op["backup_rel_path"]:
-                    entry["backups"].append(op["backup_rel_path"])
-                entry["updated_at"] = utc_now_iso()
-                entry["sha256"] = sha256_text(op["new_text"])
-                manifest["moc_updates"][rel] = entry
-            else:
-                manifest["notes"][rel] = {
-                    "topic": topic,
-                    "mode": "moc_create" if role == "moc_create" else mode,
-                    "updated_at": utc_now_iso(),
-                    "sha256": sha256_text(op["new_text"]),
-                    "backup": op["backup_rel_path"],
-                }
-        _save_managed_manifest(sdir, manifest)
+        # Writes are already committed on disk; record any post-commit bookkeeping issues
+        # without ever falsely claiming the transaction rolled back.
+        try:
+            if post_commit_fn is not None:
+                post_commit_fn()
+            manifest = _load_managed_manifest(sdir)
+            for op in tx_info.get("ops", []):
+                rel = op["rel_path"]
+                role = op["role"]
+                if role == "moc_update":
+                    entry = manifest["moc_updates"].get(rel, {"added_lines": [], "backups": []})
+                    if op["inserted_line"] and op["inserted_line"] not in entry["added_lines"]:
+                        entry["added_lines"].append(op["inserted_line"])
+                    if op["backup_rel_path"]:
+                        entry["backups"].append(op["backup_rel_path"])
+                    entry["updated_at"] = utc_now_iso()
+                    entry["sha256"] = op["new_sha256"]
+                    manifest["moc_updates"][rel] = entry
+                else:
+                    manifest["notes"][rel] = {
+                        "topic": topic,
+                        "mode": "moc_create" if role == "moc_create" else mode,
+                        "updated_at": utc_now_iso(),
+                        "sha256": op["new_sha256"],
+                        "backup": op["backup_rel_path"],
+                    }
+            _save_managed_manifest(sdir, manifest)
 
-        sess_dir = _init_isolated_session(root, sdir, topic, target_rel)
-        # Refresh vault index and profile incrementally after successful transaction
-        build_or_update_index(root, full=False, state_dir=sdir)
-        discover_vault(root, refresh=False, state_dir=sdir)
+            sess_dir = _init_isolated_session(root, sdir, topic, target_rel)
+            refreshed_index = build_or_update_index(root, full=False, state_dir=sdir)
+            discover_vault(root, refresh=False, state_dir=sdir)
 
-        audit_files = [af["rel_path"] for af in affected_files]
-        audit_report = audit_vault_native(root, target_files=audit_files, state_dir=sdir)
+            audit_files = [af["rel_path"] for af in affected_files]
+            audit_report = audit_vault_native(root, target_files=audit_files, state_dir=sdir, index=refreshed_index)
+        except Exception as pc_exc:
+            post_commit_errors.append(f"Post-commit bookkeeping/audit error (writes remain committed): {pc_exc}")
+            sess_dir = sdir / "sessions" / _slugify(topic)
+            audit_report = {
+                "vault_path": str(root),
+                "mode": "vault-native",
+                "audited_files": [],
+                "audited_moc_updates": [],
+                "errors": [{"file": target_rel, "line": 1, "type": "post_commit_bookkeeping_error", "detail": str(pc_exc)}],
+                "warnings": [],
+                "pre_existing_issues": [],
+                "user_notes_untouched": True,
+            }
+
+        writes_committed = bool(tx_info.get("writes_committed"))
+        tx_status = tx_info.get("status", "committed")
+        audit_passed = bool(audit_report is not None and len(audit_report.get("errors", [])) == 0)
+        if not audit_passed:
+            overall_status = "applied_audit_failed"
+        elif tx_status == "no_changes":
+            overall_status = "applied_no_changes"
+        else:
+            overall_status = "applied_and_audited"
+        overall_ok = audit_passed and not post_commit_errors
     else:
         sess_dir = sdir / "sessions" / _slugify(topic)
+        writes_committed = False
+        tx_status = "dry_run"
+        audit_passed = None
+        overall_status = "dry_run"
+        overall_ok = True
 
     return {
-        "ok": True,
+        "ok": overall_ok,
+        "status": overall_status,
         "applied": apply,
         "dry_run": not apply,
+        "writes_committed": writes_committed,
+        "transaction_status": tx_status,
+        "audit_passed": audit_passed,
+        "post_commit_errors": post_commit_errors,
         "mode": mode,
         "plan_id": plan.get("plan_id"),
         "plan_hash": plan.get("plan_hash"),
@@ -499,87 +784,17 @@ def generate_vault_note(
     }
 
 
-def _audit_lines_for_links_and_math(
-    rel: str,
-    text_lines: list[tuple[int, str]],
-    docs: dict[str, dict[str, Any]],
-    stem_map: dict[str, list[str]],
-    alias_set: set[str],
-    errors: list[dict[str, Any]],
-    warnings: list[dict[str, Any]],
-    check_math: bool = True,
-) -> None:
-    """Audit specific line ranges for math parity and broken/ambiguous wikilinks."""
-    in_fence = False
-    fence_char = ""
-    in_display = False
-    for line_no, line in text_lines:
-        fm_match = FENCE_RE.match(line)
-        if fm_match:
-            mk = fm_match.group(1)
-            if not in_fence:
-                in_fence = True
-                fence_char = mk[0]
-            elif mk[0] == fence_char:
-                in_fence = False
-            continue
-        if in_fence:
-            continue
-
-        no_code = re.sub(r"`[^`\r\n]*`", "", line).replace(r"\$", "")
-        if check_math:
-            if no_code.count("$$") % 2 == 1:
-                in_display = not in_display
-            no_dd = no_code.replace("$$", "")
-            if not in_display and no_dd.count("$") % 2 == 1:
-                errors.append({"file": rel, "line": line_no, "type": "unmatched_dollar", "detail": "Odd number of $ delimiters"})
-
-        for wm in WIKILINK_RE.finditer(no_code):
-            parts = parse_wikilink_parts(wm.group(2), is_embed=bool(wm.group(1)))
-            target = parts["note"]
-            if not target:
-                continue
-            clean = target[:-3] if target.endswith(".md") else target
-            cand_rel = f"{clean}.md"
-            target_doc = docs.get(cand_rel)
-            if target_doc is None:
-                base = Path(clean).name.lower()
-                matches = stem_map.get(base, [])
-                if len(matches) == 1:
-                    target_doc = docs[matches[0]]
-                elif len(matches) > 1:
-                    warnings.append({"file": rel, "line": line_no, "type": "ambiguous_wikilink", "detail": f"Ambiguous target [[{target}]]"})
-                    continue
-                elif base in alias_set:
-                    continue
-            if target_doc is None:
-                errors.append({"file": rel, "line": line_no, "type": "broken_wikilink", "detail": f"Unresolved wikilink [[{parts['raw']}]]"})
-            elif parts["anchor"]:
-                anc = parts["anchor"]
-                if anc.startswith("^"):
-                    bid = anc[1:]
-                    if bid not in target_doc.get("block_ids", []):
-                        warnings.append({"file": rel, "line": line_no, "type": "missing_block_id", "detail": f"Block ID ^{bid} not found in {target_doc['rel_path']}"})
-                else:
-                    slug = heading_slug(anc)
-                    if slug not in target_doc.get("heading_slugs", []):
-                        warnings.append({"file": rel, "line": line_no, "type": "missing_heading_anchor", "detail": f"Heading #{anc} not found in {target_doc['rel_path']}"})
-
-    if check_math and in_display:
-        errors.append({"file": rel, "line": 1, "type": "unclosed_display_math", "detail": "Unclosed $$ block"})
-
-
 def audit_vault_native(
     vault_root: Path,
     target_files: list[str] | None = None,
     state_dir: Path | None = None,
+    index: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Audit ONLY TeachMe-managed notes, extensions, and added MOC entries (never blaming pre-existing user issues)."""
     root = vault_root.resolve()
     sdir = state_dir or resolve_state_dir(root)
     manifest = _load_managed_manifest(sdir)
-    index = load_or_build_index(root, refresh=False, state_dir=sdir)
-    docs = index.get("docs", {})
+    idx_data = index if index is not None else load_or_build_index(root, refresh=False, state_dir=sdir)
 
     managed_notes = manifest.get("notes", {})
     moc_updates = manifest.get("moc_updates", {})
@@ -588,13 +803,6 @@ def audit_vault_native(
         candidates = [f.strip().lstrip("/") for f in target_files if f.strip()]
     else:
         candidates = sorted(set(managed_notes.keys()) | set(moc_updates.keys()))
-
-    stem_map: dict[str, list[str]] = {}
-    alias_set: set[str] = set()
-    for rel, d in docs.items():
-        stem_map.setdefault(d["stem"].lower(), []).append(rel)
-        for al in d.get("aliases", []):
-            alias_set.add(al.lower())
 
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -624,12 +832,12 @@ def audit_vault_native(
                 else:
                     user_numbered.append((idx, ln))
             _audit_lines_for_links_and_math(
-                rel, added_numbered, docs, stem_map, alias_set, errors, warnings, check_math=False
+                rel, added_numbered, idx_data, root, errors, warnings, check_math=False
             )
             pre_errs: list[dict[str, Any]] = []
             pre_warns: list[dict[str, Any]] = []
             _audit_lines_for_links_and_math(
-                rel, user_numbered, docs, stem_map, alias_set, pre_errs, pre_warns, check_math=False
+                rel, user_numbered, idx_data, root, pre_errs, pre_warns, check_math=False
             )
             for pe in pre_errs:
                 pe["pre_existing"] = True
@@ -653,7 +861,9 @@ def audit_vault_native(
                     user_lines.append((idx, ln))
                 if in_ext and "<!-- teachme:extension:end" in ln:
                     in_ext = False
-            _audit_lines_for_links_and_math(rel, ext_lines, docs, stem_map, alias_set, errors, warnings, check_math=True)
+            _audit_lines_for_links_and_math(
+                rel, ext_lines, idx_data, root, errors, warnings, check_math=True
+            )
             ext_text = "\n".join(ln for _, ln in ext_lines)
             for mm in TEACHME_MERMAID_BLOCK_RE.finditer(ext_text):
                 m_val = validate_mermaid_syntax(mm.group(1))
@@ -663,7 +873,9 @@ def audit_vault_native(
 
             pre_errs = []
             pre_warns = []
-            _audit_lines_for_links_and_math(rel, user_lines, docs, stem_map, alias_set, pre_errs, pre_warns, check_math=False)
+            _audit_lines_for_links_and_math(
+                rel, user_lines, idx_data, root, pre_errs, pre_warns, check_math=False
+            )
             for pe in pre_errs:
                 pe["pre_existing"] = True
                 pre_existing_issues.append(pe)
@@ -674,7 +886,9 @@ def audit_vault_native(
         for w in fm["warnings"]:
             errors.append({"file": rel, "line": 1, "type": "yaml_syntax", "detail": w})
         numbered = list(enumerate(text.splitlines(), start=1))
-        _audit_lines_for_links_and_math(rel, numbered, docs, stem_map, alias_set, errors, warnings, check_math=True)
+        _audit_lines_for_links_and_math(
+            rel, numbered, idx_data, root, errors, warnings, check_math=True
+        )
         for mm in TEACHME_MERMAID_BLOCK_RE.finditer(text):
             m_val = validate_mermaid_syntax(mm.group(1))
             if not m_val["valid"]:

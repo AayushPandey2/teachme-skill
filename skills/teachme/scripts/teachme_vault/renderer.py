@@ -238,7 +238,12 @@ def compose_educational_body(
 
 
 def _extension_slug(topic: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-") or "extension"
+    clean = re.sub(r"[^\w]+", "-", topic.lower(), flags=re.UNICODE).strip("-_")
+    ascii_only = bool(re.fullmatch(r"[a-z0-9-]+", clean)) if clean else False
+    if ascii_only:
+        return clean
+    digest = sha256_text(topic)[:6]
+    return f"{clean}-{digest}" if clean else f"ext-{digest}"
 
 
 def _apply_idempotent_extension(

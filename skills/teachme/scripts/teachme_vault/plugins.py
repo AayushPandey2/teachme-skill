@@ -87,11 +87,17 @@ def _read_json_safe(path: Path, vault_root: Path) -> Any:
 
 
 def _parse_dql_signals(queries: list[str]) -> dict[str, Any]:
-    """Extract queried folders, tags, and fields from Dataview DQL blocks safely."""
+    """Extract queried folders, tags, fields, and conservative WHERE predicates from DQL blocks."""
     from_folders: list[str] = []
     from_tags: list[str] = []
     fields: list[str] = []
+    predicates: list[dict[str, str]] = []
+    where_clauses: list[str] = []
+    complex_where = False
+
     for q in queries:
+        if "dataviewjs" in q.lower() or re.search(r"\b(?:flatten|group\s+by)\b", q, re.IGNORECASE):
+            complex_where = True
         for line in q.splitlines():
             s = line.strip()
             low = s.lower()
@@ -100,7 +106,7 @@ def _parse_dql_signals(queries: list[str]) -> dict[str, Any]:
                     folder = m.group(1).strip("/")
                     if folder and folder not in from_folders:
                         from_folders.append(folder)
-                for m in re.finditer(r"#([A-Za-z0-9_/-]+)", s):
+                for m in re.finditer(r"#([^\s),]+)", s):
                     tag = m.group(1)
                     if tag not in from_tags:
                         from_tags.append(tag)
@@ -111,13 +117,53 @@ def _parse_dql_signals(queries: list[str]) -> dict[str, Any]:
                     if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", col) and col.lower() not in {"without", "id"}:
                         if col not in fields:
                             fields.append(col)
-            elif low.startswith(("where ", "sort ")):
-                for m in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_-]*)\b", s[5:]):
+            elif low.startswith("where "):
+                clause = s[6:].strip()
+                if clause:
+                    where_clauses.append(clause)
+                # Strip quoted literals before scanning field names
+                unquoted = re.sub(r'"[^"]*"|\'[^\']*\'', "", clause)
+                for m in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_-]*)\b", unquoted):
                     tok = m.group(1)
                     if tok.lower() not in {"and", "or", "not", "contains", "file", "asc", "desc", "null", "true", "false"}:
                         if tok not in fields:
                             fields.append(tok)
-    return {"folders": from_folders[:20], "tags": from_tags[:20], "fields": fields[:30]}
+                # Detect complex / unsupported WHERE expressions
+                if re.search(r"\bor\b|[<>]|contains\s*\(|regex|\(|\)", clause, re.IGNORECASE):
+                    complex_where = True
+                # Split simple AND-conjuncts and extract equality / negated-equality predicates
+                for part in re.split(r"\s+\band\b\s+", clause, flags=re.IGNORECASE):
+                    p = part.strip()
+                    eq_m = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*)\s*(!=|=)\s*(?:\"([^\"]*)\"|'([^']*)'|([A-Za-z0-9_.-]+))", p)
+                    if eq_m:
+                        fld = eq_m.group(1)
+                        op = eq_m.group(2)
+                        val = eq_m.group(3) if eq_m.group(3) is not None else (eq_m.group(4) if eq_m.group(4) is not None else eq_m.group(5))
+                        predicates.append(
+                            {
+                                "field": fld,
+                                "op": op,
+                                "value": val,
+                                "kind": "negated_equality" if op == "!=" else "equality",
+                            }
+                        )
+                    elif p:
+                        complex_where = True
+            elif low.startswith("sort "):
+                unquoted = re.sub(r'"[^"]*"|\'[^\']*\'', "", s[5:])
+                for m in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_-]*)\b", unquoted):
+                    tok = m.group(1)
+                    if tok.lower() not in {"and", "or", "not", "contains", "file", "asc", "desc", "null", "true", "false"}:
+                        if tok not in fields:
+                            fields.append(tok)
+    return {
+        "folders": from_folders[:20],
+        "tags": from_tags[:20],
+        "fields": fields[:30],
+        "predicates": predicates[:20],
+        "where_clauses": where_clauses[:10],
+        "complex_where": complex_where,
+    }
 
 
 def inspect_obsidian_plugins(

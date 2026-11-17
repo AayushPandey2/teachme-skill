@@ -20,7 +20,7 @@ from .models import (
     resolve_state_dir,
     save_config,
 )
-from .planner import load_reviewed_plan, plan_note
+from .planner import compute_canonical_plan_hash, load_reviewed_plan, plan_note, validate_reviewed_plan
 from .tagging import select_and_plan_tags
 from .writer import audit_vault_native, generate_vault_note
 
@@ -31,6 +31,7 @@ __all__ = [
     "MODE_VAULT_NATIVE",
     "audit_vault_native",
     "build_or_update_index",
+    "compute_canonical_plan_hash",
     "detect_vault_mode",
     "discover_vault",
     "generate_vault_note",
@@ -47,4 +48,5 @@ __all__ = [
     "search_vault",
     "select_and_plan_tags",
     "validate_mermaid_syntax",
+    "validate_reviewed_plan",
 ]

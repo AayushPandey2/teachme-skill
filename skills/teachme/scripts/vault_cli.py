@@ -1321,7 +1321,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if mode_info["mode"] == MODE_VAULT_NATIVE and not getattr(args, "force_standalone", False):
         report = audit_vault_native(vault)
         print(dump_json(report))
-        return 0
+        return 1 if report.get("errors") else 0
 
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []

@@ -500,7 +500,8 @@ class ObsidianIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(r_repeat.returncode, 0, r_repeat.stderr)
         repeat_data = json.loads(r_repeat.stdout)
-        self.assertEqual(repeat_data["plan"]["moc_decisions"]["action"], "already_linked")
+        self.assertEqual(repeat_data["moc_decisions"]["action"], "already_linked")
+        self.assertNotIn("plan", repeat_data)  # compact apply receipt omits full nested plan
 
         moc_after_repeat = read_text_safe(vault / "CS" / "Algorithms MOC.md")
         self.assertEqual(moc_after_repeat.count("[[Merge Sort]]"), 1)
@@ -522,6 +523,313 @@ class ObsidianIntegrationTests(unittest.TestCase):
         note_after_repeat_2 = read_text_safe(vault / "CS" / "Merge Sort.md")
         self.assertEqual(note_after_repeat_2.count("## TeachMe Extension: Merge Sort"), 1)
         self.assertEqual(note_after_repeat_2, note_after_repeat)
+
+    def test_reviewed_plan_tamper_rejection_and_unresolved_refusal(self) -> None:
+        vault = self.tmp / "PlanIntegrityVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / "ML" / "Gradient Descent.md", "# Gradient Descent\nBase.\n")
+
+        # 1. Valid plan saved on disk -> tamper new_text without updating plan_hash -> must reject!
+        plan = plan_note(vault, topic="Backpropagation", explicit_folder="ML", save_plan=True)
+        plan_path = Path(plan["plan_file"])
+        tampered = json.loads(read_text_safe(plan_path))
+        tampered["affected_files"][0]["new_text"] += "\nTampered content!\n"
+        plan_path.write_text(json.dumps(tampered, indent=2), encoding="utf-8")
+
+        with self.assertRaises(RuntimeError):
+            generate_vault_note(vault, plan_ref=plan["plan_id"], apply=True)
+        self.assertFalse((vault / "ML" / "Backpropagation.md").exists())
+
+        # 2. Tamper rel_path / action / must_not_exist while keeping stored plan_hash -> must reject!
+        tampered2 = json.loads(read_text_safe(plan_path))
+        tampered2["affected_files"][0]["new_text"] = plan["affected_files"][0]["new_text"]
+        tampered2["affected_files"][0]["must_not_exist"] = False
+        plan_path.write_text(json.dumps(tampered2, indent=2), encoding="utf-8")
+        with self.assertRaises(RuntimeError):
+            generate_vault_note(vault, plan_ref=plan["plan_id"], apply=True)
+
+        # 3. Unresolved exact-match plan without --extend must be refused by apply
+        unresolved_plan = plan_note(vault, topic="Gradient Descent", explicit_folder="ML", save_plan=True)
+        self.assertTrue(unresolved_plan["unresolved"])
+        with self.assertRaises(RuntimeError):
+            generate_vault_note(vault, plan_ref=unresolved_plan["plan_id"], apply=True)
+
+    def test_second_extension_validation_catches_errors_while_ignoring_user_prose(self) -> None:
+        vault = self.tmp / "ExtValVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        # User note has pre-existing broken user link + valid 1st TeachMe extension block
+        orig = (
+            "# User Note\n\n"
+            "Pre-existing user prose with [[PreExisting Broken User Link]] and $a$.\n\n"
+            "<!-- teachme:extension:start id=first-topic -->\n"
+            "## TeachMe Extension: First Topic\n\n"
+            "Valid first extension.\n"
+            "<!-- teachme:extension:end -->\n"
+        )
+        note_path = write_file(vault / "Notes" / "User Note.md", orig)
+
+        # Valid 2nd extension must succeed despite pre-existing broken user link
+        ok_res = generate_vault_note(
+            vault,
+            topic="Second Valid Topic",
+            extend_rel_path="Notes/User Note.md",
+            content={"intuition": "Clean second extension."},
+            apply=True,
+        )
+        self.assertTrue(ok_res["ok"])
+        self.assertTrue(ok_res["audit_passed"])
+
+        # Craft a plan where the 1st extension is valid, but the 2nd extension has a broken link + unmatched $ + bad Mermaid
+        bad_plan = plan_note(
+            vault,
+            topic="Broken Second Topic",
+            extend_rel_path="Notes/User Note.md",
+            save_plan=False,
+        )
+        bad_ext_text = (
+            read_text_safe(note_path).rstrip()
+            + "\n\n<!-- teachme:extension:start id=broken-second-topic -->\n"
+            + "## TeachMe Extension: Broken Second Topic\n\n"
+            + "Broken [[Missing Target]] and $unclosed math.\n\n"
+            + "<!-- teachme:mermaid:start id=bad -->\n```mermaid\nflowchart TD\n  A[Unclosed --> B\n```\n<!-- teachme:mermaid:end -->\n"
+            + "<!-- teachme:extension:end -->\n"
+        )
+        bad_plan["affected_files"][0]["new_text"] = bad_ext_text
+        from teachme_vault.planner import compute_canonical_plan_hash
+        bad_plan["plan_hash"] = compute_canonical_plan_hash(bad_plan)
+
+        with self.assertRaises(ValueError) as ctx:
+            generate_vault_note(vault, plan_ref=bad_plan, apply=True)
+        msg = str(ctx.exception)
+        self.assertIn("Missing Target", msg)
+        self.assertIn("Odd number of $", msg)
+        self.assertIn("Invalid Mermaid diagram", msg)
+
+    def test_audit_cli_exit_codes_and_post_commit_status_semantics(self) -> None:
+        vault = self.tmp / "AuditExitVault"
+        fake_home = self.tmp / "AuditHome"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        env = {"HOME": str(fake_home), "USERPROFILE": str(fake_home)}
+
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / "ML" / "Base.md", "# Base\nBase note.\n")
+        write_file(vault / "ML" / "ML MOC.md", "# ML MOC\n\n- [[Base]]\n- [[UserBrokenLink]]\n")
+
+        self.assertEqual(run_cli("connect", str(vault), env=env).returncode, 0)
+        r_gen = run_cli("generate", "--topic", "Linear Models", "--folder", "ML", "--apply", env=env)
+        self.assertEqual(r_gen.returncode, 0, r_gen.stderr)
+        gen_data = json.loads(r_gen.stdout)
+        self.assertTrue(gen_data["writes_committed"])
+        self.assertTrue(gen_data["audit_passed"])
+        self.assertEqual(gen_data["status"], "applied_and_audited")
+
+        # Audit with pre_existing_issues (warnings/user broken link) MUST still exit 0
+        r_audit_ok = run_cli("audit", env=env)
+        self.assertEqual(r_audit_ok.returncode, 0, r_audit_ok.stderr)
+
+        # Introduce a real error inside the TeachMe-managed note -> audit MUST exit 1!
+        managed_note = vault / "ML" / "Linear Models.md"
+        managed_note.write_text(read_text_safe(managed_note) + "\nBroken [[Missing Note]].\n", encoding="utf-8")
+        r_audit_err = run_cli("audit", env=env)
+        self.assertEqual(r_audit_err.returncode, 1)
+        self.assertGreater(len(json.loads(r_audit_err.stdout)["errors"]), 0)
+
+        # Post-commit bookkeeping error must NOT claim rollback when writes succeeded
+        def fail_post_commit() -> None:
+            raise OSError("Simulated manifest permission failure after commit")
+
+        res_pc = generate_vault_note(
+            vault,
+            topic="Logistic Regression",
+            explicit_folder="ML",
+            apply=True,
+            post_commit_fn=fail_post_commit,
+        )
+        self.assertTrue(res_pc["writes_committed"])
+        self.assertEqual(res_pc["transaction_status"], "committed")
+        self.assertFalse(res_pc["audit_passed"])
+        self.assertEqual(res_pc["status"], "applied_audit_failed")
+        self.assertFalse(res_pc["ok"])
+        self.assertTrue((vault / "ML" / "Logistic Regression.md").is_file())
+
+    def test_proposed_related_notes_merged_deduped_and_fed_to_diagram(self) -> None:
+        vault = self.tmp / "ProposedLinksVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / "ML" / "Linear Algebra.md", "# Linear Algebra\nVectors and matrices.\n")
+        write_file(vault / "ML" / "Matrix Calculus.md", "# Matrix Calculus\nJacobians and Hessians.\n")
+
+        plan = plan_note(
+            vault,
+            topic="Gradient Descent",
+            explicit_folder="ML",
+            keywords=["linear algebra"],
+            proposal={
+                "related_notes": [
+                    {"target": "ML/Matrix Calculus.md", "reason": "Provides Jacobian computation"},
+                    "ML/Linear Algebra.md",  # Duplicate with search -> should deduplicate!
+                    "ML/Gradient Descent.md",  # Self-link -> should exclude!
+                    "ML/Does Not Exist.md",  # Invalid -> should reject!
+                ]
+            },
+            mermaid_mode="flowchart",
+        )
+        verified_rels = [v["rel_path"] for v in plan["relevant_notes"]]
+        self.assertIn("ML/Matrix Calculus.md", verified_rels)
+        self.assertEqual(verified_rels.count("ML/Linear Algebra.md"), 1)
+        self.assertNotIn("ML/Gradient Descent.md", verified_rels)
+        self.assertTrue(any(r["target"] == "ML/Does Not Exist.md" for r in plan["link_decisions"]["rejected_or_unresolved"]))
+        # Proposed link fed into rendered note AND Mermaid diagram
+        self.assertIn("[[Matrix Calculus]]", plan["affected_files"][0]["new_text"])
+        self.assertIn("Matrix Calculus", plan["diagram_decisions"]["mermaid_code"])
+
+    def test_planning_action_consistency_no_silent_similar_extend(self) -> None:
+        vault = self.tmp / "ActionConsistencyVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(
+            vault / "ML" / "Gradient Descent Guide.md",
+            "---\ntags: [ml]\n---\n# Gradient Descent Guide\nGradient descent optimization guide.\n",
+        )
+
+        # Similar (non-exact) match should NOT silently recommend extend_existing
+        plan_sim = plan_note(vault, topic="Gradient Descent", explicit_folder="ML", keywords=["optimization", "gradient", "descent"])
+        self.assertIn(plan_sim["recommended_action"], ("create_new", "split_atomic"))
+        self.assertEqual(plan_sim["affected_files"][0]["action"], "create")
+        self.assertFalse(plan_sim["unresolved"])
+
+        # Exact match without --extend must have consistent extend_existing + unresolved conflict state
+        write_file(vault / "ML" / "Gradient Descent.md", "# Gradient Descent\nExact note.\n")
+        plan_exact = plan_note(vault, topic="Gradient Descent", explicit_folder="ML")
+        self.assertEqual(plan_exact["recommended_action"], "extend_existing")
+        self.assertTrue(plan_exact["unresolved"])
+        self.assertEqual(plan_exact["affected_files"][0]["action"], "extend")
+        self.assertTrue(plan_exact["affected_files"][0]["conflict"])
+
+    def test_two_unrelated_query_mocs_in_same_folder_and_complex_where(self) -> None:
+        vault = self.tmp / "DualQueryMocVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / ".obsidian" / "community-plugins.json", json.dumps(["dataview"]))
+        write_file(
+            vault / "CS" / "Algorithms Query MOC.md",
+            '# Algorithms Query MOC\n\n```dataview\nTABLE status FROM "CS" AND #algorithms\nWHERE status != "archived"\n```\n',
+        )
+        write_file(
+            vault / "CS" / "Databases Query MOC.md",
+            '# Databases Query MOC\n\n```dataview\nTABLE engine FROM "CS" AND #databases\nWHERE engine = "postgres" AND contains(topic, "sql")\n```\n',
+        )
+        write_file(vault / "CS" / "Quick Sort.md", "---\ntags: [algorithms]\nstatus: seedling\n---\n# Quick Sort\nSorting.\n")
+
+        plan = plan_note(vault, topic="Heap Sort", explicit_folder="CS", keywords=["algorithms", "sorting"])
+        self.assertEqual(plan["moc_decisions"]["action"], "satisfy_query")
+        self.assertEqual(plan["moc_decisions"]["selected_moc"], "CS/Algorithms Query MOC.md")
+        self.assertNotIn("databases", plan["tags"])
+        self.assertNotIn("engine", plan["frontmatter"])
+        self.assertEqual(plan["frontmatter"].get("status"), "seedling")
+
+        # Complex WHERE predicate on Databases Query MOC should NOT emit empty engine="" and pretend it satisfied predicate
+        db_plan = plan_note(vault, topic="Postgres Indexing", explicit_folder="CS", keywords=["databases", "sql"])
+        self.assertEqual(db_plan["moc_decisions"]["selected_moc"], "CS/Databases Query MOC.md")
+        self.assertEqual(db_plan["moc_decisions"]["query_satisfaction"], "unverified_complex_or_predicate")
+        self.assertNotEqual(db_plan["frontmatter"].get("engine"), "")
+        self.assertTrue(any("complex Dataview" in w for w in db_plan["warnings"]))
+
+    def test_reliability_unicode_slugs_attachments_obsidian_staleness_and_rollback_safety(self) -> None:
+        vault = self.tmp / "ReliabilityVault"
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / ".obsidian" / "templates.json", json.dumps({"folder": "Templates"}))
+        write_file(vault / "Templates" / "Concept.md", "---\ntags: [study]\n---\n# {{title}}\n")
+        write_file(vault / "Assets" / "diagram.png", "PNGDATA")
+        write_file(vault / "Notes" / "Target.md", "# Target\nBase note.\n")
+        write_file(vault / "Notes" / "TargetTwo.md", "# TargetTwo\nSecond note.\n")
+        write_file(vault / "Notes" / "Notes MOC.md", "# Notes MOC\n\n- [[Target]]\n- [[TargetTwo]]\n")
+
+        # 1. Distinct non-ASCII Unicode topics produce distinct session dirs and extension IDs
+        r1 = generate_vault_note(vault, topic="Θέτα", extend_rel_path="Notes/Target.md", apply=True)
+        r2 = generate_vault_note(vault, topic="Άλφα", extend_rel_path="Notes/Target.md", apply=True)
+        self.assertNotEqual(r1["session_dir"], r2["session_dir"])
+        target_text = read_text_safe(vault / "Notes" / "Target.md")
+        self.assertIn("## TeachMe Extension: Θέτα", target_text)
+        self.assertIn("## TeachMe Extension: Άλφα", target_text)
+
+        # 2. Valid attachment embed ![[diagram.png]] passes both preflight AND audit without missing-note error
+        plan_att = plan_note(
+            vault,
+            topic="Visual Concept",
+            explicit_folder="Notes",
+            content={"intuition": "See ![[diagram.png]] for the layout."},
+            save_plan=True,
+        )
+        res_att = generate_vault_note(vault, plan_ref=plan_att["plan_id"], apply=True)
+        self.assertTrue(res_att["ok"])
+        self.assertEqual(res_att["audit"]["errors"], [])
+
+        # 3. Changing .obsidian/templates.json invalidates cached profile automatically
+        p1 = load_or_discover_profile(vault)
+        self.assertEqual(p1["plugins"]["template_folders"], ["Templates"])
+        write_file(vault / "AltTemplates" / "Concept.md", "# {{title}}\n")
+        write_file(vault / ".obsidian" / "templates.json", json.dumps({"folder": "AltTemplates"}))
+        p2 = load_or_discover_profile(vault)
+        self.assertEqual(p2["plugins"]["template_folders"], ["AltTemplates"])
+
+        # 4. Rollback skips overwriting a file modified externally after our 1st write before 2nd write fails
+        plan_rb = plan_note(vault, topic="Rollback Test", explicit_folder="Notes", keywords=["target"], save_plan=True)
+        # Ensure we have 2 affected files (target note + Notes MOC)
+        self.assertGreaterEqual(len(plan_rb["affected_files"]), 2)
+        first_file = vault / plan_rb["affected_files"][0]["rel_path"]
+        calls = {"n": 0}
+
+        def external_race_writer(path: Path, text: str) -> None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text + "\n<!-- external process edit -->\n", encoding="utf-8")
+            else:
+                raise OSError("Simulated failure on 2nd write")
+
+        with self.assertRaises(RuntimeError):
+            generate_vault_note(vault, plan_ref=plan_rb["plan_id"], apply=True, write_fn=external_race_writer)
+        # External edit must NOT have been deleted/overwritten by rollback
+        self.assertTrue(first_file.is_file())
+        self.assertIn("<!-- external process edit -->", read_text_safe(first_file))
+        tx_files = list((vault / ".teachme" / "transactions").glob("tx-*.json"))
+        tx_jsons = [json.loads(read_text_safe(p)) for p in tx_files]
+        rolled_back_txs = [tx for tx in tx_jsons if tx.get("status") == "rolled_back"]
+        self.assertTrue(rolled_back_txs)
+        self.assertTrue(
+            any("modified externally" in w for w in rolled_back_txs[-1].get("rollback_warnings", []))
+        )
+
+    def test_cli_bounded_output_modes_and_apply_receipt(self) -> None:
+        vault = self.tmp / "OutputModesVault"
+        fake_home = self.tmp / "OutHome"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        env = {"HOME": str(fake_home), "USERPROFILE": str(fake_home)}
+
+        write_file(vault / ".obsidian" / "app.json", "{}")
+        write_file(vault / "ML" / "Regression.md", "# Regression\nLinear model.\n")
+        self.assertEqual(run_cli("connect", str(vault), env=env).returncode, 0)
+
+        r_plan = run_cli("plan", "--topic", "Ridge Regression", "--folder", "ML", env=env)
+        self.assertEqual(r_plan.returncode, 0, r_plan.stderr)
+        plan_sum = json.loads(r_plan.stdout)
+        self.assertNotIn("diff", plan_sum["affected_files"][0])
+        self.assertIn("detail_commands", plan_sum)
+
+        r_dry = run_cli("generate", "--topic", "Ridge Regression", "--folder", "ML", "--dry-run", env=env)
+        self.assertEqual(r_dry.returncode, 0, r_dry.stderr)
+        dry_out = json.loads(r_dry.stdout)
+        self.assertIn("diff", dry_out)
+        self.assertNotIn("preview", dry_out)
+        self.assertNotIn("plan", dry_out)
+        self.assertNotIn("diff", dry_out["affected_files"][0])
+
+        r_apply = run_cli("apply", "--plan", plan_sum["plan_id"], "--plan-hash", plan_sum["plan_hash"], env=env)
+        self.assertEqual(r_apply.returncode, 0, r_apply.stderr)
+        app_out = json.loads(r_apply.stdout)
+        self.assertNotIn("diff", app_out)
+        self.assertNotIn("preview", app_out)
+        self.assertNotIn("plan", app_out)
+        self.assertTrue(app_out["writes_committed"])
+        self.assertTrue(app_out["audit_passed"])
 
 
 if __name__ == "__main__":

@@ -25,6 +25,14 @@ from .models import (
 )
 
 MAX_INDEX_BYTES = 131072
+ATTACHMENT_EXTENSIONS = frozenset(
+    {
+        ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico",
+        ".pdf", ".mp3", ".mp4", ".wav", ".ogg", ".webm", ".mov",
+        ".csv", ".tsv", ".json", ".yaml", ".yml", ".xml", ".txt",
+        ".canvas", ".base", ".excalidraw",
+    }
+)
 STOP_WORDS = frozenset(
     {
         "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
@@ -192,6 +200,7 @@ def build_or_update_index(
     vault_root: Path,
     full: bool = False,
     state_dir: Path | None = None,
+    all_files: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Build or incrementally refresh the searchable vault knowledge index."""
     root = vault_root.resolve()
@@ -214,13 +223,21 @@ def build_or_update_index(
             old_by_hash[ch] = old_rel
 
     new_docs: dict[str, dict[str, Any]] = {}
+    assets: list[str] = []
     renamed_detected: list[dict[str, str]] = []
     added = 0
     reused = 0
     updated = 0
 
-    for p in safe_iter_files(root, extensions=(".md",)):
-        if p.name.lower().endswith(".excalidraw.md"):
+    iter_source = all_files if all_files is not None else safe_iter_files(root, extensions=())
+    for p in iter_source:
+        name_low = p.name.lower()
+        if name_low.endswith(".excalidraw.md"):
+            assets.append(p.relative_to(root).as_posix())
+            continue
+        if not name_low.endswith(".md"):
+            if p.suffix.lower() in ATTACHMENT_EXTENSIONS:
+                assets.append(p.relative_to(root).as_posix())
             continue
         rel = p.relative_to(root).as_posix()
         st = p.stat()
@@ -256,7 +273,7 @@ def build_or_update_index(
     }
 
     index_obj: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "vault_path": str(root),
         "indexed_at": utc_now_iso(),
         "doc_count": len(new_docs),
@@ -269,6 +286,7 @@ def build_or_update_index(
         },
         "ambiguous_titles": ambiguous_titles,
         "alias_collisions": alias_collisions,
+        "assets": assets,
         "df": dict(df_counts),
         "docs": new_docs,
     }
@@ -278,15 +296,25 @@ def build_or_update_index(
     return index_obj
 
 
-def _is_index_stale(root: Path, cached_idx: dict[str, Any]) -> bool:
+def _is_index_stale(
+    root: Path,
+    cached_idx: dict[str, Any],
+    note_files: list[Path] | None = None,
+) -> bool:
     """Fast check for added, deleted, renamed, or modified Markdown files."""
+    if cached_idx.get("schema_version") != 2:
+        return True
     docs = cached_idx.get("docs", {})
     if not isinstance(docs, dict):
         return True
-    current_files = [
-        p for p in safe_iter_files(root, extensions=(".md",))
-        if not p.name.lower().endswith(".excalidraw.md")
-    ]
+    current_files = (
+        note_files
+        if note_files is not None
+        else [
+            p for p in safe_iter_files(root, extensions=(".md",))
+            if not p.name.lower().endswith(".excalidraw.md")
+        ]
+    )
     if len(current_files) != len(docs):
         return True
     for p in current_files:
@@ -304,6 +332,7 @@ def load_or_build_index(
     vault_root: Path,
     refresh: bool = False,
     state_dir: Path | None = None,
+    note_files: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Load index.json if present and fresh, else build/update incrementally."""
     root = vault_root.resolve()
@@ -313,7 +342,7 @@ def load_or_build_index(
         try:
             data = json.loads(read_text_safe(index_path))
             if isinstance(data, dict) and data.get("vault_path") == str(root):
-                if not _is_index_stale(root, data):
+                if not _is_index_stale(root, data, note_files=note_files):
                     return data
         except (OSError, json.JSONDecodeError):
             pass
@@ -427,13 +456,24 @@ def search_vault(
     }
 
 
+def is_attachment_target(raw_target: str) -> bool:
+    """Return True if a wikilink target points to a non-Markdown or Excalidraw attachment."""
+    clean = raw_target.split("|", 1)[0].split("#", 1)[0].strip().lower()
+    if clean.endswith(".excalidraw.md"):
+        return True
+    suffix = Path(clean).suffix
+    return bool(suffix and suffix != ".md" and suffix in ATTACHMENT_EXTENSIONS)
+
+
 def resolve_link_to_rel_path(
     raw_link_target: str,
     index: dict[str, Any],
     extra_rel_paths: set[str] | None = None,
+    vault_root: Path | None = None,
 ) -> dict[str, Any]:
     """Resolve a wikilink/Markdown link target (without alias) to vault rel_path & ambiguity info."""
     docs: dict[str, dict[str, Any]] = index.get("docs", {})
+    assets: list[str] = index.get("assets", [])
     note_part = raw_link_target.split("|", 1)[0].strip()
     anchor = ""
     if "#" in note_part:
@@ -442,22 +482,44 @@ def resolve_link_to_rel_path(
         anchor = anchor.strip()
 
     if not note_part:
-        return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": []}
+        return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": [], "is_attachment": False}
+
+    if is_attachment_target(note_part):
+        np_low = note_part.lstrip("/").lower()
+        exact_asset = [a for a in assets if a.lower() == np_low]
+        if len(exact_asset) == 1:
+            return {"resolved": exact_asset[0], "ambiguous": False, "anchor": anchor, "candidates": exact_asset, "is_attachment": True}
+        base_asset = Path(np_low).name
+        name_matches = [a for a in assets if Path(a).name.lower() == base_asset]
+        if len(name_matches) == 1:
+            return {"resolved": name_matches[0], "ambiguous": False, "anchor": anchor, "candidates": name_matches, "is_attachment": True}
+        if len(name_matches) > 1:
+            return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": name_matches, "is_attachment": True}
+        # Fallback check on disk if vault_root is provided (e.g. newly dropped attachment before reindex)
+        if vault_root is not None:
+            cand_disk = (vault_root / note_part.lstrip("/")).resolve()
+            if cand_disk.is_file():
+                try:
+                    rel_a = cand_disk.relative_to(vault_root.resolve()).as_posix()
+                    return {"resolved": rel_a, "ambiguous": False, "anchor": anchor, "candidates": [rel_a], "is_attachment": True}
+                except ValueError:
+                    pass
+        return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": [], "is_attachment": True}
 
     clean = note_part[:-3] if note_part.endswith(".md") else note_part
     cand_rel = f"{clean}.md"
     if cand_rel in docs or (extra_rel_paths and cand_rel in extra_rel_paths):
-        return {"resolved": cand_rel, "ambiguous": False, "anchor": anchor, "candidates": [cand_rel]}
+        return {"resolved": cand_rel, "ambiguous": False, "anchor": anchor, "candidates": [cand_rel], "is_attachment": False}
 
     # Case-insensitive exact relpath match
     cand_low = cand_rel.lower()
     for rel in docs:
         if rel.lower() == cand_low:
-            return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel]}
+            return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel], "is_attachment": False}
     if extra_rel_paths:
         for rel in extra_rel_paths:
             if rel.lower() == cand_low:
-                return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel]}
+                return {"resolved": rel, "ambiguous": False, "anchor": anchor, "candidates": [rel], "is_attachment": False}
 
     base_low = Path(clean).name.lower()
     stem_matches = [r for r, d in docs.items() if d.get("stem", "").lower() == base_low]
@@ -467,9 +529,9 @@ def resolve_link_to_rel_path(
                 stem_matches.append(er)
 
     if len(stem_matches) == 1:
-        return {"resolved": stem_matches[0], "ambiguous": False, "anchor": anchor, "candidates": stem_matches}
+        return {"resolved": stem_matches[0], "ambiguous": False, "anchor": anchor, "candidates": stem_matches, "is_attachment": False}
     if len(stem_matches) > 1:
-        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": stem_matches}
+        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": stem_matches, "is_attachment": False}
 
     # Fallback: title / alias match
     alias_matches = [
@@ -478,11 +540,11 @@ def resolve_link_to_rel_path(
         or any(str(a).lower() == base_low for a in d.get("aliases", []))
     ]
     if len(alias_matches) == 1:
-        return {"resolved": alias_matches[0], "ambiguous": False, "anchor": anchor, "candidates": alias_matches}
+        return {"resolved": alias_matches[0], "ambiguous": False, "anchor": anchor, "candidates": alias_matches, "is_attachment": False}
     if len(alias_matches) > 1:
-        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": alias_matches}
+        return {"resolved": None, "ambiguous": True, "anchor": anchor, "candidates": alias_matches, "is_attachment": False}
 
-    return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": []}
+    return {"resolved": None, "ambiguous": False, "anchor": anchor, "candidates": [], "is_attachment": False}
 
 
 def links_equivalent(

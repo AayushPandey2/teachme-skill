@@ -474,10 +474,29 @@ def _summarize_note_record(path: Path, vault_root: Path, include_style: bool) ->
     return rec
 
 
+def _compute_obsidian_fingerprint(root: Path) -> list[list[Any]]:
+    """Fingerprint .obsidian/*.json and plugin configs to detect plugin/template setting edits."""
+    obs_dir = root / ".obsidian"
+    if not obs_dir.is_dir():
+        return []
+    entries: list[list[Any]] = []
+    for p in sorted(obs_dir.rglob("*.json")):
+        if not p.is_file() or p.is_symlink():
+            continue
+        try:
+            rel = p.relative_to(obs_dir).as_posix()
+            st = p.stat()
+            entries.append([rel, st.st_mtime_ns, st.st_size])
+        except OSError:
+            continue
+    return entries
+
+
 def discover_vault(
     vault_root: Path,
     refresh: bool = False,
     state_dir: Path | None = None,
+    note_files: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Discover and profile an Obsidian vault incrementally, persisting profile.json."""
     root = vault_root.resolve()
@@ -498,9 +517,10 @@ def discover_vault(
         except (OSError, json.JSONDecodeError):
             existing_records = {}
 
-    all_md = list(safe_iter_files(root, extensions=(".md",)))
-    # Exclude .excalidraw.md from ordinary note profiling
-    note_files = [p for p in all_md if not p.name.lower().endswith(".excalidraw.md")]
+    if note_files is None:
+        all_md = list(safe_iter_files(root, extensions=(".md",)))
+        # Exclude .excalidraw.md from ordinary note profiling
+        note_files = [p for p in all_md if not p.name.lower().endswith(".excalidraw.md")]
 
     # Bounded sampling decision per folder
     folder_counts: Counter[str] = Counter()
@@ -883,6 +903,7 @@ def discover_vault(
             "malformed_yaml_count": len(malformed_yaml_files),
             "malformed_yaml_sample": malformed_yaml_files[:15],
         },
+        "_obsidian_fingerprint": _compute_obsidian_fingerprint(root),
         "_file_cache": records,
     }
 
@@ -891,18 +912,28 @@ def discover_vault(
     return profile
 
 
-def _is_profile_stale(root: Path, cached_profile: dict[str, Any]) -> bool:
+def _is_profile_stale(
+    root: Path,
+    cached_profile: dict[str, Any],
+    note_files: list[Path] | None = None,
+) -> bool:
     """Fast check for added, deleted, renamed, or modified Markdown files or .obsidian configs."""
     if cached_profile.get("schema_version") != PROFILE_SCHEMA_VERSION:
+        return True
+    if cached_profile.get("_obsidian_fingerprint") != _compute_obsidian_fingerprint(root):
         return True
     file_cache = cached_profile.get("_file_cache", {})
     if not isinstance(file_cache, dict):
         return True
 
-    current_files = [
-        p for p in safe_iter_files(root, extensions=(".md",))
-        if not p.name.lower().endswith(".excalidraw.md")
-    ]
+    current_files = (
+        note_files
+        if note_files is not None
+        else [
+            p for p in safe_iter_files(root, extensions=(".md",))
+            if not p.name.lower().endswith(".excalidraw.md")
+        ]
+    )
     if len(current_files) != len(file_cache):
         return True
 
@@ -921,6 +952,7 @@ def load_or_discover_profile(
     vault_root: Path,
     refresh: bool = False,
     state_dir: Path | None = None,
+    note_files: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Load persisted vault profile if present and fresh, else run incremental discovery."""
     root = vault_root.resolve()
@@ -930,14 +962,14 @@ def load_or_discover_profile(
         try:
             data = json.loads(read_text_safe(profile_path))
             if isinstance(data, dict) and data.get("vault_path") == str(root):
-                if not _is_profile_stale(root, data):
+                if not _is_profile_stale(root, data, note_files=note_files):
                     return data
         except (OSError, json.JSONDecodeError):
             pass
-    return discover_vault(root, refresh=refresh, state_dir=sdir)
+    return discover_vault(root, refresh=refresh, state_dir=sdir, note_files=note_files)
 
 
-def summarize_profile_for_display(profile: dict[str, Any]) -> dict[str, Any]:
+def summarize_profile_for_display(profile: dict[str, Any], full: bool = False) -> dict[str, Any]:
     """Return a token-efficient summary of the vault profile (without internal cache)."""
     folders_compact = {
         k: {
@@ -960,9 +992,9 @@ def summarize_profile_for_display(profile: dict[str, Any]) -> dict[str, Any]:
         "uses_nested_tags": tax.get("uses_nested_tags", False),
         "placement": tax.get("placement", "frontmatter"),
         "case_style": tax.get("case_style", "kebab_case"),
-        "top_tags": tax.get("top_tags", [])[:20],
-        "subject_tags": tax.get("subject_tags", [])[:25],
-        "workflow_tags": tax.get("workflow_tags", [])[:15],
+        "top_tags": tax.get("top_tags", [])[: (30 if full else 12)],
+        "subject_tags": tax.get("subject_tags", [])[: (50 if full else 15)],
+        "workflow_tags": tax.get("workflow_tags", [])[: (30 if full else 10)],
         "nested_roots": tax.get("nested_roots", []),
     }
     mocs_compact = [
@@ -975,8 +1007,17 @@ def summarize_profile_for_display(profile: dict[str, Any]) -> dict[str, Any]:
             "signals": m.get("signals", []),
             "parent_mocs": m.get("parent_mocs", []),
         }
-        for m in profile.get("mocs", [])[:15]
+        for m in profile.get("mocs", [])[: (40 if full else 12)]
     ]
+    raw_mermaid = profile.get("mermaid_conventions", {})
+    mermaid_display = (
+        raw_mermaid
+        if full
+        else {k: v for k, v in raw_mermaid.items() if k != "examples"}
+    )
+    if not full and "examples" in raw_mermaid:
+        mermaid_display["example_count"] = len(raw_mermaid.get("examples", []))
+
     return {
         "vault_path": profile.get("vault_path"),
         "vault_name": profile.get("vault_name"),
@@ -987,9 +1028,12 @@ def summarize_profile_for_display(profile: dict[str, Any]) -> dict[str, Any]:
         "naming_convention": profile.get("naming_convention"),
         "global_style": profile.get("global_style"),
         "tag_taxonomy": tax_display,
-        "metadata_schema": profile.get("metadata_schema"),
+        "metadata_schema": profile.get("metadata_schema") if full else {
+            k: {"type": v.get("type"), "count": v.get("count")}
+            for k, v in list((profile.get("metadata_schema") or {}).items())[:15]
+        },
         "mocs": mocs_compact,
-        "mermaid_conventions": profile.get("mermaid_conventions", {}),
+        "mermaid_conventions": mermaid_display,
         "folders": folders_compact,
         "plugins": {
             "has_obsidian": profile.get("plugins", {}).get("has_obsidian"),

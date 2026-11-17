@@ -42,12 +42,15 @@ def _moc_matches_query_scope(
     moc: dict[str, Any],
     target_folder: str,
     selected_tags: list[str],
+    topic_tokens: set[str] | None = None,
 ) -> tuple[bool, dict[str, Any]]:
-    """Check if a query-driven MOC's Dataview query covers target_folder or selected_tags."""
+    """Check if a query-driven MOC's Dataview query covers this note without cross-contaminating."""
     qreq = moc.get("query_requirements") or {}
     q_folders: list[str] = qreq.get("folders", [])
     q_tags: list[str] = qreq.get("tags", [])
     q_fields: list[str] = qreq.get("fields", [])
+    q_preds: list[dict[str, str]] = qreq.get("predicates", [])
+    complex_where = bool(qreq.get("complex_where", False))
 
     folder_match = False
     if q_folders and target_folder:
@@ -56,19 +59,37 @@ def _moc_matches_query_scope(
             for qf in q_folders
         )
     elif not q_folders and moc.get("folder") and target_folder:
-        # Query without explicit FROM often scopes or sits in same folder
         folder_match = target_folder == moc["folder"] or target_folder.startswith(moc["folder"] + "/")
 
-    tag_match = False
-    if q_tags:
-        sel_low = {t.lower() for t in selected_tags}
-        tag_match = any(qt.lower() in sel_low for qt in q_tags)
+    sel_low = {t.lower() for t in selected_tags}
+    tag_match = bool(q_tags and any(qt.lower() in sel_low for qt in q_tags))
 
-    if folder_match or tag_match:
+    # If the query explicitly filters by tags, require either tag overlap or semantic topic alignment
+    t_tokens = topic_tokens or set()
+    q_tag_tokens = set()
+    for qt in q_tags:
+        q_tag_tokens.update(tokenize(qt.replace("/", " ")))
+    pred_val_tokens = set()
+    for pr in q_preds:
+        if pr.get("kind") == "equality" and pr.get("value"):
+            pred_val_tokens.update(tokenize(pr["value"]))
+
+    topic_aligns_with_query = bool(t_tokens & (q_tag_tokens | pred_val_tokens))
+
+    matches = False
+    if tag_match:
+        matches = True
+    elif folder_match and (not q_tags or topic_aligns_with_query):
+        matches = True
+
+    if matches:
         return True, {
             "folders": q_folders,
             "tags": q_tags,
             "fields": q_fields,
+            "predicates": q_preds,
+            "where_clauses": qreq.get("where_clauses", []),
+            "complex_where": complex_where,
         }
     return False, {}
 
@@ -132,12 +153,16 @@ def _score_existing_mocs(
             score += 3.5 * min(3, len(tag_overlap))
             evidence.append(f"Shares subject tags: {', '.join(sorted(tag_overlap)[:3])}")
 
-        # 4. Title & section heading overlap
+        # 4. Title & section heading overlap (prioritize direct topic alignment over folder-name coincidence)
         moc_title_tokens = set(tokenize(f"{moc.get('title', '')} {moc.get('stem', '')}"))
-        title_ov = (topic_tokens | folder_tokens) & moc_title_tokens
-        if title_ov:
-            score += 3.0 * min(3, len(title_ov))
-            evidence.append(f"Title aligns with: {', '.join(sorted(title_ov)[:3])}")
+        topic_title_ov = topic_tokens & moc_title_tokens
+        folder_title_ov = folder_tokens & moc_title_tokens
+        if topic_title_ov:
+            score += 4.5 * min(3, len(topic_title_ov))
+            evidence.append(f"Title aligns with topic: {', '.join(sorted(topic_title_ov)[:3])}")
+        elif folder_title_ov:
+            score += 2.0 * min(2, len(folder_title_ov))
+            evidence.append(f"Title aligns with folder: {', '.join(sorted(folder_title_ov)[:2])}")
 
         sec_tokens: set[str] = set()
         for sec in moc.get("sections", []):
@@ -147,11 +172,12 @@ def _score_existing_mocs(
             score += 2.5 * min(2, len(sec_ov))
             evidence.append(f"Section heading matches: {', '.join(sorted(sec_ov)[:2])}")
 
-        # 5. Query-driven scope match
-        q_match, q_req = _moc_matches_query_scope(moc, target_folder, selected_tags)
+        # 5. Query-driven scope match (requires tag/topic compatibility when query filters tags)
+        q_match, q_req = _moc_matches_query_scope(moc, target_folder, selected_tags, topic_tokens=topic_tokens)
         if q_match and moc.get("moc_kind") in ("query_driven", "hybrid"):
-            score += 7.0
-            evidence.append("Query-driven filter covers target folder/tags")
+            q_tag_bonus = 3.0 if any(qt.lower() in sel_tag_set for qt in q_req.get("tags", [])) else 0.0
+            score += 6.0 + q_tag_bonus
+            evidence.append("Query-driven filter covers note scope")
 
         if score > 0:
             scored.append(
@@ -169,6 +195,109 @@ def _score_existing_mocs(
 
     scored.sort(key=lambda x: x["score"], reverse=True)
     return scored
+
+
+def apply_selected_moc_query_requirements(
+    moc_decisions: dict[str, Any],
+    topic: str,
+    keywords: list[str] | None,
+    frontmatter: dict[str, Any],
+    selected_tags: list[str],
+    profile: dict[str, Any],
+    target_folder: str,
+) -> dict[str, Any]:
+    """Apply ONLY the selected relevant query-driven MOC's justified tags and predicates."""
+    if moc_decisions.get("action") != "satisfy_query":
+        return {"frontmatter": frontmatter, "tags": selected_tags, "warnings": [], "query_satisfaction": "not_applicable"}
+
+    qreq = moc_decisions.get("query_requirements") or {}
+    q_tags: list[str] = qreq.get("tags", [])
+    q_fields: list[str] = qreq.get("fields", [])
+    q_preds: list[dict[str, str]] = qreq.get("predicates", [])
+    complex_where = bool(qreq.get("complex_where", False))
+
+    updated_fm = dict(frontmatter)
+    updated_tags = list(selected_tags)
+    warnings: list[str] = []
+    unverified: list[str] = []
+
+    topic_tokens = set(tokenize(topic))
+    if keywords:
+        for kw in keywords:
+            topic_tokens.update(tokenize(kw))
+
+    # Add required FROM #tag only if semantically compatible or already matched to this selected MOC
+    for qt in q_tags:
+        clean_qt = qt.lstrip("#").strip()
+        if clean_qt and clean_qt.lower() not in {t.lower() for t in updated_tags}:
+            qt_tokens = set(tokenize(clean_qt.replace("/", " ")))
+            if qt_tokens & topic_tokens or len(q_tags) == 1:
+                updated_tags.append(clean_qt)
+    if updated_tags and "tags" in updated_fm or updated_tags != selected_tags:
+        updated_fm["tags"] = updated_tags
+
+    global_schema = profile.get("metadata_schema", {})
+    folder_props = profile.get("folders", {}).get(target_folder or ".", {}).get("properties", {})
+
+    for pred in q_preds:
+        fld = pred.get("field", "")
+        kind = pred.get("kind", "")
+        val = pred.get("value", "")
+        if not fld or fld == "file":
+            continue
+        if kind == "negated_equality":
+            cur = str(updated_fm.get(fld, "")).strip()
+            if not cur or cur.lower() == val.lower():
+                candidates = [
+                    str(v) for v in global_schema.get(fld, {}).get("common_values", [])
+                    if str(v).strip() and str(v).lower() != val.lower()
+                ]
+                if candidates:
+                    updated_fm[fld] = candidates[0]
+                elif fld == "status" and val.lower() != "seedling":
+                    updated_fm[fld] = "seedling"
+                else:
+                    unverified.append(f"{fld} != {val}")
+        elif kind == "equality":
+            cur = str(updated_fm.get(fld, "")).strip()
+            if cur.lower() == val.lower():
+                continue
+            val_tokens = set(tokenize(val))
+            # Only auto-assign an equality predicate value when it matches topic/keywords or is a safe structural type
+            if val_tokens & topic_tokens:
+                updated_fm[fld] = val
+            else:
+                unverified.append(f"{fld} = {val}")
+
+    # Do NOT invent empty strings for unpopulated queried fields used in predicates
+    for df in q_fields:
+        if df in ("file",) or df in updated_fm:
+            continue
+        if df in folder_props:
+            ptype = folder_props[df]
+            if ptype == "date":
+                updated_fm[df] = today_iso()
+            elif ptype == "list":
+                updated_fm[df] = []
+            # Leave string scalar fields absent rather than emitting empty string "" if value unknown
+
+    if complex_where:
+        warnings.append(
+            f"Selected query-driven MOC '{moc_decisions.get('selected_moc')}' uses complex Dataview expressions; verify note matches query criteria."
+        )
+    if unverified:
+        warnings.append(
+            f"Could not safely auto-satisfy Dataview predicate(s) for '{moc_decisions.get('selected_moc')}': {', '.join(unverified)}"
+        )
+
+    satisfaction = "unverified_complex_or_predicate" if (complex_where or unverified) else "verified"
+    return {
+        "frontmatter": updated_fm,
+        "tags": updated_tags,
+        "warnings": warnings,
+        "unverified_predicates": unverified,
+        "query_satisfaction": satisfaction,
+    }
 
 
 def _select_moc_section(

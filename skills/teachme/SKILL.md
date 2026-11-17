@@ -17,7 +17,7 @@ TeachMe supports two compatible operating modes (auto-detected or explicitly con
 **Scope Boundary (Mandatory):**
 - **Standalone TeachMe files** (`00`–`09`, `topics/*.md`, `atomic/*.md`): enforce all 8 laws below.
 - **Vault-Native generated notes**: preserve math hygiene (`§B.2–3`), valid YAML, and verified non-fabricated links (`§B.7`), while adapting YAML keys, tags, headings, callouts, and note length to the target vault's inferred conventions (`VAULT-NATIVE.md`).
-- **Existing user-authored notes**: NEVER overwrite, reformat, rename, inject TeachMe IDs/markers, or run legacy `fix`/`verify` repairs on user notes. Extensions require explicit `--extend --apply` with backup.
+- **Existing user-authored notes**: NEVER overwrite, reformat, rename, or run legacy `fix`/`verify` repairs on user notes, and never inject TeachMe IDs/markers into user prose. Explicit `--extend --apply` (with backup) appends only an isolated TeachMe extension section with scoped boundary comments (`<!-- teachme:extension:start/end -->`, `<!-- teachme:mermaid:start/end -->`) leaving user YAML, comments, block IDs, and diagrams untouched.
 
 1. **Pure Markdown + Strict YAML:** Double-quote `title`, `description`, `checkpoint`, `key_equations` items, and any YAML string containing `: | [ ] { } < > * & # ? \`. Spaces (never tabs) for indentation.
 2. **Math Delimiter Law (100% coverage):** Every math symbol, Greek letter, sub/superscripted variable, arrow, set operator, or LaTeX macro (`\theta \in \to \implies \iff \sum \hat \mathbf \le \ge \neq \approx \frac \sqrt \lVert \rVert \mathbb \text \operatorname`) anywhere in prose, lists, headings, tables, or `<details>` MUST sit inside `$...$` or `$$...$$`. Zero bare backslashes outside code fences/inline code.
