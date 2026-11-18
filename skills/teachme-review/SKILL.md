@@ -16,4 +16,4 @@ Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/te
 3. On demand only: `references/RETENTION-AND-RECORDS.md`
 
 ## Execute
-Follow `cmd-review.md` end-to-end; persist checkpoint evidence via `vault_cli.py tick` / `flush` and `learning-records/` without modifying study notes.
+Follow `cmd-review.md` end-to-end; run `vault_cli.py due` / `context` (read-only), start with unaided retrieval, and persist evidence via `vault_cli.py assess` (or `tick`) and `learning-records/` without modifying study notes.

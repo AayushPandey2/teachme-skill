@@ -11,6 +11,15 @@ import re
 from typing import Any
 import uuid
 
+from .evidence import (
+    CURRICULUM_SCHEMA_VERSION,
+    derive_objective_evidence,
+    derive_session_coverage_and_gaps,
+    load_media_provenance,
+    normalize_event,
+    normalize_objectives_list,
+    normalize_prerequisite_state,
+)
 from .markdown_utils import parse_frontmatter_tolerant
 from .models import (
     MODE_VAULT_NATIVE,
@@ -22,9 +31,14 @@ from .models import (
     resolve_state_dir,
     utc_now_iso,
 )
+from .scheduler import (
+    load_review_state,
+    save_review_state,
+    sync_review_item_for_legacy_node,
+)
 
-HANDOFF_SCHEMA_VERSION = "1.0"
-LEGACY_IMPORT_SCHEMA_VERSION = 1
+HANDOFF_SCHEMA_VERSION = "1.1"
+LEGACY_IMPORT_SCHEMA_VERSION = 2
 TYPED_EDGE_FIELDS = (
     "depends_on",
     "unlocks",
@@ -237,10 +251,18 @@ def load_json_dict(path: Path) -> dict[str, Any] | None:
 
 
 def load_curriculum(session_dir: Path) -> dict[str, Any]:
-    """Load scratchpad/curriculum.json if present."""
+    """Load scratchpad/curriculum.json if present, falling back read-only to 00-GRAPH.json."""
     data = load_json_dict(session_dir / "scratchpad" / "curriculum.json")
     if data and isinstance(data.get("nodes"), dict):
         return data
+    graph = load_json_dict(session_dir / "00-GRAPH.json")
+    if graph and isinstance(graph.get("nodes"), dict):
+        return {
+            "schema_version": int(graph.get("schema_version") or 1),
+            "topic": str(graph.get("topic") or ""),
+            "nodes": dict(graph["nodes"]),
+            "order": list(graph.get("order") or graph["nodes"].keys()),
+        }
     return {"schema_version": 1, "topic": "", "nodes": {}, "order": []}
 
 
@@ -345,6 +367,47 @@ def _extract_mission_metadata(session_dir: Path) -> dict[str, Any]:
     return info
 
 
+def load_mission(session_dir: Path) -> dict[str, Any]:
+    """Load scratchpad/mission.json or synthesize from 00-MISSION.md without fabricating missing fields."""
+    data = _extract_mission_metadata(session_dir)
+    if not isinstance(data, dict):
+        data = {}
+    return data
+
+
+def save_mission(
+    session_dir: Path,
+    updates: dict[str, Any] | None = None,
+    prerequisite_updates: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Merge calibration and prerequisite states into scratchpad/mission.json atomically."""
+    current = load_mission(session_dir)
+    current.setdefault("schema_version", 2)
+    if updates:
+        for key, val in updates.items():
+            if val is not None:
+                current[key] = val
+    prereqs = dict(current.get("prerequisites") or {})
+    if prerequisite_updates:
+        now_iso = utc_now_iso()
+        for pid, info in prerequisite_updates.items():
+            clean_id = str(pid).strip()
+            if not clean_id:
+                continue
+            state = normalize_prerequisite_state(info.get("state"))
+            prev = dict(prereqs.get(clean_id) or {})
+            prev["state"] = state
+            if info.get("evidence") is not None:
+                prev["evidence"] = str(info["evidence"])
+            prev["updated_at"] = str(info.get("updated_at") or now_iso)
+            prereqs[clean_id] = prev
+    if prereqs:
+        current["prerequisites"] = prereqs
+    out = session_dir / "scratchpad" / "mission.json"
+    atomic_write_text(out, json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+    return current
+
+
 def _build_curriculum_node(item: dict[str, Any], next_id: str | None) -> tuple[str, dict[str, Any]]:
     slug = str(item["slug"]).strip()
     prefix = slug.split("-", 1)[0]
@@ -357,13 +420,17 @@ def _build_curriculum_node(item: dict[str, Any], next_id: str | None) -> tuple[s
     fixes = [str(x).strip() for x in item.get("fixes_failure_of", []) if str(x).strip()]
     key_eqs = [str(x).strip() for x in item.get("key_equations", []) if str(x).strip()]
     key_concepts = [str(x).strip() for x in item.get("key_concepts", []) if str(x).strip()]
+    in_scope = bool(item.get("in_scope", True))
+    required = bool(item.get("required", True)) if in_scope else False
 
-    node = {
+    node: dict[str, Any] = {
         "id": node_id,
         "slug": slug,
         "title": title,
         "status": str(item.get("status") or "unstarted"),
         "checkpoint": str(item.get("checkpoint") or "0/4"),
+        "required": required,
+        "in_scope": in_scope,
         "depends_on": deps,
         "unlocks": unlocks,
         "contrasts_with": contrasts,
@@ -373,7 +440,12 @@ def _build_curriculum_node(item: dict[str, Any], next_id: str | None) -> tuple[s
         "summary": str(item.get("summary") or ""),
         "key_concepts": key_concepts,
         "key_equations": key_eqs,
+        "assumptions": [str(x).strip() for x in item.get("assumptions", []) if str(x).strip()],
+        "expected_assessments": [str(x).strip() for x in item.get("expected_assessments", []) if str(x).strip()],
     }
+    if isinstance(item.get("objectives"), list) and item["objectives"]:
+        node["objectives"] = item["objectives"]
+    node["objectives"] = normalize_objectives_list(node_id, node)
     return node_id, node
 
 
@@ -383,6 +455,7 @@ def init_session_state(
     items: list[dict[str, Any]],
     mode: str = "standalone",
     vault_root: Path | None = None,
+    scope_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create operational learning state only (never study-note scaffolds)."""
     (session_dir / "learning-records").mkdir(parents=True, exist_ok=True)
@@ -392,10 +465,15 @@ def init_session_state(
     nums = [s.split("-", 1)[0].zfill(2) if s.split("-", 1)[0].isdigit() else s for s in slugs]
     first_id = f"topic-{nums[0]}" if nums else "topic-01"
 
-    # Persist/merge curriculum.json without clobbering existing node mastery
+    # Persist/merge curriculum.json without clobbering existing node mastery or objective evidence
     curriculum = load_curriculum(session_dir)
+    curriculum["schema_version"] = CURRICULUM_SCHEMA_VERSION
     if topic_title and not curriculum.get("topic"):
         curriculum["topic"] = topic_title
+    if scope_info:
+        cur_scope = dict(curriculum.get("scope") or {})
+        cur_scope.update({k: v for k, v in scope_info.items() if v is not None})
+        curriculum["scope"] = cur_scope
     cur_nodes = dict(curriculum.get("nodes", {}))
     cur_order = list(curriculum.get("order", []))
 
@@ -411,10 +489,29 @@ def init_session_state(
             cur_nodes[node_id] = node_data
             created_nodes += 1
         else:
-            # Enrich curriculum metadata non-destructively while keeping progress fields
+            # Enrich curriculum metadata non-destructively while keeping progress & objective evidence
+            prev = cur_nodes[node_id]
             merged = dict(node_data)
-            merged["status"] = cur_nodes[node_id].get("status", merged["status"])
-            merged["checkpoint"] = cur_nodes[node_id].get("checkpoint", merged["checkpoint"])
+            merged["status"] = prev.get("status", merged["status"])
+            merged["checkpoint"] = prev.get("checkpoint", merged["checkpoint"])
+            if "last_invariant" in prev:
+                merged["last_invariant"] = prev["last_invariant"]
+            if "mastered_at" in prev:
+                merged["mastered_at"] = prev["mastered_at"]
+            prev_objs = {o["id"]: o for o in normalize_objectives_list(node_id, prev)}
+            merged_objs = []
+            for obj in node_data["objectives"]:
+                if obj["id"] in prev_objs:
+                    old_o = prev_objs[obj["id"]]
+                    kept = dict(obj)
+                    kept["coverage_status"] = old_o.get("coverage_status", obj["coverage_status"])
+                    kept["proficiency"] = old_o.get("proficiency", obj["proficiency"])
+                    kept["evidence_summary"] = old_o.get("evidence_summary", obj["evidence_summary"])
+                    kept["unresolved_gaps"] = old_o.get("unresolved_gaps", obj["unresolved_gaps"])
+                    merged_objs.append(kept)
+                else:
+                    merged_objs.append(obj)
+            merged["objectives"] = merged_objs
             cur_nodes[node_id] = merged
         if node_id not in cur_order:
             cur_order.append(node_id)
@@ -598,6 +695,430 @@ def _detect_graph_cycle(nodes: dict[str, Any]) -> list[str] | None:
     return None
 
 
+def _validate_curriculum_references_and_cycles(curriculum: dict[str, Any]) -> list[dict[str, Any]]:
+    """Validate objective IDs, prerequisite_refs, and combined dependency acyclicity."""
+    errors: list[dict[str, Any]] = []
+    nodes = curriculum.get("nodes", {})
+    if not isinstance(nodes, dict):
+        return [{"file": "scratchpad/curriculum.json", "type": "invalid_curriculum_schema", "detail": "Expected nodes dict"}]
+
+    all_topic_ids = set(nodes.keys())
+    seen_obj_ids: set[str] = set()
+    combined_adj: dict[str, list[str]] = {nid: list(n.get("depends_on", []) or []) for nid, n in nodes.items() if isinstance(n, dict)}
+
+    for nid, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        for edge_key in TYPED_EDGE_FIELDS:
+            for target in node.get(edge_key, []) or []:
+                if target not in all_topic_ids:
+                    errors.append(
+                        {
+                            "file": "scratchpad/curriculum.json",
+                            "type": "broken_curriculum_edge",
+                            "detail": f"{nid}.{edge_key} -> missing {target}",
+                        }
+                    )
+        raw_objs = node.get("objectives")
+        if isinstance(raw_objs, list):
+            for obj in raw_objs:
+                if not isinstance(obj, dict):
+                    continue
+                oid = str(obj.get("id") or "").strip()
+                if not oid:
+                    errors.append(
+                        {
+                            "file": "scratchpad/curriculum.json",
+                            "type": "missing_objective_id",
+                            "detail": f"Node {nid} contains an objective without an id",
+                        }
+                    )
+                    continue
+                if oid in seen_obj_ids:
+                    errors.append(
+                        {
+                            "file": "scratchpad/curriculum.json",
+                            "type": "duplicate_objective_id",
+                            "detail": f"Duplicate objective id {oid}",
+                        }
+                    )
+                seen_obj_ids.add(oid)
+                combined_adj[oid] = list(obj.get("prerequisite_refs") or [])
+
+    valid_targets = all_topic_ids | seen_obj_ids
+    for nid, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        raw_objs = node.get("objectives")
+        if not isinstance(raw_objs, list):
+            continue
+        for obj in raw_objs:
+            if not isinstance(obj, dict):
+                continue
+            oid = str(obj.get("id") or "").strip()
+            for pref in obj.get("prerequisite_refs") or []:
+                if pref not in valid_targets:
+                    errors.append(
+                        {
+                            "file": "scratchpad/curriculum.json",
+                            "type": "broken_objective_reference",
+                            "detail": f"{oid}.prerequisite_refs -> missing {pref}",
+                        }
+                    )
+
+    # Check combined graph acyclicity
+    state: dict[str, int] = {}
+    path: list[str] = []
+
+    def dfs(u: str) -> list[str] | None:
+        state[u] = 1
+        path.append(u)
+        for dep in combined_adj.get(u, []):
+            if dep not in combined_adj:
+                continue
+            st = state.get(dep, 0)
+            if st == 1:
+                idx = path.index(dep)
+                return path[idx:] + [dep]
+            if st == 0:
+                cyc = dfs(dep)
+                if cyc:
+                    return cyc
+        path.pop()
+        state[u] = 2
+        return None
+
+    for key in combined_adj:
+        if state.get(key, 0) == 0:
+            cyc = dfs(key)
+            if cyc:
+                errors.append(
+                    {
+                        "file": "scratchpad/curriculum.json",
+                        "type": "curriculum_cycle",
+                        "detail": f"Cycle detected: {' -> '.join(cyc)}",
+                    }
+                )
+                break
+    return errors
+
+
+def backup_state_files(session_dir: Path, label: str = "migration") -> Path | None:
+    """Create a timestamped backup of existing operational state files before rewriting."""
+    candidates = [
+        session_dir / "00-SESSION-STATE.md",
+        session_dir / "00-GRAPH.json",
+        session_dir / "scratchpad" / "curriculum.json",
+        session_dir / "scratchpad" / "review-state.json",
+    ]
+    existing = [p for p in candidates if p.is_file()]
+    if not existing:
+        return None
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    bdir = session_dir / "scratchpad" / "backups" / f"{label}-{stamp}"
+    bdir.mkdir(parents=True, exist_ok=True)
+    for src in existing:
+        rel_name = src.name if src.parent == session_dir else f"scratchpad__{src.name}"
+        atomic_write_text(bdir / rel_name, read_text_safe(src))
+    return bdir
+
+
+def revise_curriculum(
+    session_dir: Path,
+    *,
+    node_id: str | None = None,
+    slug: str | None = None,
+    title: str | None = None,
+    objective_desc: str | None = None,
+    depends_on: list[str] | None = None,
+    unlocks: list[str] | None = None,
+    before_topic: str | None = None,
+    required: bool | None = None,
+    in_scope: bool | None = None,
+    target_topic: str | None = None,
+    objective_id: str | None = None,
+    prerequisite_refs: list[str] | None = None,
+    assumptions: list[str] | None = None,
+    expected_assessments: list[str] | None = None,
+) -> dict[str, Any]:
+    """Revise curriculum (add prerequisite node or add/update objective) preserving IDs, evidence, and resume state.
+
+    Validates DAG acyclicity and all references before writing anything.
+    """
+    curriculum = load_curriculum(session_dir)
+    curriculum["schema_version"] = CURRICULUM_SCHEMA_VERSION
+    nodes = dict(curriculum.get("nodes", {}))
+    order = list(curriculum.get("order", []))
+
+    graph_path = session_dir / "00-GRAPH.json"
+    graph = load_json_dict(graph_path) or {"schema_version": 2, "kind": "curriculum_dependency_graph", "nodes": {}, "order": []}
+    g_nodes = dict(graph.get("nodes", {}))
+    g_order = list(graph.get("order", []))
+
+    # Normalize existing nodes' objectives without erasing evidence
+    for nid_k, nval in list(nodes.items()):
+        if isinstance(nval, dict):
+            nval = dict(nval)
+            nval["objectives"] = normalize_objectives_list(nid_k, nval)
+            nodes[nid_k] = nval
+
+    action = ""
+    if node_id or slug:
+        clean_slug = (slug or node_id or "").strip()
+        prefix = clean_slug.split("-", 1)[0]
+        num = prefix.zfill(2) if prefix.isdigit() else prefix
+        nid = (node_id or f"topic-{num}").strip()
+        if not nid.startswith("topic-"):
+            nid = f"topic-{normalize_topic_num(nid)}"
+        if nid in nodes:
+            raise ValueError(f"Topic node {nid} already exists; use --target-topic/--objective-id to update objectives")
+
+        item = {
+            "id": nid,
+            "slug": clean_slug,
+            "title": (title or clean_slug).strip(),
+            "depends_on": list(depends_on or []),
+            "unlocks": list(unlocks or []),
+            "objective": (objective_desc or title or clean_slug).strip(),
+            "required": True if required is None else bool(required),
+            "in_scope": True if in_scope is None else bool(in_scope),
+            "assumptions": list(assumptions or []),
+            "expected_assessments": list(expected_assessments or []),
+        }
+        _, built = _build_curriculum_node(item, None)
+        if prerequisite_refs and built["objectives"]:
+            built["objectives"][0]["prerequisite_refs"] = list(prerequisite_refs)
+        nodes[nid] = built
+
+        # Wire unlocks -> target depends_on automatically if requested
+        for target in built["unlocks"]:
+            if target in nodes:
+                t_deps = list(nodes[target].get("depends_on", []))
+                if nid not in t_deps:
+                    t_deps.append(nid)
+                    nodes[target]["depends_on"] = t_deps
+            if target in g_nodes:
+                gt_deps = list(g_nodes[target].get("depends_on", []))
+                if nid not in gt_deps:
+                    gt_deps.append(nid)
+                    g_nodes[target]["depends_on"] = gt_deps
+
+        if before_topic:
+            bt_id = f"topic-{normalize_topic_num(before_topic)}"
+            if bt_id in order:
+                idx = order.index(bt_id)
+                order.insert(idx, nid)
+            else:
+                order.append(nid)
+            if bt_id in g_order:
+                g_idx = g_order.index(bt_id)
+                g_order.insert(g_idx, nid)
+            else:
+                g_order.append(nid)
+        else:
+            order.append(nid)
+            g_order.append(nid)
+
+        g_nodes[nid] = {
+            "slug": built["slug"],
+            "title": built["title"],
+            "status": built["status"],
+            "checkpoint": built["checkpoint"],
+            "depends_on": built["depends_on"],
+            "unlocks": built["unlocks"],
+            "contrasts_with": built["contrasts_with"],
+            "fixes_failure_of": built["fixes_failure_of"],
+        }
+        action = f"added_node:{nid}"
+    elif target_topic:
+        t_nid = f"topic-{normalize_topic_num(target_topic)}"
+        if t_nid not in nodes:
+            raise ValueError(f"Target topic {t_nid} not found")
+        tnode = dict(nodes[t_nid])
+        objs = normalize_objectives_list(t_nid, tnode)
+        oid = (objective_id or f"obj-{t_nid.replace('topic-', '')}-{len(objs) + 1:02d}").strip()
+        existing_idx = next((i for i, o in enumerate(objs) if o["id"] == oid), None)
+        if existing_idx is not None:
+            cur_obj = dict(objs[existing_idx])
+            if objective_desc is not None:
+                cur_obj["description"] = objective_desc
+            if required is not None:
+                cur_obj["required"] = bool(required)
+            if in_scope is not None:
+                cur_obj["in_scope"] = bool(in_scope)
+                if not in_scope:
+                    cur_obj["coverage_status"] = "out_of_scope"
+                    cur_obj["required"] = False
+            if prerequisite_refs is not None:
+                cur_obj["prerequisite_refs"] = list(prerequisite_refs)
+            if assumptions is not None:
+                cur_obj["assumptions"] = list(assumptions)
+            if expected_assessments is not None:
+                cur_obj["expected_assessments"] = list(expected_assessments)
+            objs[existing_idx] = cur_obj
+            action = f"updated_objective:{oid}"
+        else:
+            new_obj = {
+                "id": oid,
+                "description": (objective_desc or oid).strip(),
+                "required": True if required is None else bool(required),
+                "in_scope": True if in_scope is None else bool(in_scope),
+                "prerequisite_refs": list(prerequisite_refs or []),
+                "assumptions": list(assumptions or []),
+                "expected_assessments": list(expected_assessments or []),
+                "coverage_status": "out_of_scope" if in_scope is False else "not_taught",
+            }
+            objs.append(new_obj)
+            tnode["objectives"] = objs
+            objs = normalize_objectives_list(t_nid, tnode)
+            action = f"added_objective:{oid}"
+        tnode["objectives"] = objs
+        if depends_on:
+            cur_deps = list(tnode.get("depends_on", []))
+            for d in depends_on:
+                if d not in cur_deps:
+                    cur_deps.append(d)
+            tnode["depends_on"] = cur_deps
+            if t_nid in g_nodes:
+                g_nodes[t_nid]["depends_on"] = list(cur_deps)
+        nodes[t_nid] = tnode
+    else:
+        raise ValueError("Provide either --slug/--node-id for a new node or --target-topic for an objective update")
+
+    candidate_curr = dict(curriculum)
+    candidate_curr["nodes"] = nodes
+    candidate_curr["order"] = order
+
+    # Validate before persisting!
+    validation_errors = _validate_curriculum_references_and_cycles(candidate_curr)
+    g_cyc = _detect_graph_cycle(g_nodes)
+    if g_cyc:
+        validation_errors.append({"file": "00-GRAPH.json", "type": "curriculum_cycle", "detail": f"Cycle: {' -> '.join(g_cyc)}"})
+    if validation_errors:
+        raise ValueError(f"Invalid curriculum revision: {validation_errors[0]['detail']}")
+
+    save_curriculum(session_dir, candidate_curr)
+    graph["nodes"] = g_nodes
+    graph["order"] = g_order
+    atomic_write_text(graph_path, json.dumps(graph, indent=2, ensure_ascii=False) + "\n")
+
+    # Preserve resume position in 00-SESSION-STATE.md; only insert new status map token if a node was added
+    state_file = session_dir / "00-SESSION-STATE.md"
+    if action.startswith("added_node:") and state_file.is_file():
+        added_nid = action.split(":", 1)[1]
+        added_num = added_nid.replace("topic-", "")
+        s_lines = read_text_safe(state_file).splitlines()
+        out_s: list[str] = []
+        for line in s_lines:
+            if ("`[ ] " in line or "`[x] " in line or "`[~] " in line) and not re.search(rf"`\[[ x~]\]\s*{re.escape(added_num)}`", line):
+                if before_topic:
+                    bt_num = normalize_topic_num(before_topic)
+                    pat = re.compile(rf"(`\[[ x~]\]\s*{re.escape(bt_num)}`)")
+                    if pat.search(line):
+                        line = pat.sub(rf"`[ ] {added_num}` \1", line, count=1)
+                    else:
+                        line = line.rstrip() + f" `[ ] {added_num}`"
+                else:
+                    line = line.rstrip() + f" `[ ] {added_num}`"
+            out_s.append(line)
+        atomic_write_text(state_file, "\n".join(out_s[:59]) + "\n")
+
+    return {
+        "ok": True,
+        "action": action,
+        "topics": len(order),
+        "session_dir": str(session_dir),
+    }
+
+
+def migrate_session_state(session_dir: Path) -> dict[str, Any]:
+    """Idempotently migrate a v1 session into v2 operational state without fabricating evidence.
+
+    Backs up existing files before any persistent write and validates before replacing.
+    """
+    curr_path = session_dir / "scratchpad" / "curriculum.json"
+    graph_path = session_dir / "00-GRAPH.json"
+    if not curr_path.is_file() and not graph_path.is_file():
+        raise FileNotFoundError(f"No operational session state found in {session_dir}")
+
+    curr = load_curriculum(session_dir)
+    graph = load_json_dict(graph_path) or {"schema_version": 2, "kind": "curriculum_dependency_graph", "nodes": {}, "order": []}
+    events = load_events(session_dir)
+    review_store = load_review_state(session_dir)
+
+    g_nodes = dict(graph.get("nodes", {}))
+    c_nodes = dict(curr.get("nodes", {}))
+    order = list(curr.get("order") or graph.get("order") or list(g_nodes.keys()))
+
+    for nid in order:
+        gnode = g_nodes.get(nid, {}) if isinstance(g_nodes.get(nid), dict) else {}
+        cnode = dict(c_nodes.get(nid, {})) if isinstance(c_nodes.get(nid), dict) else {}
+        merged = dict(gnode)
+        merged.update(cnode)
+        merged.setdefault("id", nid)
+        merged.setdefault("slug", nid)
+        merged.setdefault("title", nid)
+        merged["objectives"] = normalize_objectives_list(nid, merged)
+
+        # Derive objective proficiency from existing events without fabricating assistance/retention/transfer
+        node_status = str(merged.get("status") or "unstarted")
+        node_cp = str(merged.get("checkpoint") or "0/4")
+        tnum = nid.replace("topic-", "")
+        t_evs = [e for e in events if normalize_topic_num(str(e.get("topic", ""))) == tnum]
+        for idx, obj in enumerate(merged["objectives"]):
+            oid = obj["id"]
+            obj_evs = [e for e in t_evs if e.get("objective_id") == oid]
+            if idx == 0:
+                obj_evs.extend(e for e in t_evs if not e.get("objective_id"))
+            derived = derive_objective_evidence(obj, obj_evs, node_status=node_status, node_checkpoint=node_cp)
+            merged["objectives"][idx] = derived
+            if derived["proficiency"].get("legacy_completed") or derived["proficiency"]["status"] == "demonstrated_independently":
+                last_ts = t_evs[-1].get("ts") if t_evs else merged.get("mastered_at") or merged.get("last_event_ts")
+                sync_review_item_for_legacy_node(
+                    review_store,
+                    target_id=oid,
+                    topic_id=nid,
+                    last_ts=last_ts,
+                    legacy_mastered=bool(derived["proficiency"].get("legacy_completed")),
+                )
+        c_nodes[nid] = merged
+
+    new_curr = dict(curr)
+    new_curr["schema_version"] = CURRICULUM_SCHEMA_VERSION
+    new_curr["topic"] = curr.get("topic") or graph.get("topic") or session_dir.name
+    new_curr["nodes"] = c_nodes
+    new_curr["order"] = order
+
+    # Validate before persisting
+    val_errs = _validate_curriculum_references_and_cycles(new_curr)
+    if val_errs:
+        raise ValueError(f"Migration aborted due to invalid state: {val_errs[0]['detail']}")
+
+    new_curr_text = json.dumps(new_curr, indent=2, ensure_ascii=False) + "\n"
+    new_rev_text = json.dumps(review_store, indent=2, ensure_ascii=False) + "\n"
+
+    curr_changed = (not curr_path.is_file()) or read_text_safe(curr_path) != new_curr_text
+    rev_path = session_dir / "scratchpad" / "review-state.json"
+    rev_changed = (not rev_path.is_file()) or read_text_safe(rev_path) != new_rev_text
+
+    backup_dir: Path | None = None
+    if curr_changed or rev_changed:
+        backup_dir = backup_state_files(session_dir, label="migrate")
+        if curr_changed:
+            atomic_write_text(curr_path, new_curr_text)
+        if rev_changed:
+            atomic_write_text(rev_path, new_rev_text)
+
+    return {
+        "ok": True,
+        "session_dir": str(session_dir),
+        "schema_version": CURRICULUM_SCHEMA_VERSION,
+        "migrated_nodes": len(c_nodes),
+        "changed": curr_changed or rev_changed,
+        "backup_dir": str(backup_dir) if backup_dir else None,
+    }
+
+
 def validate_session_state(session_dir: Path) -> dict[str, Any]:
     """Validate internal operational learning state (never modifies or audits study notes)."""
     errors: list[dict[str, Any]] = []
@@ -658,8 +1179,28 @@ def validate_session_state(session_dir: Path) -> dict[str, Any]:
             curr = json.loads(read_text_safe(curr_file))
             if not isinstance(curr, dict) or not isinstance(curr.get("nodes"), dict):
                 errors.append({"file": "scratchpad/curriculum.json", "type": "invalid_curriculum_schema", "detail": "Expected object with nodes dict"})
+            else:
+                errors.extend(_validate_curriculum_references_and_cycles(curr))
         except (OSError, json.JSONDecodeError) as exc:
             errors.append({"file": "scratchpad/curriculum.json", "type": "invalid_json", "detail": str(exc)})
+
+    rev_file = session_dir / "scratchpad" / "review-state.json"
+    if rev_file.is_file():
+        try:
+            rev = json.loads(read_text_safe(rev_file))
+            if not isinstance(rev, dict) or not isinstance(rev.get("items"), dict):
+                errors.append({"file": "scratchpad/review-state.json", "type": "invalid_review_schema", "detail": "Expected object with items dict"})
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append({"file": "scratchpad/review-state.json", "type": "invalid_json", "detail": str(exc)})
+
+    media_file = session_dir / "scratchpad" / "media-provenance.json"
+    if media_file.is_file():
+        try:
+            mp = json.loads(read_text_safe(media_file))
+            if not isinstance(mp, dict) or not isinstance(mp.get("items"), list):
+                errors.append({"file": "scratchpad/media-provenance.json", "type": "invalid_media_schema", "detail": "Expected object with items list"})
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append({"file": "scratchpad/media-provenance.json", "type": "invalid_json", "detail": str(exc)})
 
     return {
         "ok": len(errors) == 0,
@@ -837,6 +1378,17 @@ def import_legacy_vault(
         if preserved_extra:
             node_entry["extra_metadata"] = preserved_extra
 
+        # Build honest objective-level state without fabricating assistance/retention/transfer
+        node_objs = normalize_objectives_list(node_id, node_entry)
+        for oidx, obj in enumerate(node_objs):
+            node_objs[oidx] = derive_objective_evidence(
+                obj,
+                t_events if oidx == 0 else [],
+                node_status=status,
+                node_checkpoint=checkpoint,
+            )
+        node_entry["objectives"] = node_objs
+
         curriculum_nodes[node_id] = dict(node_entry)
         graph_nodes[node_id] = {
             k: v for k, v in node_entry.items()
@@ -856,8 +1408,17 @@ def import_legacy_vault(
         if gid in graph_nodes or not isinstance(gval, dict):
             continue
         graph_nodes[gid] = dict(gval)
-        curriculum_nodes[gid] = dict(gval)
-        curriculum_nodes[gid].setdefault("id", gid)
+        c_entry = dict(gval)
+        c_entry.setdefault("id", gid)
+        c_entry["objectives"] = normalize_objectives_list(gid, c_entry)
+        for oidx, obj in enumerate(c_entry["objectives"]):
+            c_entry["objectives"][oidx] = derive_objective_evidence(
+                obj,
+                [],
+                node_status=str(c_entry.get("status") or "unstarted"),
+                node_checkpoint=str(c_entry.get("checkpoint") or "0/4"),
+            )
+        curriculum_nodes[gid] = c_entry
         if gid not in order:
             order.append(gid)
 
@@ -898,16 +1459,56 @@ def import_legacy_vault(
     }
     if extra_graph_top:
         new_graph["extra_top_fields"] = extra_graph_top
-    atomic_write_text(dest / "00-GRAPH.json", json.dumps(new_graph, indent=2, ensure_ascii=False) + "\n")
 
     new_curr = {
-        "schema_version": 1,
+        "schema_version": CURRICULUM_SCHEMA_VERSION,
         "topic": existing_graph.get("topic") or src.name,
         "nodes": curriculum_nodes,
         "order": order,
         "learning_records": [r["file"] for r in lr_records],
     }
-    save_curriculum(dest, new_curr)
+
+    # Build deterministic review state for imported nodes without fabricating timestamps
+    review_store = load_review_state(dest)
+    for nid in order:
+        cnode = curriculum_nodes.get(nid, {})
+        last_ts = cnode.get("last_event_ts") or cnode.get("mastered_at") or None
+        for obj in cnode.get("objectives", []):
+            prof = obj.get("proficiency", {})
+            if prof.get("legacy_completed") or prof.get("status") == "demonstrated_independently":
+                sync_review_item_for_legacy_node(
+                    review_store,
+                    target_id=obj["id"],
+                    topic_id=nid,
+                    last_ts=last_ts,
+                    legacy_mastered=bool(prof.get("legacy_completed")),
+                )
+
+    val_errs = _validate_curriculum_references_and_cycles(new_curr)
+    if val_errs:
+        raise ValueError(f"Imported legacy curriculum failed validation: {val_errs[0]['detail']}")
+
+    new_graph_text = json.dumps(new_graph, indent=2, ensure_ascii=False) + "\n"
+    new_curr_text = json.dumps(new_curr, indent=2, ensure_ascii=False) + "\n"
+    new_rev_text = json.dumps(review_store, indent=2, ensure_ascii=False) + "\n"
+
+    graph_dest = dest / "00-GRAPH.json"
+    curr_dest = dest / "scratchpad" / "curriculum.json"
+    rev_dest = dest / "scratchpad" / "review-state.json"
+
+    graph_changed = (not graph_dest.is_file()) or read_text_safe(graph_dest) != new_graph_text
+    curr_changed = (not curr_dest.is_file()) or read_text_safe(curr_dest) != new_curr_text
+    rev_changed = (not rev_dest.is_file()) or read_text_safe(rev_dest) != new_rev_text
+
+    if (graph_changed and graph_dest.is_file()) or (curr_changed and curr_dest.is_file()):
+        backup_state_files(dest, label="import-legacy")
+
+    if graph_changed:
+        atomic_write_text(graph_dest, new_graph_text)
+    if curr_changed:
+        atomic_write_text(curr_dest, new_curr_text)
+    if rev_changed:
+        atomic_write_text(rev_dest, new_rev_text)
 
     resume_state = ""
     if state_file.is_file():
@@ -974,15 +1575,25 @@ def build_handoff_envelope(
             "request_id": req_id,
             "requested_artifact": requested_artifact or "unknown",
             "requested_scope": requested_scope or "unknown",
+            "agreed_scope": {"goal": "unknown", "in_scope": [], "out_of_scope": []},
             "topic": topic or "unknown",
             "curriculum_ids": [],
             "session_id": "unknown",
             "resume_checkpoint": "unknown",
+            "resume_location": {"active_subtopic": "unknown", "stage_cp": "unknown"},
             "concepts_taught": [],
+            "concepts_introduced": [],
             "concepts_planned": [],
+            "objectives_demonstrated": [],
             "unresolved_topics": [],
+            "untested_or_unresolved_gaps": {
+                "required_untested": [],
+                "unresolved_objectives": [],
+                "unresolved_prerequisites": [],
+            },
             "mastery_claims": [],
             "weak_spots_and_misconceptions": [],
+            "misconceptions_and_corrections": [],
             "examples_analogies_used": list(examples_used or []),
             "learner_profile": {
                 "level": "unknown",
@@ -990,6 +1601,7 @@ def build_handoff_envelope(
                 "known_preferences": [],
             },
             "source_provenance": [],
+            "media_provenance": [],
             "destination_constraints": destination_constraints or "unknown",
             "state_provenance": {
                 "state_dir": "none",
@@ -1022,13 +1634,18 @@ def build_handoff_envelope(
 
     events = load_events(session_dir)
     events_by_nid: dict[str, list[dict[str, Any]]] = {}
+    events_by_obj: dict[str, list[dict[str, Any]]] = {}
     for ev in events:
-        t = normalize_topic_num(str(ev.get("topic", "")))
-        if t:
-            events_by_nid.setdefault(f"topic-{t}", []).append(ev)
+        nev = normalize_event(ev)
+        if nev["topic_id"]:
+            events_by_nid.setdefault(nev["topic_id"], []).append(nev)
+        if nev["objective_id"]:
+            events_by_obj.setdefault(nev["objective_id"], []).append(nev)
 
     concepts_taught: list[dict[str, Any]] = []
+    concepts_introduced: list[dict[str, Any]] = []
     concepts_planned: list[dict[str, Any]] = []
+    objectives_demonstrated: list[dict[str, Any]] = []
     unresolved_topics: list[dict[str, Any]] = []
     mastery_claims: list[dict[str, Any]] = []
 
@@ -1040,27 +1657,84 @@ def build_handoff_envelope(
         cp = str(gnode.get("checkpoint") or "0/4")
         nid_events = events_by_nid.get(nid, [])
 
+        merged_node = dict(cnode)
+        merged_node.update(gnode)
+        objs = normalize_objectives_list(nid, merged_node)
+        derived_objs = []
+        for idx, obj in enumerate(objs):
+            oevs = list(events_by_obj.get(obj["id"], []))
+            if idx == 0:
+                oevs.extend(e for e in nid_events if not e.get("objective_id"))
+            derived_objs.append(derive_objective_evidence(obj, oevs, node_status=status, node_checkpoint=cp))
+
         item_ref: dict[str, Any] = {"id": nid, "title": title}
         key_eqs = cnode.get("key_equations") or gnode.get("key_equations") or []
         if key_eqs:
             item_ref["key_equations"] = key_eqs[:4]
 
-        has_pass_or_progress = status == "mastered" or cp != "0/4" or any(
-            ev.get("status") == "pass" for ev in nid_events
+        has_independent = any(d["proficiency"]["status"] == "demonstrated_independently" for d in derived_objs)
+        has_assisted_or_intro = any(
+            d["proficiency"]["status"] in ("introduced", "practiced_with_support")
+            or d["coverage_status"] in ("introduced", "assessed")
+            for d in derived_objs
         )
-        if status == "mastered":
+        has_pass_or_progress = (
+            status == "mastered"
+            or cp != "0/4"
+            or any(ev.get("result") == "pass" or ev.get("status") == "pass" for ev in nid_events)
+            or has_independent
+            or has_assisted_or_intro
+        )
+
+        for d in derived_objs:
+            dp = d["proficiency"]
+            if dp["status"] == "demonstrated_independently":
+                objectives_demonstrated.append(
+                    {
+                        "id": d["id"],
+                        "topic_id": nid,
+                        "description": d["description"],
+                        "retention_status": dp["retention"]["status"],
+                        "transfer_status": dp["transfer"]["status"],
+                        "dimensions_evidenced": dp["dimensions_evidenced"],
+                    }
+                )
+            elif dp["status"] in ("introduced", "practiced_with_support"):
+                concepts_introduced.append(
+                    {
+                        "id": d["id"],
+                        "topic_id": nid,
+                        "title": title,
+                        "description": d["description"],
+                        "proficiency_status": dp["status"],
+                    }
+                )
+
+        # Aggregate topic-level retention/transfer honestly
+        ret_statuses = [d["proficiency"]["retention"]["status"] for d in derived_objs]
+        tr_statuses = [d["proficiency"]["transfer"]["status"] for d in derived_objs]
+        agg_ret = "retained" if ret_statuses and all(s == "retained" for s in ret_statuses) else ("lapsed" if "lapsed" in ret_statuses else "untested")
+        agg_tr = "demonstrated" if tr_statuses and all(s == "demonstrated" for s in tr_statuses) else ("failed" if "failed" in tr_statuses else "untested")
+
+        if status == "mastered" or (derived_objs and all(d["proficiency"]["status"] == "demonstrated_independently" for d in derived_objs)):
             concepts_taught.append(item_ref)
             evidence_bits = []
             if gnode.get("last_invariant"):
                 evidence_bits.append(f"invariant: {gnode['last_invariant']}")
             if nid_events:
                 last_ev = nid_events[-1]
-                evidence_bits.append(f"event cp {last_ev.get('cp')}/4 {last_ev.get('status')} at {last_ev.get('ts', '')}")
+                evidence_bits.append(
+                    f"event {last_ev.get('assessment_type')} {last_ev.get('result')} (assistance={last_ev.get('assistance_level')}) at {last_ev.get('ts', '')}"
+                )
+            assessed_label = "mastered" if status == "mastered" else "demonstrated_independently"
             mastery_claims.append(
                 {
                     "id": nid,
                     "title": title,
-                    "assessed_status": "mastered",
+                    "assessed_status": assessed_label,
+                    "proficiency_status": "demonstrated_independently" if has_independent else "legacy_unverified",
+                    "retention_status": agg_ret,
+                    "transfer_status": agg_tr,
                     "checkpoint": cp,
                     "evidence": "; ".join(evidence_bits) if evidence_bits else "checkpoint 4/4 flushed",
                 }
@@ -1068,14 +1742,26 @@ def build_handoff_envelope(
         elif has_pass_or_progress:
             concepts_taught.append(item_ref)
             unresolved_topics.append(item_ref)
-            passed_cps = [f"{ev.get('cp')}/4" for ev in nid_events if ev.get("status") == "pass"]
+            statuses = [d["proficiency"]["status"] for d in derived_objs]
+            if "weakened" in statuses:
+                claim_status = "weakened"
+            elif "practiced_with_support" in statuses:
+                claim_status = "practiced_with_support"
+            elif "introduced" in statuses:
+                claim_status = "introduced"
+            else:
+                claim_status = "in_progress"
+            passed_cps = [f"{ev.get('cp')}/4" for ev in nid_events if ev.get("status") == "pass" and ev.get("cp") is not None]
             mastery_claims.append(
                 {
                     "id": nid,
                     "title": title,
-                    "assessed_status": "in_progress",
+                    "assessed_status": claim_status if claim_status != "in_progress" else "in_progress",
+                    "proficiency_status": claim_status,
+                    "retention_status": agg_ret,
+                    "transfer_status": agg_tr,
                     "checkpoint": cp,
-                    "evidence": f"passed checkpoints {passed_cps}" if passed_cps else f"checkpoint {cp}",
+                    "evidence": f"passed checkpoints {passed_cps}" if passed_cps else (derived_objs[0]["evidence_summary"] if derived_objs else f"checkpoint {cp}"),
                 }
             )
         else:
@@ -1086,34 +1772,41 @@ def build_handoff_envelope(
                     "id": nid,
                     "title": title,
                     "assessed_status": "unknown",
+                    "proficiency_status": "untested",
+                    "retention_status": "untested",
+                    "transfer_status": "untested",
                     "checkpoint": "0/4",
                     "evidence": "unassessed",
                 }
             )
 
     weak_spots: list[dict[str, Any]] = []
-    for ev in events:
-        if ev.get("status") == "retry":
-            weak_spots.append(
-                {
-                    "topic": f"topic-{normalize_topic_num(str(ev.get('topic', '')))}",
-                    "checkpoint": f"{ev.get('cp', '?')}/4",
-                    "note": str(ev.get("note") or "retry recorded"),
-                    "ts": ev.get("ts", ""),
-                }
-            )
+    misconceptions_and_corrections: list[dict[str, Any]] = []
+    for raw_ev in events:
+        nev = normalize_event(raw_ev)
+        if nev["result"] in ("fail", "partial") or nev["status"] == "retry":
+            entry = {
+                "topic": nev["topic_id"] or f"topic-{nev['topic']}",
+                "objective_id": nev["objective_id"] or None,
+                "checkpoint": f"{nev['cp']}/4" if nev.get("cp") is not None else "n/a",
+                "note": nev["rationale"] or "retry recorded",
+                "misconception_ref": nev.get("misconception_ref"),
+                "ts": nev["ts"],
+            }
+            weak_spots.append(entry)
+            misconceptions_and_corrections.append(entry)
 
     lr_records = load_learning_records(session_dir)
     for rec in lr_records:
         if rec.get("status", "").startswith("superseded"):
             continue
-        weak_spots.append(
-            {
-                "record": rec["file"],
-                "title": rec["title"],
-                "insight": rec["insight"] or rec["context"],
-            }
-        )
+        lr_entry = {
+            "record": rec["file"],
+            "title": rec["title"],
+            "insight": rec["insight"] or rec["context"],
+        }
+        weak_spots.append(lr_entry)
+        misconceptions_and_corrections.append(lr_entry)
 
     ingested = load_json_dict(session_dir / "scratchpad" / "ingested-sources.json") or {}
     sources: list[dict[str, Any]] = []
@@ -1123,11 +1816,38 @@ def build_handoff_envelope(
             if entry:
                 sources.append(entry)
 
+    media_store = load_media_provenance(session_dir)
+    media_prov = [
+        {
+            k: m.get(k)
+            for k in ("media_id", "objective_id", "kind", "title", "source_page_url", "asset_url", "license", "verification_status", "retrieved_at")
+        }
+        for m in media_store.get("items", [])[-10:]
+        if isinstance(m, dict)
+    ]
+
     mission = _extract_mission_metadata(session_dir)
+    gap_summary = derive_session_coverage_and_gaps(curriculum, events, mission=mission)
+
+    known_prefs: list[str] = []
+    if mission.get("depth_mode"):
+        known_prefs.append(str(mission["depth_mode"]))
+    for ec in mission.get("explanation_constraints", []) or []:
+        if str(ec).strip() and str(ec).strip() not in known_prefs:
+            known_prefs.append(str(ec).strip())
+
     learner_profile = {
         "level": str(mission.get("prior_knowledge") or "unknown"),
         "language": str(mission.get("language") or "unknown"),
-        "known_preferences": [mission["depth_mode"]] if mission.get("depth_mode") else [],
+        "known_preferences": known_prefs,
+    }
+    if mission.get("time_budget_minutes"):
+        learner_profile["time_budget_minutes"] = mission["time_budget_minutes"]
+
+    agreed_scope = {
+        "goal": str(mission.get("goal") or (curriculum.get("scope") or {}).get("goal") or "unknown"),
+        "in_scope": mission.get("in_scope") or (curriculum.get("scope") or {}).get("in_scope") or [],
+        "out_of_scope": mission.get("out_of_scope") or (curriculum.get("scope") or {}).get("out_of_scope") or [],
     }
 
     missing_fields: list[str] = []
@@ -1141,9 +1861,9 @@ def build_handoff_envelope(
         missing_fields.append("destination_constraints")
 
     resolved_topic = topic or str(graph.get("topic") or curriculum.get("topic") or session_dir.name)
-    resume_cp = m_stage_cp.group(1).strip() if m_stage_cp else "unknown"
-    if m_active:
-        resume_cp = f"{m_active.group(1).strip()} | {resume_cp}"
+    active_sub = m_active.group(1).strip() if m_active else "unknown"
+    stage_cp_str = m_stage_cp.group(1).strip() if m_stage_cp else "unknown"
+    resume_cp = f"{active_sub} | {stage_cp_str}" if m_active else stage_cp_str
 
     envelope = redact_sensitive(
         {
@@ -1151,18 +1871,32 @@ def build_handoff_envelope(
             "request_id": req_id,
             "requested_artifact": requested_artifact or "study_notes",
             "requested_scope": requested_scope or ("subtopic" if target_nid else "topic"),
+            "agreed_scope": agreed_scope,
             "topic": resolved_topic,
             "curriculum_ids": selected_ids,
             "session_id": session_dir.name,
             "resume_checkpoint": resume_cp,
+            "resume_location": {
+                "active_subtopic": active_sub,
+                "stage_cp": stage_cp_str,
+            },
             "concepts_taught": concepts_taught,
+            "concepts_introduced": concepts_introduced,
             "concepts_planned": concepts_planned,
+            "objectives_demonstrated": objectives_demonstrated,
             "unresolved_topics": unresolved_topics,
+            "untested_or_unresolved_gaps": {
+                "required_untested": gap_summary["required_untested"],
+                "unresolved_objectives": gap_summary["unresolved_objectives"],
+                "unresolved_prerequisites": gap_summary["unresolved_prerequisites"],
+            },
             "mastery_claims": mastery_claims,
             "weak_spots_and_misconceptions": weak_spots[-12:],
+            "misconceptions_and_corrections": misconceptions_and_corrections[-12:],
             "examples_analogies_used": list(examples_used or []),
             "learner_profile": learner_profile,
             "source_provenance": sources[:10],
+            "media_provenance": media_prov,
             "destination_constraints": destination_constraints or "unknown",
             "state_provenance": {
                 "state_dir": str(session_dir),

@@ -328,27 +328,29 @@ class TeachingMemoryAndHandoffTests(unittest.TestCase):
             self.assertFalse((REPO_ROOT / "skills" / removed_skill).exists())
 
     def test_c_and_g_instruction_invariants_and_routing_contract(self) -> None:
-        """C, G, I, J: Verify core teaching invariants, intent routing, and lazy handoff docs are present."""
+        """C, G, I, J: Verify adaptive teaching invariants, intent routing, and lazy handoff docs are present."""
         skill_md = (REPO_ROOT / "skills" / "teachme" / "SKILL.md").read_text(encoding="utf-8")
         retention_md = (REPO_ROOT / "skills" / "teachme" / "references" / "RETENTION-AND-RECORDS.md").read_text(encoding="utf-8")
         mission_md = (REPO_ROOT / "skills" / "teachme" / "references" / "MISSION-AND-GRILL.md").read_text(encoding="utf-8")
+        visuals_md = (REPO_ROOT / "skills" / "teachme" / "references" / "VISUALS-AND-EXPERIMENTS.md").read_text(encoding="utf-8")
         handoff_md = (REPO_ROOT / "skills" / "teachme" / "references" / "SCRIPTORIUM-HANDOFF.md").read_text(encoding="utf-8")
 
-        # Teaching invariants
-        self.assertIn("No prior knowledge", mission_md)
-        self.assertIn("ONE-Question-Per-Turn", retention_md)
-        self.assertIn("Anti-Spoiler Micro-Hint Rule", retention_md)
-        self.assertIn("Interleaved recall", retention_md)
-        self.assertIn("Feynman", retention_md)
-        self.assertIn("Formula Anatomy Breakdown", retention_md)
+        # Adaptive teaching & evidence invariants
+        self.assertIn("Lightweight Calibration", mission_md)
+        self.assertIn("Adaptive Diagnostic", mission_md)
+        self.assertIn("Adaptive Decision Policy", retention_md)
+        self.assertIn("Graduated Support", retention_md)
+        self.assertIn("Formula Anatomy", retention_md)
         self.assertIn("Status: superseded by LR-000N", retention_md)
+        self.assertIn("Honest Host Capability Contract", visuals_md)
+        self.assertIn("metadata_only_unverified", visuals_md)
 
         # Intent routing & prohibitions
         self.assertIn("Notes-only request", skill_md)
         self.assertIn("Mixed request", skill_md)
         self.assertIn("/scribe-doubt", skill_md)
         self.assertIn("not even in chat as a fallback", skill_md)
-        self.assertIn("NEVER counts as mastery evidence", skill_md)
+        self.assertIn("Never fabricate", skill_md)
 
         # Lazy handoff contract & Scriptorium verified triggers
         self.assertIn("/scribe-notes <topic>", handoff_md)

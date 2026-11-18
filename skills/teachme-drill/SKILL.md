@@ -13,7 +13,7 @@ description: "Generate and grade live Tier 1 (recall), Tier 2 (multi-step), or T
 Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/`:
 1. `teachme/SKILL.md` (laws §A–§D)
 2. `teachme/references/cmd-drill.md`
-3. On demand only: `references/RETENTION-AND-RECORDS.md` (§3–§4 only)
+3. On demand only: `references/RETENTION-AND-RECORDS.md` (§3–§5 only)
 
 ## Execute
-Follow `cmd-drill.md` end-to-end; log checkpoint evidence via `vault_cli.py tick` and `learning-records/` without writing study notes.
+Follow `cmd-drill.md` end-to-end; log assessment evidence (`--result` and `--assistance`) via `vault_cli.py assess` (or `tick`) and `learning-records/` without writing study notes.

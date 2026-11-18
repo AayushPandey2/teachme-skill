@@ -13,7 +13,7 @@ description: "Test plain-English mastery of any concept by explaining it back wi
 Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/`:
 1. `teachme/SKILL.md` (laws §A–§D)
 2. `teachme/references/cmd-feynman.md`
-3. On demand only: `references/RETENTION-AND-RECORDS.md` (§4 only)
+3. On demand only: `references/RETENTION-AND-RECORDS.md` (§3 only)
 
 ## Execute
-Follow `cmd-feynman.md` end-to-end; persist operational mastery with `vault_cli.py tick` / `flush` and `learning-records/` without modifying study notes.
+Follow `cmd-feynman.md` end-to-end; persist operational evidence with `vault_cli.py assess` (or `tick`) and `learning-records/` without modifying study notes.

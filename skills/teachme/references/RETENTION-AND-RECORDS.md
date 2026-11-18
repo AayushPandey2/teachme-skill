@@ -1,62 +1,88 @@
-# Phase 4: Live Socratic Coaching, Pedagogy & Learning Records
+# Live Adaptive Teaching, Graduated Support, Evidence & Records
 
-Core invariants and CLI laws live in `SKILL.md §A–§D`.
+Core invariants and CLI laws live in `SKILL.md §A–§D`. Load `VISUALS-AND-EXPERIMENTS.md` only when a visual or experiment serves the active objective.
 
 ## §1. Per-Turn Context Protocol
-1. **One call per turn:** `vault_cli.py context [<session_or_vault>] --topic <nn>` returns `00-SESSION-STATE.md` summary, curriculum node (`objective`, `anchor`, `key_concepts`, `key_equations`), `scratchpad/queue-<nn>.json`, `recent_events`, `active_learning_records`, and 1-hop dependency `neighbors`.
-2. **Question queue:** At subtopic start, write `scratchpad/queue-<nn>.json` (`{"topic":"<nn>","cp":{"1":"…","2":"…","3":"…","4":"…"}}`) so later turns stay consistent without re-planning.
-3. **Delta logging:** `[1/4]`–`[3/4]` → `vault_cli.py tick` only. State-only mastery persistence happens once on `[4/4]` via `tick --cp 4 --status pass` + `flush`. Never create or mutate study notes.
-4. **Session overview:** After `init`, give a brief `<150`-word overview of the curriculum roadmap and start Lesson 1 Turn 1 immediately.
-5. **Interleaved recall:** At Lessons 3, 5, 7, … open with ONE warm-up blending a prior mastered lesson's core anchor with today's topic.
+1. **One bounded call per turn:** `vault_cli.py context [<session_or_vault>] --topic <nn>` returns operational state, objective-level coverage & proficiency, prerequisite states, bounded due-review summary, recent events, active learning records, and 1-hop neighbors.
+2. **Check coverage & due items when relevant:** Use `vault_cli.py coverage` to see untested required objectives and unresolved gaps, and `vault_cli.py due` for scheduled delayed reviews. Do **not** claim completion of the agreed scope while required objectives remain untested or prerequisite gaps remain unresolved.
+3. **Never write study notes:** Persist evidence via `vault_cli.py assess` (or `tick`) and `learning-records/`.
 
-## §2. Pedagogical Standards (Applied Live in Chat)
-Apply these teaching principles in conversation without generating study-note files:
-- **Formula Anatomy Breakdown (every equation taught):**
-  1. *Zero-Baseline Micro-Bridge:* Introduce each new symbol with 2–3 plain-English lines and a tiny 2-number example before using it in an equation.
-  2. *Intuition Before Symbols:* Explain geometry, scaling, and direction in words first.
-  3. *Symbol & Operator Table:* State role, shape/domain/units, and directional sensitivity for each variable, sub/superscript, and operator.
-  4. *Zero-Skip `I Do` Trace + Limiting Cases:* Walk through concrete arithmetic with zero skipped algebra, and test boundary behavior ($0$, $1$, $-1$, $\infty$, degenerate inputs).
-- **Analogy + Breakdown:** Pair every everyday physical analogy with an explicit statement of where the analogy breaks down.
-- **Contrastive "Is vs. Is Not" Framing:** Contrast the concept against its closest lookalike on mechanism, governing invariant, and failure mode.
-- **Common Misconceptions:** Call out traps explicitly as `_Avoid_:` vs. `True Invariant`.
+## §2. Adaptive Decision Policy (Replaces Rigid 4-Turn / Forced-Quiz Pacing)
+Run this compact loop every turn with **no forced minimum number of turns**:
+- **A. Identify current objective** (from agreed scope, due reviews, or learner question).
+- **B. Inspect prerequisite evidence & recent performance** (`unknown` / `needs_support` / `demonstrated`; recent `assistance_level`, failures, or misconceptions).
+- **C. Choose an appropriate teaching or assessment action:**
+  - *Direct conceptual question* -> answer clearly and directly; do **not** force a closing quiz.
+  - *Narrow doubt* -> give a short targeted lesson or worked trace; assess only if needed.
+  - *Already-demonstrated material* -> skip or quickly verify rather than re-teaching basics.
+  - *New or fragile objective* -> teach with intuition before unfamiliar formalism, define unfamiliar symbols/units/domains/assumptions (`Formula Anatomy` when teaching an equation), use worked examples (`I Do`), partially completed examples (`We Do`), contrastive examples (`Is vs. Is Not`), relevant edge cases, and explicit breakdown points for analogies.
+  - *Missing prerequisite detected* -> pause, add/link the prerequisite via `vault_cli.py revise-curriculum` if needed, repair it, then resume.
+  - *Due review item* -> start with **unaided retrieval** before giving a recap.
+- **D. Observe the learner's response** (when assessing, usually ask **one focused question at a time** and wait for the learner's reply before grading).
+- **E. Update evidence & unresolved gaps** via `vault_cli.py assess` and `learning-records/`.
+- **F. Select the next action** based on evidence.
 
-## §3. Strict ONE-Question-Per-Turn Law & 4-Turn Pacing
-**Never** ask multiple questions in one turn. Every turn ends with exactly ONE focused question; wait for the learner's reply before advancing.
+Do **not** force: an identical 4-turn structure for every learner, an ASCII diagram in every opening, exhaustive explanations of familiar symbols, irrelevant boundary values, or a Feynman check for every small notation item.
 
-| Turn | Stage | Content | Ends With |
-|---|---|---|---|
-| 1 | `1/3` Intuition | Banner + progress strip; 3–4 sentence everyday hook + 4–6 line ASCII diagram. **Zero Greek letters, set notation, or equations**; don't spoil the rule. | `[1/4]` Pre-Rule Discovery prediction |
-| 2 | `2/3` Building Blocks | Validate `[1/4]` (Anti-Spoiler if wrong); introduce 2–3 symbols with 2-number examples; `$$…$$` equation + Formula Anatomy + zero-skip `I Do` trace. | `[2/4]` `We Do` faded boundary problem (`[Step 2: ___]`) |
-| 3 | `3/3` Solo | Brief feedback only. | `[3/4]` `You Do` fresh unscaffolded drill |
-| 4 | `3/3` Mastery Gate | Brief feedback only. | `[4/4]` adversarial edge case + 2-sentence jargon-free Feynman summary |
+## §3. Graduated Support (Replaces Absolute Anti-Spoiler)
+Do not reveal assessment answers before the learner attempts them unless they explicitly ask for an explanation or you deliberately switch to instruction. When the learner gets stuck or requests help:
+1. **Small targeted hint** (`--assistance hint`).
+2. **More explicit cue or partially completed solution** (`--assistance scaffold`).
+3. **Worked example or direct explanation** (`--assistance worked_example`).
+4. **Fresh independent attempt** (`--assistance none`) on a new problem where the solution path is no longer supplied.
 
-- **Banner:** `Lesson X/Y: <Title> | Stage k/3 | Session: <topic-slug>`
-- **Progress strip:** `Path: [1/4] Discovery → [2/4] We Do → [3/4] You Do → [4/4] Edge-Case & Feynman`
-- **Chat headings:** `### The Problem & Real-World Hook` (T1), `### Building Blocks (From Scratch)` + `### Formal Equation & Worked Example (I Do)` (T2), and `### Checkpoint [k/4] — <Name>` closing every turn.
-- **On passing `[4/4]`:** `tick --cp 4 --status pass --note "<invariant>"` → `flush --topic <nn> --note "<invariant>"` → log any struggles/breakthroughs in `learning-records/` → advance to Lesson X+1. Never auto-generate study notes on lesson completion.
+- **Direct `"explain"` request:** If the learner says `"explain"` (or `"just show me"`), explain directly—do not trap them in endless micro-questions. Record any subsequent practice honestly as assisted (`worked_example` or `scaffold`) until they pass a fresh unaided task.
+- **Accurate feedback:** Identify what was correct, pinpoint the first meaningful error, and explain or scaffold the missing step. Avoid false praise and vague `"almost right"` responses.
+- **Repeated errors:** If repeated errors indicate a missing prerequisite, pause and repair it.
 
-## §4. Anti-Spoiler Micro-Hint Rule
-On `idk`, `explain`, `not sure`, or any error at any checkpoint:
-1. Never reveal the answer or the general rule.
-2. Credit the sound part of their reasoning; pinpoint the exact divergent step.
-3. Drop one rung: ask ONE tiny 1-number micro-question so they discover that step.
-4. Confirm the rule only after they solve it, then resume the active checkpoint.
+## §4. Expanded Assessment Types & Verification
+Choose tasks matching the objective and evidence; do not mechanically run every task type on every lesson:
+- `prediction` (predict behavior before explanation)
+- `worked_example_completion` (complete faded steps)
+- `independent_application` (solve unaided)
+- `find_first_error` (locate the first wrong step in a derivation/trace)
+- `method_justification` (choose and justify a method over alternatives)
+- `violated_assumption` (spot where a formula/rule stops being valid)
+- `counterexample` (construct a case that breaks a claim)
+- `concept_comparison` (contrast lookalikes on mechanism and failure mode)
+- `why_tempting_fails` (explain why a common wrong answer fails)
+- `predict_output` / `debug_program` (trace or fix small code)
+- `transfer` (apply in an unfamiliar reasoning context—changing numbers alone is **not** transfer)
+- `delayed_recall` (unaided retrieval after a delay, `>= 12h` and different session)
+- `feynman_explanation` (explain mechanism in plain words with zero unstated jargon)
 
-## §5. Baseline Calibration (from `scratchpad/mission.json` / `00-MISSION.md`)
-- **No prior knowledge / Beginner:** Turn 1 strictly symbol-free; small clean scalars in Turn 2's examples, `I Do`, and `We Do`.
-- **Intermediate / Advanced:** Same 4-turn shape and ONE-question law; deeper scenarios and harsher Turn 4 limits.
+**Exercise Verification:** Before presenting generated exercises, verify arithmetic, execute small code examples when a safe runtime is available, check assumptions/edge cases, pass `--checked` if verified, and clearly distinguish checked results from unverified ones.
 
-## §6. `wait what` / `simplify` / `I'm lost` Escape Hatch
-Pause the checkpoint → diagnose the abstraction jump → re-explain from zero with plain definitions + a 1-number scalar trace → record the clearer analogy or misconception fix in `learning-records/` → resume at the exact `Lesson X/Y — Checkpoint [k/4]`.
+## §5. Evidence Recording, Retention vs. Transfer & Legacy Compatibility
+Record every assessment via `vault_cli.py assess` (or compatible `tick`):
 
-## §7. Durable Learning Records (`learning-records/`)
-- Log struggles, corrected misconceptions, breakthroughs, clearer analogies, and mission shifts in `learning-records/000N-<slug>.md`. Never delete; mark superseded records `Status: superseded by LR-000N`.
+```bash
+python vault_cli.py assess [<session_or_vault>] --topic <nn> --objective <obj_id> \
+  --assessment-type <type> --result <pass|partial|fail|skipped> \
+  --assistance <none|hint|scaffold|worked_example> \
+  [--attempt-id <id>] [--rationale "<brief rationale>"] [--misconception "<ref>"]
+```
+
+- **Separate dimensions:** Coverage (`not_taught`, `introduced`, `assessed`, `demonstrated`, `unresolved`, `out_of_scope`), core proficiency (`introduced`, `practiced_with_support`, `demonstrated_independently`, `weakened`, `legacy_unverified`), `retention`, and `transfer` are tracked separately.
+- **Assisted vs. Independent:** Assisted success (`hint`, `scaffold`, `worked_example`) logs progress (`practiced_with_support`), **not** `demonstrated_independently`, and does **not** advance the review schedule (`1, 3, 7, 21` days default).
+- **Delayed Review Rules:** Same-session retries do not establish `retained_after_delay`. Early practice does not postpone `next_review_at`. Failures increment `lapse_count` and reset the review stage; repeated failures trigger prerequisite repair.
+- **Revising earlier conclusions:** A later failure or misconception updates current status to `weakened` / `unresolved` while retaining prior pass events in append-only `events.jsonl`.
+- **Never fabricate:** Only record `--confidence` or `--active-time` if explicitly supplied/reliably measured (never treat tool latency or inter-session gaps as active study time). Legacy `tick`/`flush` without `--assistance` records `assistance_level: "unknown"` and never establishes retention or transfer.
+
+## §6. Durable Learning Records (`learning-records/`)
+Log struggles, corrected misconceptions, breakthroughs, clearer analogies, and scope/mission shifts in `learning-records/000N-<slug>.md`. Never delete; mark superseded records `Status: superseded by LR-000N`.
 
 ```markdown
 # LR-0001: <Short Title>
-- **Date:** <YYYY-MM-DD> | **Status:** active | **Lesson:** <X/Y>
+- **Date:** <YYYY-MM-DD> | **Status:** active | **Objective:** <obj_id>
 ## Context
-<Checkpoint, micro-step, or misconception that triggered this.>
+<Misconception, failed step, or prerequisite gap.>
 ## Insight
-<What was clarified, including the true invariant or clearer analogy.>
+<True invariant, correction, or clearer analogy.>
 ```
+
+## §7. Evaluation & Comparison Protocol (Without Fabricated Metrics)
+When evaluating adaptive policy effectiveness against a baseline:
+1. Define comparable learning objectives within a fixed scope.
+2. Compare baseline vs. upgraded policy on: (a) attempts or reliably measured active time to `demonstrated_independently`, (b) delayed recall pass rate on `due` items, (c) unfamiliar `transfer` task performance, and (d) `assistance_level` required.
+3. Inspect `vault_cli.py progress` (reports `"unavailable"` whenever active time was not reliably recorded). Never treat chat completion rate, decorative visuals, or self-reported enjoyment as proof of learning.
