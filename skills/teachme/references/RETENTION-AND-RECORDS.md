@@ -7,22 +7,27 @@ Core invariants and CLI laws live in `SKILL.md §A–§D`. Load `VISUALS-AND-EXP
 2. **Check coverage & due items when relevant:** Use `vault_cli.py coverage` to see untested required objectives and unresolved gaps, and `vault_cli.py due` for scheduled delayed reviews. Do **not** claim completion of the agreed scope while required objectives remain untested or prerequisite gaps remain unresolved.
 3. **Never write study notes:** Persist evidence via `vault_cli.py assess` (or `tick`) and `learning-records/`.
 
-## §2. Adaptive Decision Policy (Replaces Rigid 4-Turn / Forced-Quiz Pacing)
-Run this compact loop every turn with **no forced minimum number of turns**:
-- **A. Identify current objective** (from agreed scope, due reviews, or learner question).
-- **B. Inspect prerequisite evidence & recent performance** (`unknown` / `needs_support` / `demonstrated`; recent `assistance_level`, failures, or misconceptions).
-- **C. Choose an appropriate teaching or assessment action:**
-  - *Direct conceptual question* -> answer clearly and directly; do **not** force a closing quiz.
-  - *Narrow doubt* -> give a short targeted lesson or worked trace; assess only if needed.
-  - *Already-demonstrated material* -> skip or quickly verify rather than re-teaching basics.
-  - *New or fragile objective* -> teach with intuition before unfamiliar formalism, define unfamiliar symbols/units/domains/assumptions (`Formula Anatomy` when teaching an equation), use worked examples (`I Do`), partially completed examples (`We Do`), contrastive examples (`Is vs. Is Not`), relevant edge cases, and explicit breakdown points for analogies.
-  - *Missing prerequisite detected* -> pause, add/link the prerequisite via `vault_cli.py revise-curriculum` if needed, repair it, then resume.
-  - *Due review item* -> start with **unaided retrieval** before giving a recap.
-- **D. Observe the learner's response** (when assessing, usually ask **one focused question at a time** and wait for the learner's reply before grading).
-- **E. Update evidence & unresolved gaps** via `vault_cli.py assess` and `learning-records/`.
-- **F. Select the next action** based on evidence.
+## §2. Adaptive Decision Policy & Modality Selection
+Keep modality selection separate from `resolve-sources` (sources decide *where* knowledge comes from; `vault_cli.py route-modality` decides *how* to teach it). Run this adaptive loop with **no rigid sequence**:
+1. **Identify objective** (from agreed scope, due reviews, or learner question).
+2. **Load minimal context & evidence** (`vault_cli.py context` + prerequisite states + recent errors).
+3. **Select a teaching modality** (`vault_cli.py route-modality`): choose a visual, simulation, quiz, or experiment **only** when it materially improves understanding or assessment; if evidence of usefulness is weak, prefer simpler/cheaper text.
+4. **Explain or demonstrate** using evidence-informed methods:
+   - *First-principles teaching:* Fundamental intuition before advanced terminology; explain why the mechanism works and unpack equations via `Formula Anatomy`.
+   - *Predict -> Observe -> Explain:* For simulations/experiments, ask for a prediction, run/advance, show the observed result, explain mismatches, then vary a parameter.
+   - *Worked example fading:* Start with an explained example (`I Do`), fade assistance (`We Do`), then verify with a fresh independent problem (`You Do`).
+   - *Misconception-driven teaching & modality switching:* Target the specific flawed mental model; after repeated errors, switch to a genuinely different modality instead of repeating the same explanation.
+   - *Retrieval practice & interleaving:* Start due reviews with **unaided retrieval** before any recap; interleave related objectives when ready.
+   - *Transfer-based mastery:* Test unfamiliar reasoning contexts (changing numbers alone is **not** transfer).
+   - *Adaptive pacing:* Keep explanations short for demonstrated familiarity; add scaffolding when evidence shows struggle; respect short time budgets.
+   - *Explain-on-request:* If the learner explicitly asks for a direct explanation (`"explain"`), provide it directly—do **not** trap them in forced quizzes or Socratic loops.
+5. **Ask for learner participation only when useful** (e.g., skip forced closing quizzes after a simple definition or narrow conceptual question).
+6. **Evaluate actual response** (`vault_cli.py evaluate-answer` for numeric/choice/expression/trace checks; rubric evaluation for complex conceptual/Feynman explanations—never naive keyword matching alone).
+7. **Record evidence & misconceptions** via `vault_cli.py assess` and `learning-records/`.
+8. **Adapt difficulty or modality** (Level 1 Foundation -> Level 2 Reasoning -> Level 3 Mastery & transfer via `vault_cli.py quiz-plan`).
+9. **Continue or schedule later review.**
 
-Do **not** force: an identical 4-turn structure for every learner, an ASCII diagram in every opening, exhaustive explanations of familiar symbols, irrelevant boundary values, or a Feynman check for every small notation item.
+Do **not** force: an identical 4-turn structure for every learner, an ASCII diagram or simulation in every opening, exhaustive explanations of familiar symbols, or a quiz after every short conceptual answer.
 
 ## §3. Graduated Support (Replaces Absolute Anti-Spoiler)
 Do not reveal assessment answers before the learner attempts them unless they explicitly ask for an explanation or you deliberately switch to instruction. When the learner gets stuck or requests help:
@@ -35,23 +40,14 @@ Do not reveal assessment answers before the learner attempts them unless they ex
 - **Accurate feedback:** Identify what was correct, pinpoint the first meaningful error, and explain or scaffold the missing step. Avoid false praise and vague `"almost right"` responses.
 - **Repeated errors:** If repeated errors indicate a missing prerequisite, pause and repair it.
 
-## §4. Expanded Assessment Types & Verification
-Choose tasks matching the objective and evidence; do not mechanically run every task type on every lesson:
-- `prediction` (predict behavior before explanation)
-- `worked_example_completion` (complete faded steps)
-- `independent_application` (solve unaided)
-- `find_first_error` (locate the first wrong step in a derivation/trace)
-- `method_justification` (choose and justify a method over alternatives)
-- `violated_assumption` (spot where a formula/rule stops being valid)
-- `counterexample` (construct a case that breaks a claim)
-- `concept_comparison` (contrast lookalikes on mechanism and failure mode)
-- `why_tempting_fails` (explain why a common wrong answer fails)
-- `predict_output` / `debug_program` (trace or fix small code)
-- `transfer` (apply in an unfamiliar reasoning context—changing numbers alone is **not** transfer)
-- `delayed_recall` (unaided retrieval after a delay, `>= 12h` and different session)
-- `feynman_explanation` (explain mechanism in plain words with zero unstated jargon)
+## §4. Adaptive Quizzing, Assessment Types & Verification
+Use `vault_cli.py quiz-plan [<session>] --topic <nn> [--objective <obj_id>]` to select an appropriate difficulty level (`1` Foundation, `2` Reasoning, `3` Mastery & transfer) and task type without repeating already-demonstrated basics or advancing difficulty on assisted passes alone:
+- **Level 1 — Foundation:** `multiple_choice`, `short_conceptual`, `numerical_calculation`, `prediction`, `predict_output`, `worked_example_completion`
+- **Level 2 — Reasoning:** `independent_application`, `fill_missing_step`, `find_first_error`, `debug_program`, `method_justification`, `concept_comparison`
+- **Level 3 — Mastery and transfer:** `violated_assumption`, `counterexample`, `why_tempting_fails`, `feynman_explanation`, `transfer` (vary reasoning context, not just numbers)
+- **Delayed retention:** `delayed_recall` (unaided retrieval after `>= 12h` and a different session)
 
-**Exercise Verification:** Before presenting generated exercises, verify arithmetic, execute small code examples when a safe runtime is available, check assumptions/edge cases, pass `--checked` if verified, and clearly distinguish checked results from unverified ones.
+**Verification & Honest Feedback:** Before presenting generated exercises, verify arithmetic, execute small code examples when a safe runtime is available, check assumptions/edge cases, pass `--checked` if verified, and clearly distinguish checked results from unverified ones. Use `vault_cli.py evaluate-answer` for deterministic checking of numeric, multiple-choice, math-expression, and exact-trace answers; for complex conceptual/Feynman answers, evaluate against causal mechanism and assumptions rather than naive keyword matching. Avoid generic praise; identify the specific error, whether it indicates a missing prerequisite, and offer an appropriate hint, alternative explanation, or fresh follow-up.
 
 ## §5. Evidence Recording, Retention vs. Transfer & Legacy Compatibility
 Record every assessment via `vault_cli.py assess` (or compatible `tick`):

@@ -16,4 +16,4 @@ Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/te
 3. On demand only: `references/RETENTION-AND-RECORDS.md` (§3–§5 only)
 
 ## Execute
-Follow `cmd-drill.md` end-to-end; log assessment evidence (`--result` and `--assistance`) via `vault_cli.py assess` (or `tick`) and `learning-records/` without writing study notes.
+Follow `cmd-drill.md` end-to-end using `vault_cli.py quiz-plan` and `vault_cli.py evaluate-answer` when applicable; log assessment evidence (`--result` and `--assistance`) via `vault_cli.py assess` (or `tick`) and `learning-records/` without writing study notes.

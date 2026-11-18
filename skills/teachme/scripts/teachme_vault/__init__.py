@@ -1,5 +1,10 @@
 """Operational learning-state and read-only Obsidian source indexing for TeachMe."""
 
+from .adaptive_quiz import (
+    DIFFICULTY_LEVELS,
+    evaluate_learner_response,
+    select_question_plan,
+)
 from .evidence import (
     ASSISTANCE_LEVELS,
     ASSESSMENT_DIMENSIONS,
@@ -20,6 +25,18 @@ from .indexer import (
     resolve_sources,
     retrieve_note_sections,
     search_vault,
+)
+from .media_retrieval import (
+    build_image_query,
+    evaluate_image_candidate,
+    select_and_prepare_image,
+    should_retrieve_image,
+)
+from .modality_router import (
+    CONCEPT_TYPES,
+    SUPPORTED_MODALITIES,
+    infer_concept_type,
+    select_teaching_modality,
 )
 from .models import (
     DEFAULT_IGNORED_DIRS,
@@ -44,6 +61,13 @@ from .scheduler import (
     load_review_state,
     save_review_state,
 )
+from .simulations import (
+    SIMULATION_REGISTRY,
+    create_simulation,
+    list_simulation_templates,
+    run_interactive_cli,
+    run_non_interactive_demo,
+)
 from .state_store import (
     HANDOFF_SCHEMA_VERSION,
     build_handoff_envelope,
@@ -58,34 +82,59 @@ from .state_store import (
     save_mission,
     validate_session_state,
 )
+from .terminal_caps import (
+    detect_host_capabilities,
+    detect_terminal_capabilities,
+)
+from .terminal_graph import (
+    compile_safe_math_expr,
+    render_bar_chart,
+    render_function_graph,
+    render_histogram,
+    render_optimization_trace,
+    render_xy_graph,
+)
 
 __all__ = [
     "ASSISTANCE_LEVELS",
     "ASSESSMENT_DIMENSIONS",
     "ASSESSMENT_RESULTS",
     "ASSESSMENT_TYPES",
+    "CONCEPT_TYPES",
     "COVERAGE_STATUSES",
     "DEFAULT_IGNORED_DIRS",
     "DEFAULT_INTERVALS_DAYS",
+    "DIFFICULTY_LEVELS",
     "HANDOFF_SCHEMA_VERSION",
     "MODE_AUTO",
     "MODE_STANDALONE",
     "MODE_VAULT_NATIVE",
     "PREREQUISITE_STATES",
     "PROFICIENCY_STATUSES",
+    "SIMULATION_REGISTRY",
+    "SUPPORTED_MODALITIES",
     "apply_event_to_review_store",
     "atomic_write_text",
     "build_handoff_envelope",
+    "build_image_query",
     "build_or_update_index",
+    "compile_safe_math_expr",
+    "create_simulation",
     "derive_objective_evidence",
     "derive_session_coverage_and_gaps",
+    "detect_host_capabilities",
+    "detect_terminal_capabilities",
     "detect_vault_mode",
+    "evaluate_image_candidate",
+    "evaluate_learner_response",
     "extract_markdown_sections",
     "get_active_vault_entry",
     "get_due_reviews",
     "get_registered_vaults",
     "import_legacy_vault",
+    "infer_concept_type",
     "init_session_state",
+    "list_simulation_templates",
     "list_vault_native_sessions",
     "load_config",
     "load_media_provenance",
@@ -96,16 +145,27 @@ __all__ = [
     "rebuild_curriculum_graph",
     "record_media_provenance",
     "register_vault",
+    "render_bar_chart",
+    "render_function_graph",
+    "render_histogram",
+    "render_optimization_trace",
+    "render_xy_graph",
     "resolve_session_dir",
     "resolve_sources",
     "resolve_state_dir",
     "retrieve_note_sections",
     "revise_curriculum",
+    "run_interactive_cli",
+    "run_non_interactive_demo",
     "save_config",
     "save_mission",
     "save_review_state",
     "search_vault",
     "select_active_vault",
+    "select_and_prepare_image",
+    "select_question_plan",
+    "select_teaching_modality",
+    "should_retrieve_image",
     "unregister_vault",
     "validate_session_state",
 ]

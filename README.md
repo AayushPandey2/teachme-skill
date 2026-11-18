@@ -129,6 +129,18 @@ python skills/teachme/scripts/vault_cli.py validate-state <session_or_vault>
 python skills/teachme/scripts/vault_cli.py migrate <session_or_vault>
 python skills/teachme/scripts/vault_cli.py import-legacy <legacy_vault> [--target <state_dir>]
 python skills/teachme/scripts/vault_cli.py handoff <session_or_vault> --topic 01 --request "revision notes"
+
+# Terminal-first intelligent teaching engine (modality router, graphs, simulations, adaptive quizzes, image planning)
+python skills/teachme/scripts/vault_cli.py capabilities
+python skills/teachme/scripts/vault_cli.py route-modality <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py graph-render --kind function --expr "x^2 - 2*x" --x-min -2 --x-max 4 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template gradient_descent --param lr=0.2 --param w0=4 --predict decrease --steps 5 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template sorting --param algorithm=selection --param array=5,2,8,1,4 --steps 4 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template c_pointers --param scenario=basic_deref --steps 3 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template probability --param p=0.5 --param batch_size=50 --steps 4 --format text
+python skills/teachme/scripts/vault_cli.py quiz-plan <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py evaluate-answer --kind numeric --expected 4.5 --answer "4.5"
+python skills/teachme/scripts/vault_cli.py image-plan --topic-name "Human Heart" --desc "Identify left ventricle anatomy" --no-tty
 ```
 
 ## Policy Scenarios & Tests
@@ -152,13 +164,20 @@ teachme-skill/
     │   │   ├── vault_cli.py               # Operational state CLI
     │   │   └── teachme_vault/
     │   │       ├── __init__.py
-    │       ├── cli_commands.py        # connect, vaults, use-vault, resolve-sources, search, reindex
+    │       ├── adaptive_quiz.py   # Level 1-3 question selection & deterministic checking
+    │   │       ├── cli_commands.py        # connect, vaults, use-vault, resolve-sources, search, reindex
+    │   │       ├── engine_commands.py # capabilities, route-modality, graph-render, simulate, quiz-plan, evaluate-answer, image-plan
     │       ├── evidence.py            # Objective coverage, proficiency & media provenance
     │       ├── indexer.py             # Read-only incremental vault index & source resolution
     │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
+    │   │       ├── media_retrieval.py # Credible web image filtering, caching & terminal fallbacks
+    │   │       ├── modality_router.py # Explainable teaching modality selection policy
     │       ├── models.py              # Config, multi-vault registry, mode detection, safety guards
     │       ├── scheduler.py           # Deterministic delayed-review scheduler & ranking
-    │       └── state_store.py         # Curriculum state, migration, revision & handoff
+    │   │       ├── simulations.py     # Bounded portable simulations (GD, sorting, C pointers, probability)
+    │       ├── state_store.py         # Curriculum state, migration, revision & handoff
+    │   │       ├── terminal_caps.py   # Cross-platform TTY, NO_COLOR, Unicode & image protocol detection
+    │   │       └── terminal_graph.py  # Stdlib ASCII/Unicode/Braille plotter & safe math AST evaluator
     │   └── references/
     │       ├── MISSION-AND-GRILL.md       # Source resolution, fast calibration, diagnostics & init
     │       ├── RESEARCH-TOOLCHAIN.md      # Source-mode-aware retrieval & untrusted content rules

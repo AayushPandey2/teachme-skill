@@ -24,6 +24,7 @@ if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
 from teachme_vault.cli_commands import register_vault_native_subcommands
+from teachme_vault.engine_commands import register_teaching_engine_subcommands
 from teachme_vault.evidence import (
     ASSISTANCE_LEVELS,
     ASSESSMENT_RESULTS,
@@ -1322,6 +1323,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_hand.set_defaults(func=cmd_handoff)
 
     register_vault_native_subcommands(sub)
+    register_teaching_engine_subcommands(sub)
 
     return parser
 
