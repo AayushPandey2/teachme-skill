@@ -13,12 +13,18 @@ import uuid
 
 from .evidence import (
     CURRICULUM_SCHEMA_VERSION,
+    append_event_idempotent,
     derive_objective_evidence,
     derive_session_coverage_and_gaps,
+    format_utc_ts,
     load_media_provenance,
+    normalize_assessment_type,
+    normalize_assistance,
     normalize_event,
     normalize_objectives_list,
     normalize_prerequisite_state,
+    normalize_result,
+    parse_utc_ts,
 )
 from .markdown_utils import parse_frontmatter_tolerant
 from .models import (
@@ -34,6 +40,7 @@ from .models import (
     utc_now_iso,
 )
 from .scheduler import (
+    apply_event_to_review_store,
     load_review_state,
     save_review_state,
     sync_review_item_for_legacy_node,
@@ -1943,3 +1950,269 @@ def build_handoff_envelope(
         envelope["persisted_envelope_path"] = str(out_file)
 
     return envelope
+
+
+def record_assessment_event(
+    session_dir: Path,
+    *,
+    topic: str,
+    objective: str | None = None,
+    result: str = "pass",
+    assistance: str | None = None,
+    assessment_type: str | None = None,
+    cp: int | None = None,
+    stage: int | None = None,
+    item_id: str = "",
+    attempt_id: str | None = None,
+    rationale: str = "",
+    misconception: str | None = None,
+    confidence: str | None = None,
+    active_time: float | None = None,
+    response_summary: str | None = None,
+    transfer_context: str | None = None,
+    session_run: str | None = None,
+    now: str | datetime | None = None,
+    checked: bool = False,
+) -> dict[str, Any]:
+    """Append assessment evidence and update review schedule, curriculum, graph, and state."""
+    topic_num = normalize_topic_num(topic)
+    node_id = f"topic-{topic_num}"
+
+    cp_val = int(cp) if cp is not None else None
+    eff_cp = cp_val if cp_val is not None else 1
+    raw_status = result or "pass"
+    norm_result = normalize_result(raw_status)
+    assistance_level = normalize_assistance(assistance)
+    atype = normalize_assessment_type(assessment_type, legacy_cp=cp_val)
+    if stage is not None:
+        eff_stage = int(stage)
+    elif eff_cp <= 1:
+        eff_stage = 1
+    elif eff_cp == 2:
+        eff_stage = 2
+    else:
+        eff_stage = 3
+
+    now_dt = parse_utc_ts(now)
+    now_iso = format_utc_ts(now_dt)
+
+    scratchpad = session_dir / "scratchpad"
+    scratchpad.mkdir(parents=True, exist_ok=True)
+    events_path = scratchpad / "events.jsonl"
+
+    curriculum = load_curriculum(session_dir)
+    c_nodes = dict(curriculum.get("nodes", {}))
+    cnode = dict(c_nodes.get(node_id) or {"id": node_id, "slug": node_id, "title": node_id})
+    objs = normalize_objectives_list(node_id, cnode)
+    target_oid = (objective or "").strip() or objs[0]["id"]
+
+    if objective and not any(o["id"] == target_oid for o in objs):
+        raise ValueError(f"Objective {target_oid} not found under {node_id}")
+
+    clean_rationale = (rationale or "").strip()
+    clean_attempt_id = (attempt_id or "").strip() or None
+
+    event: dict[str, Any] = {
+        "schema_version": 2,
+        "ts": now_iso,
+        "topic": topic_num,
+        "topic_id": node_id,
+        "objective_id": target_oid,
+        "item_id": (item_id or (f"cp-{eff_cp}" if cp_val is not None else "")).strip(),
+        "assessment_type": atype,
+        "result": norm_result,
+        "status": "retry" if raw_status == "retry" else norm_result,
+        "assistance_level": assistance_level,
+        "stage": eff_stage,
+    }
+    if cp_val is not None:
+        event["cp"] = eff_cp
+    if clean_attempt_id:
+        event["attempt_id"] = clean_attempt_id
+    if clean_rationale:
+        event["note"] = clean_rationale
+        event["rationale"] = clean_rationale
+    if misconception:
+        event["misconception_ref"] = misconception.strip()
+    if confidence is not None:
+        event["learner_confidence"] = confidence
+    if active_time is not None:
+        event["active_time_sec"] = float(active_time)
+    if response_summary:
+        event["response_summary"] = response_summary.strip()
+    if transfer_context:
+        event["transfer_context"] = transfer_context.strip()
+    if session_run:
+        event["session_run_id"] = session_run.strip()
+    if checked:
+        event["verification"] = {"checked": True}
+
+    existing_events = load_events(session_dir)
+    recorded_ev, deduplicated = append_event_idempotent(events_path, event, existing_events=existing_events)
+    if deduplicated:
+        return {
+            "ok": True,
+            "deduplicated": True,
+            "event_id": recorded_ev.get("event_id"),
+            "attempt_id": clean_attempt_id,
+            "topic": topic_num,
+            "node_id": node_id,
+            "objective_id": target_oid,
+        }
+
+    all_topic_events = load_events(session_dir, topic_num=topic_num)
+
+    review_store = load_review_state(session_dir)
+    review_item = apply_event_to_review_store(
+        review_store,
+        target_id=target_oid,
+        topic_id=node_id,
+        result=norm_result,
+        assistance_level=assistance_level,
+        assessment_type=atype,
+        now=now_dt,
+        session_run_id=event.get("session_run_id"),
+    )
+    save_review_state(session_dir, review_store)
+
+    for idx, obj in enumerate(objs):
+        oid = obj["id"]
+        obj_evs = [e for e in all_topic_events if e.get("objective_id") == oid]
+        if idx == 0:
+            obj_evs.extend(e for e in all_topic_events if not e.get("objective_id"))
+        objs[idx] = derive_objective_evidence(
+            obj,
+            obj_evs,
+            node_status=str(cnode.get("status") or "in_progress"),
+            node_checkpoint=f"{eff_cp}/4" if cp_val is not None else str(cnode.get("checkpoint") or "0/4"),
+        )
+    cnode["objectives"] = objs
+
+    all_objs_indep = bool(objs) and all(
+        (not o.get("in_scope", True)) or o["proficiency"]["status"] == "demonstrated_independently"
+        for o in objs
+    )
+    any_weakened = any(o["proficiency"]["status"] == "weakened" for o in objs)
+    legacy_cp4_pass = cp_val == 4 and norm_result == "pass" and assistance_level == "unknown"
+
+    if any_weakened or norm_result == "fail":
+        new_node_status = "in_progress"
+    elif all_objs_indep or legacy_cp4_pass:
+        new_node_status = "mastered"
+    elif cnode.get("status") == "mastered" and norm_result == "pass":
+        new_node_status = "mastered"
+    else:
+        new_node_status = "in_progress"
+
+    cnode["status"] = new_node_status
+    if cp_val is not None:
+        cnode["checkpoint"] = f"{eff_cp}/4"
+    if clean_rationale and norm_result == "pass":
+        cnode["last_invariant"] = clean_rationale
+    c_nodes[node_id] = cnode
+    curriculum["nodes"] = c_nodes
+    if node_id not in curriculum.get("order", []):
+        curriculum.setdefault("order", []).append(node_id)
+    save_curriculum(session_dir, curriculum)
+
+    graph_path = session_dir / "00-GRAPH.json"
+    graph = load_json_dict(graph_path) or {
+        "schema_version": 2,
+        "kind": "curriculum_dependency_graph",
+        "nodes": {},
+        "order": [],
+    }
+    nodes = dict(graph.get("nodes", {}))
+    order = list(graph.get("order", []))
+    node = dict(
+        nodes.get(
+            node_id,
+            {"title": node_id, "depends_on": [], "unlocks": [], "contrasts_with": [], "fixes_failure_of": []},
+        )
+    )
+    if cp_val is not None:
+        node["checkpoint"] = f"{eff_cp}/4"
+    node["status"] = new_node_status
+    if clean_rationale and norm_result == "pass":
+        node["last_invariant"] = clean_rationale
+    ev_list = list(node.get("evidence", []))
+    ev_list.append(
+        {
+            "ts": now_iso,
+            "cp": cp_val,
+            "objective_id": target_oid,
+            "assessment_type": atype,
+            "result": norm_result,
+            "status": event["status"],
+            "assistance_level": assistance_level,
+            "note": clean_rationale,
+        }
+    )
+    node["evidence"] = ev_list[-20:]
+    nodes[node_id] = node
+    if node_id not in order:
+        order.append(node_id)
+    graph["nodes"] = nodes
+    graph["order"] = order
+    atomic_write_text(graph_path, json.dumps(graph, indent=2, ensure_ascii=False) + "\n")
+
+    state_file = session_dir / "00-SESSION-STATE.md"
+    mark = "[x]" if new_node_status == "mastered" else "[~]"
+    all_nums = [nid.replace("topic-", "") for nid in order] or [topic_num]
+
+    if state_file.is_file():
+        lines = read_text_safe(state_file).splitlines()
+    else:
+        status_tokens = " ".join(f"`[ ] {n}`" for n in all_nums)
+        lines = [
+            f"# Session State: {session_dir.name}",
+            "",
+            f"- **Active Subtopic:** `{node_id}`",
+            f"- **Live Stage & Checkpoint:** `Depth Stage {eff_stage}/3 | Checkpoint [{eff_cp}/4]`",
+            "- **Last Verified Invariant:** Initialized.",
+            "",
+            "## Compact Subtopic Status Map",
+            status_tokens,
+            "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
+        ]
+
+    updated_lines: list[str] = []
+    token_re = re.compile(rf"`\[[ x~]\]\s*{re.escape(topic_num)}`")
+    has_token = any(token_re.search(line) for line in lines)
+    for line in lines:
+        if line.lstrip().startswith("- **Active Subtopic:**") or line.lstrip().startswith("- **Active Note:**"):
+            updated_lines.append(f"- **Active Subtopic:** `{node_id}`")
+        elif line.lstrip().startswith("- **Live Stage & Checkpoint:**"):
+            updated_lines.append(
+                f"- **Live Stage & Checkpoint:** `Depth Stage {eff_stage}/3 | Checkpoint [{eff_cp}/4]`"
+            )
+        elif clean_rationale and norm_result == "pass" and line.lstrip().startswith("- **Last Verified Invariant:**"):
+            updated_lines.append(f"- **Last Verified Invariant:** {clean_rationale}")
+        elif token_re.search(line):
+            updated_lines.append(token_re.sub(f"`{mark} {topic_num}`", line))
+        else:
+            updated_lines.append(line)
+
+    if not has_token:
+        for idx, line in enumerate(updated_lines):
+            if line.startswith("## Compact Subtopic Status Map") and idx + 1 < len(updated_lines):
+                updated_lines[idx + 1] = updated_lines[idx + 1].rstrip() + f" `{mark} {topic_num}`"
+                break
+
+    atomic_write_text(state_file, "\n".join(updated_lines[:59]) + "\n")
+    return {
+        "ok": True,
+        "event_id": recorded_ev.get("event_id"),
+        "topic": topic_num,
+        "node_id": node_id,
+        "objective_id": target_oid,
+        "assessment_type": atype,
+        "result": norm_result,
+        "assistance_level": assistance_level,
+        "stage": f"{eff_stage}/3",
+        "cp": f"{eff_cp}/4",
+        "status": event["status"],
+        "next_review_at": review_item.get("next_review_at"),
+        "events_file": str(events_path),
+        "state_file": str(state_file),
+    }

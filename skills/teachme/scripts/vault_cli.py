@@ -73,6 +73,7 @@ from teachme_vault.state_store import (
     migrate_session_state,
     normalize_topic_num,
     rebuild_curriculum_graph,
+    record_assessment_event,
     resolve_session_dir,
     revise_curriculum,
     save_curriculum,
@@ -406,247 +407,31 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def cmd_tick(args: argparse.Namespace) -> int:
     sess_dir = resolve_session_dir(args.vault_path, session_slug=getattr(args, "session", None))
-    topic_num = normalize_topic_num(args.topic)
-    node_id = f"topic-{topic_num}"
-
     cp_val = getattr(args, "cp", None)
-    cp = int(cp_val) if cp_val is not None else 1
     raw_status = getattr(args, "result", None) or getattr(args, "status", None) or "pass"
-    norm_result = normalize_result(raw_status)
-    raw_assistance = getattr(args, "assistance", None)
-    assistance_level = normalize_assistance(raw_assistance)
-    atype = normalize_assessment_type(getattr(args, "assessment_type", None), legacy_cp=cp_val)
-    stage = infer_depth_stage(cp, getattr(args, "stage", None))
-
-    now_dt = parse_utc_ts(getattr(args, "now", None))
-    now_iso = format_utc_ts(now_dt)
-
-    scratchpad = sess_dir / "scratchpad"
-    scratchpad.mkdir(parents=True, exist_ok=True)
-    events_path = scratchpad / "events.jsonl"
-
-    curriculum = load_curriculum(sess_dir)
-    c_nodes = dict(curriculum.get("nodes", {}))
-    cnode = dict(c_nodes.get(node_id) or {"id": node_id, "slug": node_id, "title": node_id})
-    objs = normalize_objectives_list(node_id, cnode)
-    target_oid = (getattr(args, "objective", None) or "").strip() or objs[0]["id"]
-
-    # Validate objective exists on node if explicitly requested
-    if getattr(args, "objective", None) and not any(o["id"] == target_oid for o in objs):
-        raise ValueError(f"Objective {target_oid} not found under {node_id}")
-
     rationale = (getattr(args, "rationale", None) or getattr(args, "note", None) or "").strip()
-    attempt_id = (getattr(args, "attempt_id", None) or "").strip() or None
-    confidence = getattr(args, "confidence", None)
-    active_time = getattr(args, "active_time", None)
-
-    event: dict[str, Any] = {
-        "schema_version": 2,
-        "ts": now_iso,
-        "topic": topic_num,
-        "topic_id": node_id,
-        "objective_id": target_oid,
-        "item_id": (getattr(args, "item_id", None) or (f"cp-{cp}" if cp_val is not None else "")).strip(),
-        "assessment_type": atype,
-        "result": norm_result,
-        "status": "retry" if raw_status == "retry" else norm_result,
-        "assistance_level": assistance_level,
-        "stage": stage,
-    }
-    if cp_val is not None:
-        event["cp"] = cp
-    if attempt_id:
-        event["attempt_id"] = attempt_id
-    if rationale:
-        event["note"] = rationale
-        event["rationale"] = rationale
-    if getattr(args, "misconception", None):
-        event["misconception_ref"] = args.misconception.strip()
-    if confidence is not None:
-        event["learner_confidence"] = confidence
-    if active_time is not None:
-        event["active_time_sec"] = float(active_time)
-    if getattr(args, "response_summary", None):
-        event["response_summary"] = args.response_summary.strip()
-    if getattr(args, "transfer_context", None):
-        event["transfer_context"] = args.transfer_context.strip()
-    if getattr(args, "session_run", None):
-        event["session_run_id"] = args.session_run.strip()
-    if getattr(args, "checked", False):
-        event["verification"] = {"checked": True}
-
-    existing_events = load_events(sess_dir)
-    recorded_ev, deduplicated = append_event_idempotent(events_path, event, existing_events=existing_events)
-    if deduplicated:
-        print(
-            dump_json(
-                {
-                    "ok": True,
-                    "deduplicated": True,
-                    "event_id": recorded_ev.get("event_id"),
-                    "attempt_id": attempt_id,
-                    "topic": topic_num,
-                    "node_id": node_id,
-                    "objective_id": target_oid,
-                }
-            )
-        )
-        return 0
-
-    all_topic_events = load_events(sess_dir, topic_num=topic_num)
-
-    # Update review scheduler deterministically
-    review_store = load_review_state(sess_dir)
-    review_item = apply_event_to_review_store(
-        review_store,
-        target_id=target_oid,
-        topic_id=node_id,
-        result=norm_result,
-        assistance_level=assistance_level,
-        assessment_type=atype,
-        now=now_dt,
-        session_run_id=event.get("session_run_id"),
+    out = record_assessment_event(
+        sess_dir,
+        topic=args.topic,
+        objective=getattr(args, "objective", None),
+        result=raw_status,
+        assistance=getattr(args, "assistance", None),
+        assessment_type=getattr(args, "assessment_type", None),
+        cp=int(cp_val) if cp_val is not None else None,
+        stage=getattr(args, "stage", None),
+        item_id=(getattr(args, "item_id", None) or "").strip(),
+        attempt_id=getattr(args, "attempt_id", None),
+        rationale=rationale,
+        misconception=getattr(args, "misconception", None),
+        confidence=getattr(args, "confidence", None),
+        active_time=getattr(args, "active_time", None),
+        response_summary=getattr(args, "response_summary", None),
+        transfer_context=getattr(args, "transfer_context", None),
+        session_run=getattr(args, "session_run", None),
+        now=getattr(args, "now", None),
+        checked=bool(getattr(args, "checked", False)),
     )
-    save_review_state(sess_dir, review_store)
-
-    # Re-derive objective evidence across curriculum node
-    for idx, obj in enumerate(objs):
-        oid = obj["id"]
-        obj_evs = [e for e in all_topic_events if e.get("objective_id") == oid]
-        if idx == 0:
-            obj_evs.extend(e for e in all_topic_events if not e.get("objective_id"))
-        objs[idx] = derive_objective_evidence(
-            obj,
-            obj_evs,
-            node_status=str(cnode.get("status") or "in_progress"),
-            node_checkpoint=f"{cp}/4" if cp_val is not None else str(cnode.get("checkpoint") or "0/4"),
-        )
-    cnode["objectives"] = objs
-
-    # Determine honest topic status without silently upgrading assisted passes to mastered
-    all_objs_indep = bool(objs) and all(
-        (not o.get("in_scope", True)) or o["proficiency"]["status"] == "demonstrated_independently"
-        for o in objs
-    )
-    any_weakened = any(o["proficiency"]["status"] == "weakened" for o in objs)
-    legacy_cp4_pass = cp_val == 4 and norm_result == "pass" and assistance_level == "unknown"
-
-    if any_weakened or norm_result == "fail":
-        new_node_status = "in_progress"
-    elif all_objs_indep or legacy_cp4_pass:
-        new_node_status = "mastered"
-    elif cnode.get("status") == "mastered" and norm_result == "pass":
-        new_node_status = "mastered"
-    else:
-        new_node_status = "in_progress"
-
-    cnode["status"] = new_node_status
-    if cp_val is not None:
-        cnode["checkpoint"] = f"{cp}/4"
-    if rationale and norm_result == "pass":
-        cnode["last_invariant"] = rationale
-    c_nodes[node_id] = cnode
-    curriculum["nodes"] = c_nodes
-    if node_id not in curriculum.get("order", []):
-        curriculum.setdefault("order", []).append(node_id)
-    save_curriculum(sess_dir, curriculum)
-
-    # Update 00-GRAPH.json operationally without touching any study notes
-    graph_path = sess_dir / "00-GRAPH.json"
-    graph = load_json_dict(graph_path) or {"schema_version": 2, "kind": "curriculum_dependency_graph", "nodes": {}, "order": []}
-    nodes = dict(graph.get("nodes", {}))
-    order = list(graph.get("order", []))
-    node = dict(nodes.get(node_id, {"title": node_id, "depends_on": [], "unlocks": [], "contrasts_with": [], "fixes_failure_of": []}))
-    if cp_val is not None:
-        node["checkpoint"] = f"{cp}/4"
-    node["status"] = new_node_status
-    if rationale and norm_result == "pass":
-        node["last_invariant"] = rationale
-    ev_list = list(node.get("evidence", []))
-    ev_list.append(
-        {
-            "ts": now_iso,
-            "cp": cp_val,
-            "objective_id": target_oid,
-            "assessment_type": atype,
-            "result": norm_result,
-            "status": event["status"],
-            "assistance_level": assistance_level,
-            "note": rationale,
-        }
-    )
-    node["evidence"] = ev_list[-20:]
-    nodes[node_id] = node
-    if node_id not in order:
-        order.append(node_id)
-    graph["nodes"] = nodes
-    graph["order"] = order
-    atomic_write_text(graph_path, json.dumps(graph, indent=2, ensure_ascii=False) + "\n")
-
-    state_file = sess_dir / "00-SESSION-STATE.md"
-    mark = "[x]" if new_node_status == "mastered" else "[~]"
-    all_nums = [nid.replace("topic-", "") for nid in order] or [topic_num]
-
-    if state_file.is_file():
-        lines = read_text_safe(state_file).splitlines()
-    else:
-        status_tokens = " ".join(f"`[ ] {n}`" for n in all_nums)
-        lines = [
-            f"# Session State: {sess_dir.name}",
-            "",
-            f"- **Active Subtopic:** `{node_id}`",
-            f"- **Live Stage & Checkpoint:** `Depth Stage {stage}/3 | Checkpoint [{cp}/4]`",
-            "- **Last Verified Invariant:** Initialized.",
-            "",
-            "## Compact Subtopic Status Map",
-            status_tokens,
-            "<!-- Legend: [x] mastered | [~] in-progress | [ ] unstarted -->",
-        ]
-
-    updated_lines: list[str] = []
-    token_re = re.compile(rf"`\[[ x~]\]\s*{re.escape(topic_num)}`")
-    has_token = any(token_re.search(line) for line in lines)
-    for line in lines:
-        if line.lstrip().startswith("- **Active Subtopic:**") or line.lstrip().startswith("- **Active Note:**"):
-            updated_lines.append(f"- **Active Subtopic:** `{node_id}`")
-        elif line.lstrip().startswith("- **Live Stage & Checkpoint:**"):
-            updated_lines.append(
-                f"- **Live Stage & Checkpoint:** `Depth Stage {stage}/3 | Checkpoint [{cp}/4]`"
-            )
-        elif rationale and norm_result == "pass" and line.lstrip().startswith("- **Last Verified Invariant:**"):
-            updated_lines.append(f"- **Last Verified Invariant:** {rationale}")
-        elif token_re.search(line):
-            updated_lines.append(token_re.sub(f"`{mark} {topic_num}`", line))
-        else:
-            updated_lines.append(line)
-
-    if not has_token:
-        for idx, line in enumerate(updated_lines):
-            if line.startswith("## Compact Subtopic Status Map") and idx + 1 < len(updated_lines):
-                updated_lines[idx + 1] = updated_lines[idx + 1].rstrip() + f" `{mark} {topic_num}`"
-                break
-
-    atomic_write_text(state_file, "\n".join(updated_lines[:59]) + "\n")
-    print(
-        dump_json(
-            {
-                "ok": True,
-                "event_id": recorded_ev.get("event_id"),
-                "topic": topic_num,
-                "node_id": node_id,
-                "objective_id": target_oid,
-                "assessment_type": atype,
-                "result": norm_result,
-                "assistance_level": assistance_level,
-                "stage": f"{stage}/3",
-                "cp": f"{cp}/4",
-                "status": event["status"],
-                "next_review_at": review_item.get("next_review_at"),
-                "events_file": str(events_path),
-                "state_file": str(state_file),
-            }
-        )
-    )
+    print(dump_json(out))
     return 0
 
 

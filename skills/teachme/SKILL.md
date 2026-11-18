@@ -39,6 +39,8 @@ Resolve the script at `../teachme/scripts/vault_cli.py` or `~/.gemini/antigravit
 | `capabilities` / `route-modality` | Inspect terminal/host capabilities and select the optimal teaching modality (kept separate from `resolve-sources`) |
 | `graph-render` / `simulate` | Render bounded ASCII/Unicode/Braille math/data plots or run bounded portable terminal simulations (`gradient_descent`, `sorting`, `c_pointers`, `probability`) |
 | `quiz-plan` / `evaluate-answer` / `image-plan` | Select adaptive Level 1–3 quiz types, verify structured answers deterministically, and plan/cache verified web images with clean terminal fallbacks |
+| `code-plan` / `code-check` | Plan interactive coding sessions (shared memory + runtime detection) and safely inspect/test learner code |
+| `rapid-plan` / `rapid-record` / `rapid-status` | Plan notes-first rapid revision, record recall into shared memory (no delayed-retention fabrication), and report honest progress |
 | `connect <vault> [--name <alias>] [--no-activate]` | Register an Obsidian vault cleanly (multi-vault safe) and build `.teachme/index.json` |
 | `vaults` / `use-vault <ref>` / `remove-vault <ref>` | List registered vaults, switch active vault, or unregister without deleting files |
 | `mode` / `reindex` / `search [vault] --query "<T>" [--sections]` | View/switch mode, refresh index incrementally, or search vault read-only |
@@ -68,6 +70,6 @@ Classify user intent first:
 | Live adaptive teaching, modality selection, graduated support & records | `references/RETENTION-AND-RECORDS.md` | `scratchpad/events.jsonl`, `scratchpad/review-state.json`, lazy `learning-records/` |
 | ONLY when `route-modality` (or active objective) selects a graph, simulation, or image | `references/VISUALS-AND-EXPERIMENTS.md` *(lazy-load only when needed)* | Lazy `scratchpad/media-provenance.json`, `scratchpad/media-cache.json`, optional transient asset |
 | Explicit request for persistent reusable study notes/artifacts | `references/NOTE-SKILL-HANDOFF.md` *(load ONLY on explicit note request)* | Ephemeral context envelope + optional provider-independent handoff |
-| `/teachme-vault`, `/teachme-notes-path`, `/teachme-ingest`, `/teachme-review`, `/teachme-feynman`, `/teachme-drill` | `references/cmd-<name>.md` (+ `VAULT-NATIVE.md` if Obsidian) | Corresponding operational state updates |
+| `/teachme-vault`, `/teachme-notes-path`, `/teachme-ingest`, `/teachme-review`, `/teachme-feynman`, `/teachme-drill`, `/teachme-code`, `/teachme-rapid` | `references/cmd-<name>.md` (+ `VAULT-NATIVE.md` if Obsidian) | Corresponding operational state updates |
 
-Space-separated aliases (`/teachme review <topic>`) route identically. Do **not** load `VISUALS-AND-EXPERIMENTS.md`, graph, simulation, or image rules on turns where plain text or direct explanation suffices.
+Space-separated aliases (`/teachme review <topic>`, `/teachme code <topic>`, `/teachme rapid <topic>`) route identically. Do **not** load `VISUALS-AND-EXPERIMENTS.md`, graph, simulation, or image rules on turns where plain text or direct explanation suffices.

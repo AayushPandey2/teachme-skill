@@ -1,6 +1,6 @@
 # `/teachme` — Source-Independent Adaptive Teaching & Learning-Memory Skill
 
-An AI agent skill suite (`/teachme` + 6 `/teachme-*` subcommands) for **source-independent adaptive first-principles teaching, lightweight calibration, diagnostic prerequisite repair, objective-level coverage & gap tracking, assistance-aware evidence, and deterministic delayed review**.
+An AI agent skill suite (`/teachme` + 8 `/teachme-*` subcommands) for **source-independent adaptive first-principles teaching, lightweight calibration, diagnostic prerequisite repair, interactive coding mentorship, notes-grounded rapid revision, objective-level coverage & gap tracking, assistance-aware evidence, and deterministic delayed review**.
 
 **Fundamental rule: TeachMe teaches. Other skills write notes.** TeachMe works independently of any note-generation skill and teaches from existing Obsidian vaults, web/documentation sources, or both (`vault`, `hybrid`, or `web` mode).
 
@@ -91,6 +91,8 @@ TeachMe works completely standalone without any note-generation skill. If you ex
 | `/teachme-review <topic>` | `/teachme review <topic>` | Runs delayed spaced review (`due`) starting with unaided retrieval on due demonstrated, legacy-unverified, and lapsed objectives. |
 | `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching check: explain a concept and its assumptions in plain English with zero unstated jargon. |
 | `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates, verifies, and grades adaptive Tier 1–3 tasks with graduated support and assistance-aware logging. |
+| `/teachme-code <lang/topic> [flags]` | `/teachme code <lang/topic> [flags]` | Interactive coding tutor (`learn`, `practice`, `debug`, `trace`, `challenge`, `interview`) with progressive hints and safe verification. |
+| `/teachme-rapid <topic> [flags]` | `/teachme rapid <topic> [flags]` | Fast, notes-first active recall (`recall`, `mcq`, `mixed`, `weak`, `qa`, `exam`) grounded strictly in existing vault notes. |
 | `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs PDFs, URLs, transcripts, or repos into lesson context without modifying study notes or overwriting demonstrated evidence. |
 | `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `mode`, `search`, `reindex`, `state`) for isolated `.teachme/` state and read-only source lookup. |
 | `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views, changes, or resets TeachMe's standalone learning-state root in `~/.teachme-config.json`. |
@@ -141,7 +143,71 @@ python skills/teachme/scripts/vault_cli.py simulate --template probability --par
 python skills/teachme/scripts/vault_cli.py quiz-plan <session_or_vault> --topic 01
 python skills/teachme/scripts/vault_cli.py evaluate-answer --kind numeric --expected 4.5 --answer "4.5"
 python skills/teachme/scripts/vault_cli.py image-plan --topic-name "Human Heart" --desc "Identify left ventricle anatomy" --no-tty
+
+# Interactive coding tutor & notes-first rapid revision
+python skills/teachme/scripts/vault_cli.py code-plan <session_or_vault> --args "C pointers --mode practice"
+python skills/teachme/scripts/vault_cli.py code-check <session_or_vault> --language python --code "print(42)" --authorize-exec
+python skills/teachme/scripts/vault_cli.py rapid-plan <session_or_vault> --args "C pointers --mode weak --questions 10"
+python skills/teachme/scripts/vault_cli.py rapid-record <session_or_vault> --item-key "C/Pointers.md::Pointer Arithmetic::recall" --concept "Pointer Arithmetic" --result pass --assistance none --topic 02 --objective obj-02-01
+python skills/teachme/scripts/vault_cli.py rapid-status <session_or_vault>
 ```
+
+## `/teachme-code` & `/teachme-rapid`
+
+### How `/teachme-code` Works
+
+- **Invocation & Modes:** Supports `/teachme-code C pointers`, `/teachme-code Python recursion`, `/teachme-code C arrays --mode practice`, `/teachme-code Python two pointers --mode challenge`, `/teachme-code C --mode debug`, `/teachme-code DSA binary search --level intermediate`, `/teachme-code C functions --minutes 20`, and `/teachme-code --resume`. Modes: `learn`, `practice`, `debug`, `trace`, `challenge`, `interview`.
+- **Language Support:** `python` and `c` are first-class targets; `cpp`, `java` (requires both `javac` and `java`), and `javascript` (`node`) run via adapters when detected on `PATH`. Undetected runtimes are never claimed as supported.
+- **Safe Verification & Host Limitations:** Local code execution is never assumed to be sandboxed. Without an explicit trusted sandbox (`TEACHME_TRUSTED_SANDBOX=1`) or explicit learner/host authorization (`--authorize-exec`), `code-check` performs static inspection only (Python AST syntax/logic checks + C beginner diagnostics for bounds, `scanf`, uninitialized variables, pointer `&`/`*`, string `'\0'`, `malloc`/`free`, and recursion base cases). When authorized, code compiles and runs inside an isolated temporary directory with bounded timeouts (`<= 10s`) and output caps (`<= 8192` chars), without `shell=True` and without writing build artifacts into your repository or notes. OS-level process/memory isolation depends on the host environment. Passing sample tests is distinguished from edge-case verification (`partial_sample_only` vs `verified_with_edge_cases`).
+- **Progressive Hints (0–4):** `0` independent -> `1` small hint -> `2` concept/invariant -> `3` partial scaffold -> `4` worked solution on request. Assisted passes log `practiced_with_support` and require a fresh independent problem before recording `demonstrated_independently`.
+
+```text
+> /teachme-code C pointers --mode debug
+
+Loaded shared state: C Pointers (prior struggle on obj-02-01: Pointer Arithmetic).
+Challenge [Foundation]: Fix the pointer initialization and scanf bug below, or trace what happens first:
+
+    int x;
+    int *p = x;
+    scanf("%d", x);
+
+> user submits fix or asks for hint level 1
+
+Static check + verified run (in isolated temp dir):
+First issue resolved (`int *p = &x;` and `scanf("%d", &x);`).
+Next challenge: write a loop summing `arr` via pointer arithmetic without stepping past `arr + n`.
+```
+
+### How `/teachme-rapid` Works
+
+- **Notes-First & Notes-Grounded:** Uses `resolve-sources` read-only on your connected Obsidian vault, retrieving bounded sections with exact `rel_path` and heading citations while treating note contents as untrusted data. Even if `resolve-sources` returns `hybrid`, `/teachme-rapid` **never silently supplements** missing note coverage with general knowledge or web results—it quizzes only concepts backed by your notes unless you explicitly opt in (`--allow-web` or `--allow-general`). If no usable notes exist, it reports that honestly and offers vault selection or explicit opt-in.
+- **Invocation & Modes:** Supports `/teachme-rapid calculus`, `/teachme-rapid C pointers --minutes 10`, `/teachme-rapid machine learning --questions 20`, `/teachme-rapid matrices --mode recall`, `/teachme-rapid probability --mode mcq`, `/teachme-rapid DSA --mode mixed`, `/teachme-rapid --mode weak`, `/teachme-rapid --mode qa`, `/teachme-rapid --mode exam`, and `/teachme-rapid --resume`.
+- **Q&A & Exam Honesty:** `--mode qa` answers directly from retrieved notes without forcing a quiz or recording artificial test results. `--mode exam` prioritizes agreed `mission.json` scope and question budgets without inventing exam probabilities.
+- **Fast 1-Question Flow & Honest Summary:** Uses question-count budgets (never fabricating active study time in conversational mode), asks one crisp question per turn, queues fresh follow-up variants on misses, and ends with an observed-only report (`answered`, `unanswered`, `correct`, `partial`, `incorrect`, `strong`, `needs_practice`).
+
+```text
+> /teachme-rapid C pointers --mode weak --questions 5
+
+RAPID REVISION — C POINTERS
+Source: C/Pointers.md | Mode: Weak | Questions: 5
+
+Q1/5 [Pointer Arithmetic]
+If `int *p` points to `a[0]` on a system with 4-byte `int`, by how many bytes does `p + 1` advance?
+
+> 1 byte
+
+Correction: `p + 1` advances by `sizeof(int)` (4 bytes here), not 1 byte.
+Misconception note: pointer arithmetic scales by the pointed-to type size. (Queued fresh follow-up.)
+```
+
+### Shared Memory & How Subskills Differ
+
+- **One Shared Learning Memory:** `/teachme`, `/teachme-code`, `/teachme-rapid`, `/teachme-drill`, `/teachme-feynman`, and `/teachme-review` all read and write the same operational files (`00-SESSION-STATE.md`, `00-GRAPH.json`, `scratchpad/curriculum.json`, `scratchpad/events.jsonl`, `scratchpad/review-state.json`, and `learning-records/`). Neither new subskill creates a second mastery database or modifies study notes. Same-session rapid recall passes `session_run_id` so it never fabricates delayed retention.
+- **Subskill Roles:**
+  - `/teachme-drill`: Adaptive Tier 1–3 concept & reasoning drills across any source mode (`vault`, `hybrid`, or `web`).
+  - `/teachme-code`: Hands-on programming mentorship (writing, tracing, debugging, edge-case testing, complexity discussion).
+  - `/teachme-rapid`: High-speed, strictly notes-grounded active recall, gap detection, and note-cited Q&A under tight time/question budgets.
+  - `/teachme-review`: Delayed spaced-repetition coaching (`>= 12h`, new session) that verifies long-term retention on due objectives.
 
 ## Policy Scenarios & Tests
 
@@ -166,13 +232,15 @@ teachme-skill/
     │   │       ├── __init__.py
     │       ├── adaptive_quiz.py   # Level 1-3 question selection & deterministic checking
     │   │       ├── cli_commands.py        # connect, vaults, use-vault, resolve-sources, search, reindex
-    │   │       ├── engine_commands.py # capabilities, route-modality, graph-render, simulate, quiz-plan, evaluate-answer, image-plan
+    │   │       ├── coding_practice.py     # Interactive coding session planner & safe verification
+    │   │       ├── engine_commands.py # capabilities, route-modality, graph-render, simulate, quiz-plan, evaluate-answer, image-plan, code-*, rapid-*
     │       ├── evidence.py            # Objective coverage, proficiency & media provenance
     │       ├── indexer.py             # Read-only incremental vault index & source resolution
     │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
     │   │       ├── media_retrieval.py # Credible web image filtering, caching & terminal fallbacks
     │   │       ├── modality_router.py # Explainable teaching modality selection policy
     │       ├── models.py              # Config, multi-vault registry, mode detection, safety guards
+    │   │       ├── rapid_revision.py      # Notes-first rapid revision & active recall engine
     │       ├── scheduler.py           # Deterministic delayed-review scheduler & ranking
     │   │       ├── simulations.py     # Bounded portable simulations (GD, sorting, C pointers, probability)
     │       ├── state_store.py         # Curriculum state, migration, revision & handoff
@@ -185,11 +253,13 @@ teachme-skill/
     │       ├── VISUALS-AND-EXPERIMENTS.md # Visual selection, capability contract & image provenance
     │       ├── NOTE-SKILL-HANDOFF.md      # Lazy-loaded provider-independent note-skill contract
     │       ├── VAULT-NATIVE.md            # Multi-vault registry, isolated state & read-only lookup
-    │       └── cmd-*.md                   # Per-command workflows (drill, feynman, ingest, notes-path, review, vault)
+    │       └── cmd-*.md                   # Per-command workflows (code, drill, feynman, ingest, notes-path, rapid, review, vault)
+    ├── teachme-code/SKILL.md
     ├── teachme-drill/SKILL.md
     ├── teachme-feynman/SKILL.md
     ├── teachme-ingest/SKILL.md
     ├── teachme-notes-path/SKILL.md
+    ├── teachme-rapid/SKILL.md
     ├── teachme-review/SKILL.md
     └── teachme-vault/SKILL.md
 ```

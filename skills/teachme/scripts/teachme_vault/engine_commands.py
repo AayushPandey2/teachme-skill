@@ -9,10 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from .adaptive_quiz import evaluate_learner_response, select_question_plan
+from .coding_practice import build_code_plan, verify_learner_code
 from .evidence import derive_objective_evidence, normalize_objectives_list
 from .media_retrieval import select_and_prepare_image
 from .modality_router import select_teaching_modality
 from .models import expand_path, read_text_safe
+from .rapid_revision import build_rapid_plan, build_rapid_status_report, record_rapid_answer
 from .scheduler import get_due_reviews, load_review_state
 from .simulations import list_simulation_templates, run_interactive_cli, run_non_interactive_demo
 from .state_store import (
@@ -425,6 +427,99 @@ def cmd_image_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_code_plan(args: argparse.Namespace) -> int:
+    plan = build_code_plan(
+        args.args or "",
+        vault_path=args.vault_path,
+        session_slug=args.session,
+        topic_num=args.topic,
+        objective_id=args.objective,
+        init_if_missing=bool(args.init_if_missing),
+        ensure_objective=args.ensure_objective,
+        now=args.now,
+    )
+    print(_dump_json(plan))
+    return 0
+
+
+def cmd_code_check(args: argparse.Namespace) -> int:
+    sess_dir: Path | None = None
+    if args.vault_path or args.session:
+        try:
+            sess_dir = resolve_session_dir(args.vault_path, session_slug=args.session)
+        except FileNotFoundError:
+            sess_dir = None
+
+    tests = _load_json_arg(args.tests_json, args.tests_file)
+    if tests is not None and not isinstance(tests, list):
+        raise ValueError("Tests JSON must be a list of test case objects")
+
+    code_text = args.code
+    if code_text is None and args.stdin_code:
+        import sys
+        code_text = sys.stdin.read()
+
+    res = verify_learner_code(
+        code=code_text,
+        code_file=args.code_file,
+        language=args.language,
+        test_cases=tests,
+        authorize_exec=bool(args.authorize_exec),
+        timeout_sec=args.timeout,
+        max_output_chars=args.max_output,
+        hint_level=args.hint_level,
+        session_dir=sess_dir,
+        topic_num=args.topic,
+        objective_id=args.objective,
+        assessment_type=args.assessment_type,
+        record_evidence=bool(args.assess),
+        now=args.now,
+    )
+    print(_dump_json(res))
+    return 0
+
+
+def cmd_rapid_plan(args: argparse.Namespace) -> int:
+    plan = build_rapid_plan(
+        args.args or "",
+        vault_path=args.vault_path,
+        vault_ref=args.vault,
+        session_slug=args.session,
+        now=args.now,
+    )
+    print(_dump_json(plan))
+    return 0
+
+
+def cmd_rapid_record(args: argparse.Namespace) -> int:
+    sess_dir = resolve_session_dir(args.vault_path, session_slug=args.session)
+    qspec = _load_json_arg(args.question_spec_json, None) if args.question_spec_json else None
+    out = record_rapid_answer(
+        sess_dir,
+        item_key=args.item_key,
+        concept_label=args.concept,
+        learner_answer=args.answer or "",
+        question_spec=qspec,
+        result=args.result,
+        assistance=args.assistance,
+        topic_num=args.topic,
+        objective_id=args.objective,
+        misconception=args.misconception,
+        rationale=args.rationale or "",
+        active_time=args.active_time,
+        now=args.now,
+    )
+    print(_dump_json(out))
+    return 0
+
+
+def cmd_rapid_status(args: argparse.Namespace) -> int:
+    sess_dir = resolve_session_dir(args.vault_path, session_slug=args.session)
+    out = build_rapid_status_report(sess_dir)
+    print(_dump_json(out))
+    return 0
+
+
 def register_teaching_engine_subcommands(subparsers: Any) -> None:
     """Register terminal-first teaching engine subcommands on vault_cli.py."""
     p_cap = subparsers.add_parser("capabilities", help="Detect terminal and host tool capabilities cleanly.")
@@ -544,3 +639,64 @@ def register_teaching_engine_subcommands(subparsers: Any) -> None:
     p_img.add_argument("--tty", action="store_true")
     p_img.add_argument("--no-tty", action="store_true")
     p_img.set_defaults(func=cmd_image_plan)
+
+    p_cp = subparsers.add_parser("code-plan", help="Parse /teachme-code invocation, detect runtimes, and load shared coding context.")
+    p_cp.add_argument("vault_path", nargs="?", default=None)
+    p_cp.add_argument("--session", default=None)
+    p_cp.add_argument("--args", default="", help="Raw /teachme-code argument string.")
+    p_cp.add_argument("--topic", default=None)
+    p_cp.add_argument("--objective", default=None)
+    p_cp.add_argument("--init-if-missing", action="store_true")
+    p_cp.add_argument("--ensure-objective", default=None)
+    p_cp.add_argument("--now", default=None)
+    p_cp.set_defaults(func=cmd_code_plan)
+
+    p_cc = subparsers.add_parser("code-check", help="Statically inspect and optionally execute/test learner code safely.")
+    p_cc.add_argument("vault_path", nargs="?", default=None)
+    p_cc.add_argument("--session", default=None)
+    p_cc.add_argument("--language", required=True)
+    p_cc.add_argument("--code", default=None)
+    p_cc.add_argument("--code-file", default=None)
+    p_cc.add_argument("--stdin-code", action="store_true")
+    p_cc.add_argument("--tests-json", default=None)
+    p_cc.add_argument("--tests-file", default=None)
+    p_cc.add_argument("--authorize-exec", action="store_true")
+    p_cc.add_argument("--timeout", type=float, default=3.0)
+    p_cc.add_argument("--max-output", type=int, default=8192)
+    p_cc.add_argument("--hint-level", type=int, choices=[0, 1, 2, 3, 4], default=0)
+    p_cc.add_argument("--topic", default=None)
+    p_cc.add_argument("--objective", default=None)
+    p_cc.add_argument("--assessment-type", default="independent_application")
+    p_cc.add_argument("--assess", action="store_true")
+    p_cc.add_argument("--now", default=None)
+    p_cc.set_defaults(func=cmd_code_check)
+
+    p_rp = subparsers.add_parser("rapid-plan", help="Build a notes-first rapid revision plan from existing vault notes.")
+    p_rp.add_argument("vault_path", nargs="?", default=None)
+    p_rp.add_argument("--vault", default=None)
+    p_rp.add_argument("--session", default=None)
+    p_rp.add_argument("--args", default="", help="Raw /teachme-rapid argument string.")
+    p_rp.add_argument("--now", default=None)
+    p_rp.set_defaults(func=cmd_rapid_plan)
+
+    p_rr = subparsers.add_parser("rapid-record", help="Check/record a rapid revision response and update shared TeachMe evidence.")
+    p_rr.add_argument("vault_path", nargs="?", default=None)
+    p_rr.add_argument("--session", default=None)
+    p_rr.add_argument("--item-key", required=True)
+    p_rr.add_argument("--concept", required=True)
+    p_rr.add_argument("--answer", default="")
+    p_rr.add_argument("--question-spec-json", default=None)
+    p_rr.add_argument("--result", choices=["pass", "partial", "fail", "skipped"], default=None)
+    p_rr.add_argument("--assistance", choices=["none", "hint", "scaffold", "worked_example", "unknown"], default="none")
+    p_rr.add_argument("--topic", default=None)
+    p_rr.add_argument("--objective", default=None)
+    p_rr.add_argument("--misconception", default=None)
+    p_rr.add_argument("--rationale", default="")
+    p_rr.add_argument("--active-time", type=float, default=None)
+    p_rr.add_argument("--now", default=None)
+    p_rr.set_defaults(func=cmd_rapid_record)
+
+    p_rs = subparsers.add_parser("rapid-status", help="Print honest end-of-session rapid revision summary.")
+    p_rs.add_argument("vault_path", nargs="?", default=None)
+    p_rs.add_argument("--session", default=None)
+    p_rs.set_defaults(func=cmd_rapid_status)
