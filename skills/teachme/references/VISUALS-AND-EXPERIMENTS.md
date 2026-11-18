@@ -58,5 +58,5 @@ python vault_cli.py record-media [<session>] --objective <obj_id> --kind retriev
 
 ## §4. Small Bounded Experiments & Generated Visuals
 - Derive exact plots and diagrams from explicit data, equations, or program traces (never hand-guessed curves).
-- Transient operational visuals/experiments under `scratchpad/media/` are allowed teaching assets—do **not** route them to Scriptorium or confuse them with reusable study-note generation.
+- Transient operational visuals/experiments under `scratchpad/media/` are allowed teaching assets—do **not** route them to external note-writing skills or confuse them with reusable study-note generation.
 - **Safety bounds:** No arbitrary downloaded code execution, no learner secrets, no writes to unrelated files, no unbounded compute, no requirement for external paid APIs.

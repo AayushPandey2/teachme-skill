@@ -1,6 +1,6 @@
 ---
 name: teachme-notes-path
-description: "View, change, or reset the standalone learning-state directory (~/.teachme-config.json) used by /teachme sessions (independent of Scriptorium's vault). Usage: /teachme-notes-path [folder-path|reset]"
+description: "View, change, or reset the standalone learning-state directory (~/.teachme-config.json) used by /teachme sessions. Usage: /teachme-notes-path [folder-path|reset]"
 ---
 
 # `/teachme-notes-path` — Configure Standalone Learning-State Root

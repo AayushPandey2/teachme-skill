@@ -3,8 +3,9 @@
 
 Standard-library only (Python 3). Handles curriculum state initialization,
 session recovery, checkpoint ticking, state-only mastery flushing, legacy
-memory migration, state validation, read-only vault indexing, and Scriptorium
-context-envelope generation. Never creates or modifies study notes.
+memory migration, state validation, read-only vault indexing, source
+resolution, and optional note-skill context-envelope generation. Never
+creates or modifies study notes.
 """
 
 from __future__ import annotations
@@ -45,6 +46,8 @@ from teachme_vault.models import (
     MODE_VAULT_NATIVE,
     atomic_write_text,
     detect_vault_mode,
+    get_active_vault_entry,
+    get_registered_vaults,
     load_config,
     read_text_safe,
     resolve_state_dir,
@@ -190,8 +193,9 @@ def cmd_state(args: argparse.Namespace) -> int:
 
     if not args.vault_path:
         mode_info = detect_vault_mode(None, config=cfg)
-        if mode_info["mode"] == MODE_VAULT_NATIVE and cfg.get("obsidian_vault"):
-            obs_path = Path(os.path.expandvars(str(cfg["obsidian_vault"]))).expanduser().resolve()
+        active_entry = get_active_vault_entry(cfg)
+        if mode_info["mode"] == MODE_VAULT_NATIVE and active_entry is not None:
+            obs_path = Path(active_entry["path"])
             if obs_path.is_dir():
                 sdir = resolve_state_dir(obs_path, config=cfg)
                 sessions = list_vault_native_sessions(obs_path, config=cfg)
@@ -199,7 +203,9 @@ def cmd_state(args: argparse.Namespace) -> int:
                     try:
                         sess_dir = resolve_session_dir(None, session_slug=session_slug)
                         summary = _build_session_state_summary(sess_dir, mode="vault-native", now=now_arg)
+                        summary["active_vault"] = active_entry["name"]
                         summary["obsidian_vault"] = str(obs_path)
+                        summary["vault_accessible"] = True
                         summary["state_dir"] = str(sdir)
                         summary["has_index"] = (sdir / "index.json").is_file()
                         summary["sessions"] = sessions
@@ -211,10 +217,35 @@ def cmd_state(args: argparse.Namespace) -> int:
                     dump_json(
                         {
                             "mode": "vault-native",
+                            "active_vault": active_entry["name"],
                             "vault_path": str(obs_path),
+                            "vault_accessible": True,
                             "state_dir": str(sdir),
                             "has_index": (sdir / "index.json").is_file(),
                             "sessions": sessions,
+                        }
+                    )
+                )
+                return 0
+            # Configured active vault is inaccessible; try standalone session resume before returning status
+            try:
+                sess_dir = resolve_session_dir(None, session_slug=session_slug)
+                summary = _build_session_state_summary(sess_dir, mode="standalone", now=now_arg)
+                summary["active_vault"] = active_entry["name"]
+                summary["obsidian_vault"] = str(obs_path)
+                summary["vault_accessible"] = False
+                print(dump_json(summary))
+                return 0
+            except FileNotFoundError:
+                print(
+                    dump_json(
+                        {
+                            "mode": "vault-native",
+                            "active_vault": active_entry["name"],
+                            "vault_path": str(obs_path),
+                            "vault_accessible": False,
+                            "has_index": False,
+                            "sessions": [],
                         }
                     )
                 )
@@ -334,8 +365,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     raw_target = Path(os.path.expandvars(args.vault_path)).expanduser().resolve()
     cfg = load_config()
     mode_info = detect_vault_mode(raw_target, config=cfg)
-    obs_cfg = str(cfg.get("obsidian_vault", "")).strip()
-    is_configured_obs = bool(obs_cfg and Path(os.path.expandvars(obs_cfg)).expanduser().resolve() == raw_target)
+    registered_paths = {Path(v["path"]).resolve() for v in get_registered_vaults(cfg).values() if v.get("path")}
+    is_configured_obs = raw_target in registered_paths
     is_obsidian_root = (
         (raw_target / ".obsidian").is_dir()
         or (raw_target / ".teachme").is_dir()
@@ -1277,7 +1308,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_imp.add_argument("--target", default=None, help="Optional target directory for imported operational state.")
     p_imp.set_defaults(func=cmd_import_legacy)
 
-    p_hand = sub.add_parser("handoff", help="Generate a versioned teaching-context envelope for Scriptorium.")
+    p_hand = sub.add_parser("handoff", help="Generate a versioned teaching-context envelope for an optional note-writing skill.")
     p_hand.add_argument("vault_path", nargs="?", default=None, help="Path to session or Obsidian vault (optional).")
     p_hand.add_argument("--session", default=None, help="Optional vault-native session slug.")
     p_hand.add_argument("--topic", default=None, help="Optional subtopic number or ID to scope export.")

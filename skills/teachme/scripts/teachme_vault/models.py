@@ -83,6 +83,304 @@ def expand_path(raw_path: str) -> Path:
     return Path(os.path.expandvars(raw_path)).expanduser().resolve()
 
 
+def _norm_path_key(path: Path) -> str:
+    """Return normalized path string for reliable comparisons across platforms."""
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path
+    return os.path.normcase(str(resolved))
+
+
+def normalize_vault_name(raw_name: str) -> str:
+    """Normalize a registered vault name into a clean lowercase identifier."""
+    slug = re.sub(r"[^a-z0-9_-]+", "-", raw_name.strip().lower()).strip("-_")
+    return slug or "vault"
+
+
+def get_registered_vaults(config: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+    """Return registered Obsidian vaults from config, preserving legacy single-vault configs."""
+    cfg = config if config is not None else load_config()
+    raw_vaults = cfg.get("vaults")
+    vaults: dict[str, dict[str, Any]] = {}
+    seen_paths: set[str] = set()
+
+    if isinstance(raw_vaults, dict):
+        for key, item in raw_vaults.items():
+            if not isinstance(item, dict):
+                continue
+            raw_p = str(item.get("path") or "").strip()
+            if not raw_p:
+                continue
+            p = expand_path(raw_p)
+            name = normalize_vault_name(str(item.get("name") or key))
+            while name in vaults:
+                name = f"{name}-2"
+            entry: dict[str, Any] = {
+                "name": name,
+                "path": str(p),
+                "added_at": str(item.get("added_at") or ""),
+            }
+            if item.get("state_dir"):
+                entry["state_dir"] = str(expand_path(str(item["state_dir"])))
+            vaults[name] = entry
+            seen_paths.add(_norm_path_key(p))
+
+    legacy_obs = str(cfg.get("obsidian_vault") or "").strip()
+    if legacy_obs:
+        obs_p = expand_path(legacy_obs)
+        if _norm_path_key(obs_p) not in seen_paths:
+            base = normalize_vault_name(obs_p.name)
+            name = base
+            idx = 2
+            while name in vaults:
+                name = f"{base}-{idx}"
+                idx += 1
+            entry = {
+                "name": name,
+                "path": str(obs_p),
+                "added_at": "",
+            }
+            vmap = cfg.get("vault_state_dirs", {})
+            if isinstance(vmap, dict):
+                for k, v in vmap.items():
+                    if _norm_path_key(expand_path(str(k))) == _norm_path_key(obs_p) and str(v).strip():
+                        entry["state_dir"] = str(expand_path(str(v)))
+                        break
+            vaults[name] = entry
+
+    return vaults
+
+
+def get_active_vault_entry(
+    config: dict[str, Any] | None = None,
+    explicit_vault: str | None = None,
+) -> dict[str, Any] | None:
+    """Resolve the active vault entry or an explicitly requested vault name/path."""
+    cfg = config if config is not None else load_config()
+    vaults = get_registered_vaults(cfg)
+
+    if explicit_vault is not None and str(explicit_vault).strip():
+        ref = str(explicit_vault).strip()
+        ref_norm = normalize_vault_name(ref)
+        for name, entry in vaults.items():
+            if ref.lower() == name.lower() or ref_norm == name:
+                out = dict(entry)
+                out["registered"] = True
+                out["explicit"] = True
+                return out
+        cand_path = expand_path(ref)
+        cand_key = _norm_path_key(cand_path)
+        for entry in vaults.values():
+            if _norm_path_key(Path(entry["path"])) == cand_key:
+                out = dict(entry)
+                out["registered"] = True
+                out["explicit"] = True
+                return out
+        return {
+            "name": normalize_vault_name(cand_path.name),
+            "path": str(cand_path),
+            "added_at": "",
+            "registered": False,
+            "explicit": True,
+        }
+
+    active_name = str(cfg.get("active_vault") or "").strip()
+    if active_name:
+        for name, entry in vaults.items():
+            if active_name.lower() == name.lower():
+                out = dict(entry)
+                out["registered"] = True
+                out["explicit"] = False
+                return out
+
+    obs_raw = str(cfg.get("obsidian_vault") or "").strip()
+    if obs_raw:
+        obs_key = _norm_path_key(expand_path(obs_raw))
+        for entry in vaults.values():
+            if _norm_path_key(Path(entry["path"])) == obs_key:
+                out = dict(entry)
+                out["registered"] = True
+                out["explicit"] = False
+                return out
+
+    return None
+
+
+def register_vault(
+    vault_path: Path,
+    *,
+    name: str | None = None,
+    state_dir: Path | None = None,
+    activate: bool = True,
+    mode: str | None = None,
+    cfg_file: Path | None = None,
+) -> dict[str, Any]:
+    """Register a vault in ~/.teachme-config.json with optional active selection."""
+    cfg = load_config(cfg_file)
+    vaults = get_registered_vaults(cfg)
+    resolved = vault_path.resolve()
+    target_key = _norm_path_key(resolved)
+
+    existing_name: str | None = None
+    for vname, ventry in vaults.items():
+        if _norm_path_key(Path(ventry["path"])) == target_key:
+            existing_name = vname
+            break
+
+    if name:
+        desired = normalize_vault_name(name)
+        if desired in vaults and existing_name != desired:
+            raise ValueError(f"Vault name '{desired}' is already registered to {vaults[desired]['path']}")
+        if existing_name and existing_name != desired:
+            old_entry = vaults.pop(existing_name)
+            if cfg.get("active_vault") == existing_name:
+                cfg["active_vault"] = desired
+        else:
+            old_entry = vaults.get(desired, {})
+        entry_name = desired
+    elif existing_name:
+        entry_name = existing_name
+        old_entry = vaults[existing_name]
+    else:
+        base = normalize_vault_name(resolved.name)
+        entry_name = base
+        idx = 2
+        while entry_name in vaults:
+            entry_name = f"{base}-{idx}"
+            idx += 1
+        old_entry = {}
+
+    entry: dict[str, Any] = {
+        "name": entry_name,
+        "path": str(resolved),
+        "added_at": str(old_entry.get("added_at") or utc_now_iso()),
+    }
+    vmap = dict(cfg.get("vault_state_dirs") or {})
+    if state_dir is not None:
+        resolved_sd = state_dir.resolve()
+        entry["state_dir"] = str(resolved_sd)
+        vmap[str(resolved)] = str(resolved_sd)
+    elif old_entry.get("state_dir"):
+        entry["state_dir"] = old_entry["state_dir"]
+
+    vaults[entry_name] = entry
+    updates: dict[str, Any] = {
+        "vaults": vaults,
+    }
+    if vmap:
+        updates["vault_state_dirs"] = vmap
+    if mode is not None:
+        updates["mode"] = mode
+    if activate:
+        updates["active_vault"] = entry_name
+        updates["obsidian_vault"] = str(resolved)
+    elif not cfg.get("active_vault") and cfg.get("obsidian_vault"):
+        # Preserve existing active vault reference cleanly
+        active_entry = get_active_vault_entry(cfg)
+        if active_entry:
+            updates["active_vault"] = active_entry["name"]
+
+    cfg_path = save_config(updates, cfg_file=cfg_file)
+    return {
+        "config_file": str(cfg_path),
+        "vault": entry,
+        "active": bool(activate),
+        "total_vaults": len(vaults),
+    }
+
+
+def select_active_vault(vault_ref: str, *, cfg_file: Path | None = None) -> dict[str, Any]:
+    """Switch the active Obsidian vault by registered name or path."""
+    cfg = load_config(cfg_file)
+    vaults = get_registered_vaults(cfg)
+    ref = vault_ref.strip()
+    if not ref:
+        raise ValueError("Vault name or path is required")
+
+    matched: dict[str, Any] | None = None
+    ref_norm = normalize_vault_name(ref)
+    for name, entry in vaults.items():
+        if ref.lower() == name.lower() or ref_norm == name:
+            matched = entry
+            break
+    if matched is None:
+        cand_key = _norm_path_key(expand_path(ref))
+        for entry in vaults.values():
+            if _norm_path_key(Path(entry["path"])) == cand_key:
+                matched = entry
+                break
+    if matched is None:
+        raise ValueError(f"Vault '{vault_ref}' is not registered. Connect it first with 'connect <vault_path>'.")
+
+    updates = {
+        "vaults": vaults,
+        "active_vault": matched["name"],
+        "obsidian_vault": matched["path"],
+    }
+    cfg_path = save_config(updates, cfg_file=cfg_file)
+    return {
+        "config_file": str(cfg_path),
+        "active_vault": matched["name"],
+        "obsidian_vault": matched["path"],
+        "vault": matched,
+    }
+
+
+def unregister_vault(vault_ref: str, *, cfg_file: Path | None = None) -> dict[str, Any]:
+    """Remove a vault from ~/.teachme-config.json without touching any vault files."""
+    cfg = load_config(cfg_file)
+    vaults = get_registered_vaults(cfg)
+    ref = vault_ref.strip()
+    if not ref:
+        raise ValueError("Vault name or path is required")
+
+    target_name: str | None = None
+    ref_norm = normalize_vault_name(ref)
+    for name in vaults:
+        if ref.lower() == name.lower() or ref_norm == name:
+            target_name = name
+            break
+    if target_name is None:
+        cand_key = _norm_path_key(expand_path(ref))
+        for name, entry in vaults.items():
+            if _norm_path_key(Path(entry["path"])) == cand_key:
+                target_name = name
+                break
+    if target_name is None:
+        raise ValueError(f"Vault '{vault_ref}' is not registered.")
+
+    removed = vaults.pop(target_name)
+    vmap = dict(cfg.get("vault_state_dirs") or {})
+    removed_key = _norm_path_key(Path(removed["path"]))
+    for k in list(vmap.keys()):
+        if _norm_path_key(expand_path(str(k))) == removed_key:
+            vmap.pop(k, None)
+
+    was_active = (
+        str(cfg.get("active_vault") or "").lower() == target_name.lower()
+        or (
+            bool(cfg.get("obsidian_vault"))
+            and _norm_path_key(expand_path(str(cfg["obsidian_vault"]))) == removed_key
+        )
+    )
+    updates: dict[str, Any] = {
+        "vaults": vaults,
+        "vault_state_dirs": vmap,
+    }
+    if was_active:
+        updates["active_vault"] = ""
+        updates["obsidian_vault"] = ""
+
+    cfg_path = save_config(updates, cfg_file=cfg_file)
+    return {
+        "config_file": str(cfg_path),
+        "removed": removed,
+        "was_active": was_active,
+        "remaining_vaults": len(vaults),
+    }
+
+
 def is_within_root(candidate: Path, root: Path) -> bool:
     """Return True iff candidate resolves inside root (prevents symlink escape)."""
     try:
@@ -260,8 +558,17 @@ def resolve_state_dir(
     cfg = config if config is not None else load_config()
     vault_map = cfg.get("vault_state_dirs", {})
     vault_key = str(vault_path.resolve())
-    if isinstance(vault_map, dict) and vault_key in vault_map:
-        return expand_path(str(vault_map[vault_key]))
+    norm_key = _norm_path_key(vault_path)
+    if isinstance(vault_map, dict):
+        if vault_key in vault_map:
+            return expand_path(str(vault_map[vault_key]))
+        for k, v in vault_map.items():
+            if _norm_path_key(expand_path(str(k))) == norm_key and str(v).strip():
+                return expand_path(str(v))
+
+    for entry in get_registered_vaults(cfg).values():
+        if _norm_path_key(Path(entry["path"])) == norm_key and entry.get("state_dir"):
+            return expand_path(str(entry["state_dir"]))
 
     state_root = str(cfg.get("state_root", "")).strip()
     if state_root:
@@ -297,7 +604,8 @@ def detect_vault_mode(
                 "has_obsidian": False,
                 "has_teachme_state": False,
             }
-        if cfg.get("obsidian_vault"):
+        active_entry = get_active_vault_entry(cfg)
+        if active_entry is not None:
             return {
                 "mode": MODE_VAULT_NATIVE,
                 "reason": "configured_obsidian_vault",

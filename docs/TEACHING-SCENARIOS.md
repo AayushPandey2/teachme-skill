@@ -6,7 +6,7 @@
 
 ## Scenario A: Beginner Asks to Learn C Pointers
 - **User Input:** `/teachme C pointers` (user knows basic Python variables/lists; never used manual memory).
-- **Expected Routing:** Teaching intent -> load `SKILL.md`, `MISSION-AND-GRILL.md` (lightweight calibration), then `RETENTION-AND-RECORDS.md` (and `VISUALS-AND-EXPERIMENTS.md` if a trace/diagram helps). Do **not** load `SCRIPTORIUM-HANDOFF.md`.
+- **Expected Routing:** Teaching intent -> load `SKILL.md`, `MISSION-AND-GRILL.md` (source resolution + lightweight calibration), then `RETENTION-AND-RECORDS.md` (and `VISUALS-AND-EXPERIMENTS.md` if a trace/diagram helps). Do **not** load `NOTE-SKILL-HANDOFF.md` or detect/invoke external note skills.
 - **Next Teaching Action:**
   1. Run lightweight calibration (confirm goal/scope and check only missing prerequisites, e.g., variable binding vs aliasing).
   2. Optionally run 1–2 narrow diagnostic probes (`calibrate --prereq`).
@@ -90,11 +90,11 @@
 
 ## Scenario H: Learner Requests Teaching Followed by Revision Notes
 - **User Input:** *"Teach me Bayes' rule, then make revision notes on what we covered."*
-- **Expected Routing:** Mixed request (`SKILL.md §D`): teach first in TeachMe, then delegate note creation ONCE at the boundary via `SCRIPTORIUM-HANDOFF.md`.
+- **Expected Routing:** Mixed request (`SKILL.md §D`): teach first in TeachMe, then offer/execute an optional provider-independent note-skill handoff ONCE at the boundary via `NOTE-SKILL-HANDOFF.md`.
 - **Next Teaching Action:**
   1. Teach Bayes' rule adaptively and record honest assessment evidence (`assess`).
   2. Run `vault_cli.py handoff --request "revision notes on what we covered" --scope "covered_plus_pending"`.
-  3. Delegate to Scriptorium (`/scribe-notes` or `/scribe-expand`) if available, or return a Blocked Handoff with the exact `/scribe-*` command and context summary. Never generate study notes in chat as a fallback.
+  3. Discover and hand off to a compatible installed note-writing skill if available, or return a Blocked / Unavailable Note Handoff with the compact context summary. Never generate study notes in chat as a fallback.
 - **State Effects:**
   - `handoff` exports `schema_version: "1.1"` envelope separating `concepts_introduced`, `objectives_demonstrated`, `untested_or_unresolved_gaps`, `misconceptions_and_corrections`, and `resume_location`.
   - Handoff never advances mastery or modifies existing notes.

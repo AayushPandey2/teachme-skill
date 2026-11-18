@@ -25,6 +25,8 @@ from .models import (
     MODE_VAULT_NATIVE,
     atomic_write_text,
     detect_vault_mode,
+    get_active_vault_entry,
+    get_registered_vaults,
     load_config,
     read_text_safe,
     redact_sensitive,
@@ -150,10 +152,10 @@ def resolve_session_dir(
         # If the user pointed at an Obsidian vault root (not an inner session dir),
         # isolate operational state inside <vault>/.teachme/sessions/<slug>/.
         if not is_operational_session_dir(resolved):
-            obs_cfg = str(cfg.get("obsidian_vault", "")).strip()
-            is_configured_obs = bool(
-                obs_cfg and Path(os.path.expandvars(obs_cfg)).expanduser().resolve() == resolved
-            )
+            registered_paths = {
+                Path(v["path"]).resolve() for v in get_registered_vaults(cfg).values() if v.get("path")
+            }
+            is_configured_obs = resolved in registered_paths
             mode_info = detect_vault_mode(resolved, config=cfg)
             is_actual_obsidian = (
                 (resolved / ".obsidian").is_dir()
@@ -179,9 +181,17 @@ def resolve_session_dir(
         return resolved
 
     # No explicit path: check active vault-native obsidian_vault or standalone notes_root
+    raw_root = str(cfg.get("notes_root", "")).strip()
+    state_root = (
+        Path(os.path.expandvars(raw_root)).expanduser().resolve()
+        if raw_root
+        else (Path.home() / "notes").resolve()
+    )
+
     mode_info = detect_vault_mode(None, config=cfg)
-    if mode_info["mode"] == MODE_VAULT_NATIVE and cfg.get("obsidian_vault"):
-        obs = Path(os.path.expandvars(str(cfg["obsidian_vault"]))).expanduser().resolve()
+    active_entry = get_active_vault_entry(cfg)
+    if mode_info["mode"] == MODE_VAULT_NATIVE and active_entry is not None:
+        obs = Path(active_entry["path"])
         if obs.is_dir():
             sdir = resolve_state_dir(obs, config=cfg)
             sessions_root = sdir / "sessions"
@@ -189,21 +199,36 @@ def resolve_session_dir(
                 target = sessions_root / slugify_topic(session_slug)
                 if for_init or is_operational_session_dir(target):
                     return target
+                standalone_cand = state_root / slugify_topic(session_slug)
+                if standalone_cand.is_dir() and is_operational_session_dir(standalone_cand):
+                    return standalone_cand
+                raise FileNotFoundError(
+                    f"Session '{session_slug}' not found under {sessions_root} or {state_root}"
+                )
             existing = list_vault_native_sessions(obs, config=cfg)
             if existing:
                 return Path(existing[0]["session_dir"])
             if for_init and topic_hint:
                 return sessions_root / slugify_topic(topic_hint)
+            if state_root.is_dir():
+                standalone_cands = [
+                    p for p in state_root.iterdir()
+                    if p.is_dir() and is_operational_session_dir(p)
+                ]
+                if standalone_cands:
+                    standalone_cands.sort(
+                        key=lambda p: (
+                            (p / "00-SESSION-STATE.md").stat().st_mtime
+                            if (p / "00-SESSION-STATE.md").is_file()
+                            else (p / "00-GRAPH.json").stat().st_mtime
+                        ),
+                        reverse=True,
+                    )
+                    return standalone_cands[0]
             raise FileNotFoundError(
                 f"No isolated TeachMe session found under {sessions_root}"
             )
 
-    raw_root = str(cfg.get("notes_root", "")).strip()
-    state_root = (
-        Path(os.path.expandvars(raw_root)).expanduser().resolve()
-        if raw_root
-        else (Path.home() / "notes").resolve()
-    )
     if not state_root.is_dir():
         raise FileNotFoundError(f"Learning-state root does not exist: {state_root}")
 
@@ -211,6 +236,9 @@ def resolve_session_dir(
         cand = state_root / slugify_topic(session_slug)
         if cand.is_dir() and is_operational_session_dir(cand):
             return cand
+        raise FileNotFoundError(
+            f"Session '{session_slug}' not found under {state_root}"
+        )
 
     candidates = [
         p for p in state_root.iterdir()
@@ -1565,7 +1593,7 @@ def build_handoff_envelope(
     examples_used: list[str] | None = None,
     persist: bool = False,
 ) -> dict[str, Any]:
-    """Build a compact, versioned, evidence-backed teaching-context envelope for Scriptorium."""
+    """Build a compact, versioned, evidence-backed teaching-context envelope for an optional note-writing skill."""
     req_id = (request_id or "").strip() or f"tm-handoff-{uuid.uuid4().hex[:12]}"
     now_iso = utc_now_iso()
 

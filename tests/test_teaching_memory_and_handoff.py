@@ -328,12 +328,13 @@ class TeachingMemoryAndHandoffTests(unittest.TestCase):
             self.assertFalse((REPO_ROOT / "skills" / removed_skill).exists())
 
     def test_c_and_g_instruction_invariants_and_routing_contract(self) -> None:
-        """C, G, I, J: Verify adaptive teaching invariants, intent routing, and lazy handoff docs are present."""
+        """C, G, I, J: Verify adaptive teaching invariants, source-independence, and provider-independent handoff docs."""
         skill_md = (REPO_ROOT / "skills" / "teachme" / "SKILL.md").read_text(encoding="utf-8")
         retention_md = (REPO_ROOT / "skills" / "teachme" / "references" / "RETENTION-AND-RECORDS.md").read_text(encoding="utf-8")
         mission_md = (REPO_ROOT / "skills" / "teachme" / "references" / "MISSION-AND-GRILL.md").read_text(encoding="utf-8")
         visuals_md = (REPO_ROOT / "skills" / "teachme" / "references" / "VISUALS-AND-EXPERIMENTS.md").read_text(encoding="utf-8")
-        handoff_md = (REPO_ROOT / "skills" / "teachme" / "references" / "SCRIPTORIUM-HANDOFF.md").read_text(encoding="utf-8")
+        research_md = (REPO_ROOT / "skills" / "teachme" / "references" / "RESEARCH-TOOLCHAIN.md").read_text(encoding="utf-8")
+        handoff_md = (REPO_ROOT / "skills" / "teachme" / "references" / "NOTE-SKILL-HANDOFF.md").read_text(encoding="utf-8")
 
         # Adaptive teaching & evidence invariants
         self.assertIn("Lightweight Calibration", mission_md)
@@ -345,20 +346,22 @@ class TeachingMemoryAndHandoffTests(unittest.TestCase):
         self.assertIn("Honest Host Capability Contract", visuals_md)
         self.assertIn("metadata_only_unverified", visuals_md)
 
-        # Intent routing & prohibitions
-        self.assertIn("Notes-only request", skill_md)
-        self.assertIn("Mixed request", skill_md)
-        self.assertIn("/scribe-doubt", skill_md)
-        self.assertIn("not even in chat as a fallback", skill_md)
-        self.assertIn("Never fabricate", skill_md)
+        # Source-independence & untrusted content invariants
+        self.assertIn("TeachMe teaches. Other skills write notes.", skill_md)
+        self.assertIn("resolve-sources", skill_md)
+        self.assertIn("untrusted source content", skill_md.lower())
+        self.assertIn("raw-research.md", research_md)
+        self.assertIn("not generate", research_md.lower())
 
-        # Lazy handoff contract & Scriptorium verified triggers
-        self.assertIn("/scribe-notes <topic>", handoff_md)
-        self.assertIn("/scribe-expand <topic name>", handoff_md)
-        self.assertIn("/scribe-doubt <topic name> <doubt>", handoff_md)
-        self.assertIn("SCRIPTORIUM_VAULT_PATH", handoff_md)
-        self.assertIn("~/.scriptorium-config.json", handoff_md)
-        self.assertIn("Blocked Handoff", handoff_md)
+        # Provider-independent routing & prohibitions (no hardcoded Scriptorium dependency in core teaching path)
+        self.assertNotIn("Scriptorium", skill_md)
+        self.assertNotIn("/scribe-", skill_md)
+        self.assertIn("NOTE-SKILL-HANDOFF.md", skill_md)
+        self.assertIn("Mixed request", skill_md)
+        self.assertIn("not even in chat as a fallback", skill_md)
+        self.assertIn("never fabricate", skill_md.lower())
+        self.assertIn("Blocked / Unavailable Note Handoff", handoff_md)
+        self.assertFalse((REPO_ROOT / "skills" / "teachme" / "references" / "SCRIPTORIUM-HANDOFF.md").exists())
 
 
 if __name__ == "__main__":

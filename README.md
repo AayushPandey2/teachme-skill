@@ -1,17 +1,20 @@
-# `/teachme` — Adaptive Teaching & Learning-Memory Agent Skill
+# `/teachme` — Source-Independent Adaptive Teaching & Learning-Memory Skill
 
-An AI agent skill suite (`/teachme` + 6 `/teachme-*` subcommands) for **adaptive first-principles teaching, lightweight calibration, diagnostic prerequisite repair, objective-level coverage & gap tracking, assistance-aware evidence, and deterministic delayed review**. Works alongside **[Scriptorium](https://github.com/AayushPandey2/scriptorium)**, which owns requested reusable study artifacts (study notes, cheat sheets, flashcards, glossaries, MOCs).
+An AI agent skill suite (`/teachme` + 6 `/teachme-*` subcommands) for **source-independent adaptive first-principles teaching, lightweight calibration, diagnostic prerequisite repair, objective-level coverage & gap tracking, assistance-aware evidence, and deterministic delayed review**.
+
+**Fundamental rule: TeachMe teaches. Other skills write notes.** TeachMe works independently of any note-generation skill and teaches from existing Obsidian vaults, web/documentation sources, or both (`vault`, `hybrid`, or `web` mode).
 
 Works with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
 
 ## Separation of Responsibilities
 
 - **TeachMe owns:**
+  - Deterministic source resolution (`vault_cli.py resolve-sources`) across permitted Obsidian vaults (retrieving bounded actual Markdown sections and related prerequisite/embedded notes) and/or host web/documentation tools (`vault` / `hybrid` / `web`).
   - Interactive adaptive teaching, lightweight calibration, short adaptive diagnostics, and prerequisite repair (`revise-curriculum`).
   - Graduated support (`hint` -> `scaffold` -> `worked_example` -> fresh unaided attempt), direct answers to direct conceptual questions, and optional bounded live visuals/experiments (`scratchpad/media/`).
-  - Objective-level curriculum coverage (`not_taught`, `introduced`, `assessed`, `demonstrated`, `unresolved`, `out_of_scope`), assistance-aware proficiency (`introduced`, `practiced_with_support`, `demonstrated_independently`, `weakened`, `legacy_unverified`), separate retention and transfer tracking, append-only event history (`scratchpad/events.jsonl`), deterministic delayed review scheduling (`scratchpad/review-state.json`), misconception records (`learning-records/`), and compact context handoff (`vault_cli.py handoff`).
-- **Scriptorium owns:**
-  - Creating, expanding, organizing, formatting, linking, and validating reusable study artifacts (`/scribe-notes`, `/scribe-expand`, `/scribe-doubt`, `scripts/vault_index.py`, `scripts/verify_vault_notes.py`).
+  - Objective-level curriculum coverage, assistance-aware proficiency, separate retention and transfer tracking, append-only event history (`scratchpad/events.jsonl`), deterministic delayed review scheduling (`scratchpad/review-state.json`), lazy misconception records (`learning-records/`), and optional provider-independent context handoff (`vault_cli.py handoff`).
+- **External note-writing skills (optional) own:**
+  - Creating, expanding, organizing, formatting, linking, and validating persistent reusable study artifacts when explicitly requested by the user. TeachMe never invokes note skills during normal teaching and never writes study notes or `raw-research.md` by default.
 
 ## Key Adaptive Capabilities
 
@@ -37,11 +40,14 @@ TeachMe creates **operational learning state only** — never reusable study-not
                                    # events.jsonl, backups/, queue-<nn>.json
 ```
 
-- **Vault-Native Mode (Existing Obsidian Vaults):** Connect an existing Obsidian vault to isolate TeachMe's operational state inside `<vault>/.teachme/sessions/<topic-slug>/` and search existing notes **read-only** as optional learning context:
+- **Vault-Native Mode (Existing Obsidian Vaults & Multi-Vault Registry):** Register one or more Obsidian vaults to isolate TeachMe's operational state inside `<vault>/.teachme/sessions/<topic-slug>/` and retrieve bounded note sections **read-only** as teaching sources:
 
 ```bash
-python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault"
-python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent"
+python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault" --name main
+python skills/teachme/scripts/vault_cli.py vaults
+python skills/teachme/scripts/vault_cli.py use-vault main
+python skills/teachme/scripts/vault_cli.py resolve-sources --topic "Gradient Descent"
+python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent" --sections
 python skills/teachme/scripts/vault_cli.py reindex "/path/to/MyObsidianVault"
 ```
 
@@ -73,17 +79,9 @@ mkdir -p ~/notes
 | **Cline** | `~/.cline/skills/` | `.cline/skills/` | `mkdir -p ~/.cline/skills && cp -r skills/teachme* ~/.cline/skills/` |
 | **Codex / Generic** | `~/.agents/skills/` | `.agents/skills/` | `mkdir -p ~/.agents/skills && cp -r skills/teachme* ~/.agents/skills/` |
 
-### Optional Scriptorium Companion Setup
+### Optional External Note-Skill Interoperability
 
-To enable study-note handoffs to Scriptorium, install `scriptorium` separately and configure its independent Obsidian vault path via `SCRIPTORIUM_VAULT_PATH` or `~/.scriptorium-config.json`:
-
-```json
-{
-  "vault_path": "C:\\path\\to\\YourObsidianVault"
-}
-```
-
-If Scriptorium is unavailable or its vault is unconfigured, TeachMe preserves your learning state and returns a blocked handoff with the exact `/scribe-*` command and context summary instead of generating study notes itself.
+TeachMe works completely standalone without any note-generation skill. If you explicitly request persistent reusable study notes, TeachMe can discover a compatible installed note-writing skill and pass a compact instruction-level context envelope (`vault_cli.py handoff`). If none is installed or configured, TeachMe preserves your learning state and reports the handoff as blocked/unavailable with the context summary instead of creating study notes itself.
 
 ## Usage & Lifecycle Commands
 
@@ -97,14 +95,14 @@ If Scriptorium is unavailable or its vault is unconfigured, TeachMe preserves yo
 | `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `mode`, `search`, `reindex`, `state`) for isolated `.teachme/` state and read-only source lookup. |
 | `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views, changes, or resets TeachMe's standalone learning-state root in `~/.teachme-config.json`. |
 
-### Removed Note Commands & Supported Replacements
+### Removed Note Commands & Replacements
 
 | Removed TeachMe Command | Replacement |
 | :--- | :--- |
-| `/teachme-distill <topic>` | Scriptorium `/scribe-notes <topic>` or `/scribe-expand <topic>` |
-| `/teachme-expand <topic>` | Scriptorium `/scribe-expand <topic>` |
-| `/teachme-compare <A> vs <B>` | Interactive contrast in `/teachme`, or Scriptorium `/scribe-notes "<A> vs <B>"` for a note artifact |
-| `/teachme-verify <topic>` | Scriptorium `scripts/verify_vault_notes.py "<vault_path>" [--fix]` for study notes; `vault_cli.py validate-state` for TeachMe operational state |
+| `/teachme-distill <topic>` | Optional external note-writing skill via `NOTE-SKILL-HANDOFF.md` |
+| `/teachme-expand <topic>` | Optional external note-writing skill via `NOTE-SKILL-HANDOFF.md` |
+| `/teachme-compare <A> vs <B>` | Interactive contrast in `/teachme`, or optional external note-writing skill for a persistent comparison artifact |
+| `/teachme-verify <topic>` | `vault_cli.py validate-state` for TeachMe operational state; external note skill for study-note formatting verification |
 
 ### Operational State CLI (`scripts/vault_cli.py`)
 
@@ -126,7 +124,7 @@ python skills/teachme/scripts/vault_cli.py due <session_or_vault>
 python skills/teachme/scripts/vault_cli.py revise-curriculum <session_or_vault> --slug 00-slopes --title "Slope Intuition" --unlocks topic-01 --before-topic 01
 python skills/teachme/scripts/vault_cli.py record-media <session_or_vault> --objective obj-01-01 --kind generated_plot --local-path scratchpad/media/loss.png --verification generated_plot
 
-# Validate, migrate, import legacy vaults, or hand off context to Scriptorium
+# Validate, migrate, import legacy vaults, or generate an optional note-skill handoff envelope
 python skills/teachme/scripts/vault_cli.py validate-state <session_or_vault>
 python skills/teachme/scripts/vault_cli.py migrate <session_or_vault>
 python skills/teachme/scripts/vault_cli.py import-legacy <legacy_vault> [--target <state_dir>]
@@ -154,20 +152,20 @@ teachme-skill/
     │   │   ├── vault_cli.py               # Operational state CLI
     │   │   └── teachme_vault/
     │   │       ├── __init__.py
-    │   │       ├── cli_commands.py        # connect, mode, reindex, search handlers
-    │   │       ├── evidence.py            # Objective coverage, proficiency & media provenance
-    │   │       ├── indexer.py             # Read-only incremental vault search index
-    │   │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
-    │   │       ├── models.py              # Config, mode detection, atomic writes, safety guards
-    │   │       ├── scheduler.py           # Deterministic delayed-review scheduler & ranking
-    │   │       └── state_store.py         # Curriculum state, migration, revision & handoff
+    │       ├── cli_commands.py        # connect, vaults, use-vault, resolve-sources, search, reindex
+    │       ├── evidence.py            # Objective coverage, proficiency & media provenance
+    │       ├── indexer.py             # Read-only incremental vault index & source resolution
+    │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
+    │       ├── models.py              # Config, multi-vault registry, mode detection, safety guards
+    │       ├── scheduler.py           # Deterministic delayed-review scheduler & ranking
+    │       └── state_store.py         # Curriculum state, migration, revision & handoff
     │   └── references/
-    │       ├── MISSION-AND-GRILL.md       # Lightweight calibration, diagnostics & state init
-    │       ├── RESEARCH-TOOLCHAIN.md      # Primary-source retrieval & provenance rules
+    │       ├── MISSION-AND-GRILL.md       # Source resolution, fast calibration, diagnostics & init
+    │       ├── RESEARCH-TOOLCHAIN.md      # Source-mode-aware retrieval & untrusted content rules
     │       ├── RETENTION-AND-RECORDS.md   # Adaptive teaching policy, graduated support & records
     │       ├── VISUALS-AND-EXPERIMENTS.md # Visual selection, capability contract & image provenance
-    │       ├── SCRIPTORIUM-HANDOFF.md     # Lazy-loaded Scriptorium delegation contract
-    │       ├── VAULT-NATIVE.md            # Isolated .teachme/ state & read-only Obsidian lookup
+    │       ├── NOTE-SKILL-HANDOFF.md      # Lazy-loaded provider-independent note-skill contract
+    │       ├── VAULT-NATIVE.md            # Multi-vault registry, isolated state & read-only lookup
     │       └── cmd-*.md                   # Per-command workflows (drill, feynman, ingest, notes-path, review, vault)
     ├── teachme-drill/SKILL.md
     ├── teachme-feynman/SKILL.md

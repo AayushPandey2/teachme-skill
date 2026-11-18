@@ -13,7 +13,14 @@ from .evidence import (
     load_media_provenance,
     record_media_provenance,
 )
-from .indexer import build_or_update_index, load_or_build_index, search_vault
+from .indexer import (
+    build_or_update_index,
+    extract_markdown_sections,
+    load_or_build_index,
+    resolve_sources,
+    retrieve_note_sections,
+    search_vault,
+)
 from .models import (
     DEFAULT_IGNORED_DIRS,
     MODE_AUTO,
@@ -21,9 +28,14 @@ from .models import (
     MODE_VAULT_NATIVE,
     atomic_write_text,
     detect_vault_mode,
+    get_active_vault_entry,
+    get_registered_vaults,
     load_config,
+    register_vault,
     resolve_state_dir,
     save_config,
+    select_active_vault,
+    unregister_vault,
 )
 from .scheduler import (
     DEFAULT_INTERVALS_DAYS,
@@ -68,7 +80,10 @@ __all__ = [
     "derive_objective_evidence",
     "derive_session_coverage_and_gaps",
     "detect_vault_mode",
+    "extract_markdown_sections",
+    "get_active_vault_entry",
     "get_due_reviews",
+    "get_registered_vaults",
     "import_legacy_vault",
     "init_session_state",
     "list_vault_native_sessions",
@@ -80,12 +95,17 @@ __all__ = [
     "migrate_session_state",
     "rebuild_curriculum_graph",
     "record_media_provenance",
+    "register_vault",
     "resolve_session_dir",
+    "resolve_sources",
     "resolve_state_dir",
+    "retrieve_note_sections",
     "revise_curriculum",
     "save_config",
     "save_mission",
     "save_review_state",
     "search_vault",
+    "select_active_vault",
+    "unregister_vault",
     "validate_session_state",
 ]
