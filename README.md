@@ -1,73 +1,65 @@
-# `/teachme` — Primary-Source Research & Mastery Agent Skill
+# `/teachme` — Source-Independent Adaptive Teaching & Learning-Memory Skill
 
-An AI agent skill suite (`/teachme` + 9 autocomplete `/teachme-*` subcommands) that deeply researches any topic from primary sources, builds an interlinked Obsidian/Markdown study vault at `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`, customizable via `/teachme-notes-path`), and teaches it to you from **Absolute Zero** to **Complete Mastery**.
+An AI agent skill suite (`/teachme` + 8 `/teachme-*` subcommands) for **source-independent adaptive first-principles teaching, lightweight calibration, diagnostic prerequisite repair, interactive coding mentorship, notes-grounded rapid revision, objective-level coverage & gap tracking, assistance-aware evidence, and deterministic delayed review**.
 
-Works out of the box with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
+**Fundamental rule: TeachMe teaches. Other skills write notes.** TeachMe works independently of any note-generation skill and teaches from existing Obsidian vaults, web/documentation sources, or both (`vault`, `hybrid`, or `web` mode).
 
-## Why `/teachme`?
+Works with **Claude Code**, **Cursor**, **Windsurf**, **Antigravity**, **Gemini CLI**, **Cline**, **Codex**, and any `SKILL.md`-compatible AI coding or research assistant.
 
-Standard LLM explanations dump a wall of text you forget five minutes later. `/teachme` acts as an end-to-end learning OS:
+## Separation of Responsibilities
 
-1. **Zero-Baseline & Absolute Mastery Defaults:** Starts every new session with 4 calibrated `❓` questions defaulting to **No prior knowledge** (build from absolute zero) and **Absolute mastery covering all topics** (zero-omission syllabus decomposition)—or jump straight in with `--auto`.
-2. **Primary-Source Research Toolchain:** Separates vetted **Knowledge** (RFCs, papers, official docs, textbooks) from practitioner **Wisdom** (post-mortems, talks, benchmarks), captures rough drafts in `scratchpad/`, and logs unresolved gaps explicitly.
-3. **7-Section Subtopic Notes & 7-Point Critic Audit:** Generates a dedicated deep-dive `.md` file inside `topics/` for **every** subtopic in topological prerequisite order—featuring typed YAML edges, `L1`–`L5` semantic section anchors, zero-baseline micro-bridges, 4-layer theory with ASCII diagrams and contrastive "Is vs. Is Not" tables, zero-skip axiom derivations, runnable Python/NumPy `assert` verification blocks, and gradual-release (`I Do` → `We Do` → `You Do`) workbooks.
-4. **Zero-Token CLI, Spreading Activation & Delta-Flush (`scripts/vault_cli.py` + `00-GRAPH.json`):** Uses a compact `<60`-line `00-SESSION-STATE.md` pointer, `00-GRAPH.json` typed adjacency map, and a standard-library Python CLI (`init`, `context`, `state`, `graph`, `slice`, `tick`, `flush`, `fix`, `verify`) so the agent bundles 1-hop `L0-L1` neighbors + active depth-stage slices in a single `context` call, tracks checkpoints via `scratchpad/events.jsonl` + `queue-<nn>.json`, and flushes Markdown updates once on mastery.
-5. **Progressive 7-Component Socratic Loop:** Escalates across 3 depth stages (`1/3`, `2/3`, `3/3`) and 4 checkpoints (`[1/4]` Discovery Hook → `[2/4]` `We Do` → `[3/4]` `You Do` → `[4/4]` Adversarial Edge-Case + Feynman Gate), enforcing a strict **Anti-Spoiler Rule** with drop-down 1-number micro-steps and an inline `wait what` / `simplify` escape hatch.
-6. **Autocomplete Slash-Command Suite & Custom Vault Root:** Exposes every workflow as a top-level `/teachme-*` skill alongside `/teachme` so all 10 commands appear immediately in your editor or CLI slash-command dropdown, and lets you redirect where vaults live via `/teachme-notes-path` (`~/.teachme-config.json`).
+- **TeachMe owns:**
+  - Deterministic source resolution (`vault_cli.py resolve-sources`) across permitted Obsidian vaults (retrieving bounded actual Markdown sections and related prerequisite/embedded notes) and/or host web/documentation tools (`vault` / `hybrid` / `web`).
+  - Interactive adaptive teaching, lightweight calibration, short adaptive diagnostics, and prerequisite repair (`revise-curriculum`).
+  - Graduated support (`hint` -> `scaffold` -> `worked_example` -> fresh unaided attempt), direct answers to direct conceptual questions, and optional bounded live visuals/experiments (`scratchpad/media/`).
+  - Objective-level curriculum coverage, assistance-aware proficiency, separate retention and transfer tracking, append-only event history (`scratchpad/events.jsonl`), deterministic delayed review scheduling (`scratchpad/review-state.json`), lazy misconception records (`learning-records/`), and optional provider-independent context handoff (`vault_cli.py handoff`).
+- **External note-writing skills (optional) own:**
+  - Creating, expanding, organizing, formatting, linking, and validating persistent reusable study artifacts when explicitly requested by the user. TeachMe never invokes note skills during normal teaching and never writes study notes or `raw-research.md` by default.
 
-## Generated Vault Architecture
+## Key Adaptive Capabilities
 
-Every `/teachme <topic>` run creates and maintains a pure-Markdown vault inside `<VAULT_ROOT>/<topic-slug>/` (defaulting to `~/notes/<topic-slug>/`; change or reset anytime with `/teachme-notes-path`):
+- **Adaptive Teaching & Graduated Support:** Replaces rigid 4-turn templates, forced closing quizzes, mandatory ASCII diagrams, and endless anti-spoiler hinting with an evidence-driven decision policy (`Identify objective -> Inspect prerequisites/performance -> Teach or assess -> Observe -> Update evidence -> Select next action`). If you ask `"explain"`, TeachMe explains directly and follows up later with a fresh unaided problem.
+- **Lightweight Calibration & Diagnostics:** Uses known session context first and asks only for missing information that materially changes the path (goal/scope, background, time budget, language/constraints). Substantial topics use short 2–4 task adaptive diagnostics; skipped prerequisites are marked `unknown` (untested), never mastered.
+- **Visible Coverage & Gaps:** Curriculum nodes support multiple assessable objectives with stable IDs, required/optional scope status, assumptions, and DAG-validated prerequisites. TeachMe never promises "zero gaps" across an unlimited scope; `coverage` and `progress` report demonstrated vs. untested required objectives and unresolved prerequisites.
+- **Retention vs. Transfer & Delayed Review:** Tracks delayed recall (`>= 12h` in a new session) and unfamiliar transfer separately from immediate unaided success. A deterministic scheduler (configurable defaults `[1, 3, 7, 21]` days) surfaces due previously demonstrated items, legacy unverified items, and lapsed items via `vault_cli.py due`. Assisted passes and same-session retries never advance the retention schedule.
+- **Optional Visuals & Capability-Aware Fallbacks:** Chooses photographs, computed plots, trace tables, or small bounded experiments only when they serve an explicit objective. Never invents host tools, image inspections, URLs, or licenses (`record-media` defaults unknown licenses to `"unknown"`), and falls back cleanly to terminal/text tables when rich rendering is unavailable.
+
+## Operational State Architecture
+
+TeachMe creates **operational learning state only** — never reusable study-note scaffolds:
+
+- **Standalone Mode** (`<STATE_ROOT>/<topic-slug>/`, defaulting to `~/notes/<topic-slug>/`, customizable via `/teachme-notes-path`):
 
 ```text
-<VAULT_ROOT>/<topic-slug>/
-├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines), status map & last verified invariant
-├── 00-GRAPH.json                  # Compact typed adjacency map built by scripts/vault_cli.py graph
-├── 00-MOC-INDEX.md                # Master Map of Content, Mermaid + ASCII dependency graph, synthesis strips & checkboxes
-├── 00-MISSION.md                  # Target outcome, baseline (0 prior knowledge), scope & success criteria
-├── 01-RESOURCES.md                # Primary sources (Knowledge), practitioner signal (Wisdom) & Gaps
-├── 02-DEEP-RESEARCH.md            # Primary-source cited research dossier with full formula anatomy
-├── 03-CORNELL-STUDY-GUIDE.md      # Master synthesis notes & <details> active-recall cues
-├── 04-GLOSSARY.md                 # Crisp 1–2 sentence definitions + "_Avoid_:" aliases
-├── 05-MENTAL-MODELS.md            # Feynman analogies, first-principles axioms & failure pre-mortems
-├── 06-DERIVATIONS-AND-PROOFS.md   # Step-by-step algebraic & logical derivations from base axioms
-├── 07-PRACTICE-PROBLEMS.md        # Graded Tier 1–3 problems with hidden step-by-step solutions
-├── 08-FLASHCARDS.md               # Obsidian Spaced Repetition / Anki-ready Q&A & cloze cards
-├── 09-CHEAT-SHEET.md              # Single-page executive cheat sheet (/teachme-distill & auto-compaction)
-├── topics/                        # Dedicated 8-Block deep-dive .md file for EVERY subtopic (with L1-L5 anchors)
-├── atomic/                        # Interlinked evergreen Zettelkasten cards ([[wikilinks]] + L1-L5 anchors)
-├── learning-records/              # ADR-style chronological mastery & misconception logs
-└── scratchpad/                    # Ephemeral buffer (raw-research.md, derivation-drafts.md, events.jsonl, queue-<nn>.json)
+<STATE_ROOT>/<topic-slug>/
+├── 00-SESSION-STATE.md            # Hot-state resume pointer (<60 lines) & status map
+├── 00-GRAPH.json                  # Curriculum dependency & progression graph
+├── learning-records/              # Chronological mastery & misconception logs
+└── scratchpad/                    # curriculum.json (v2), review-state.json, mission.json,
+                                   # media-provenance.json, ingested-sources.json,
+                                   # events.jsonl, backups/, queue-<nn>.json
 ```
 
-## Vault-Native Mode (Existing Obsidian Vaults)
-
-Connect an existing Obsidian vault without restructuring folders or imposing standalone filenames:
+- **Vault-Native Mode (Existing Obsidian Vaults & Multi-Vault Registry):** Register one or more Obsidian vaults to isolate TeachMe's operational state inside `<vault>/.teachme/sessions/<topic-slug>/` and retrieve bounded note sections **read-only** as teaching sources:
 
 ```bash
-# Connect and profile your Obsidian vault (auto-detects .obsidian/)
-python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault"
-
-# Inspect inferred folders, tags, metadata schema, note style, and plugin capabilities
-python skills/teachme/scripts/vault_cli.py profile "/path/to/MyObsidianVault"
-
-# Search existing knowledge and preview placement, tags, MOC updates, Mermaid & links before writing
-python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent"
-python skills/teachme/scripts/vault_cli.py plan "/path/to/MyObsidianVault" --topic "Gradient Descent"
-
-# Dry-run preview, apply the exact reviewed plan transactionally, and audit TeachMe-managed edits
-python skills/teachme/scripts/vault_cli.py generate "/path/to/MyObsidianVault" --topic "Gradient Descent" --dry-run
-python skills/teachme/scripts/vault_cli.py apply "/path/to/MyObsidianVault" --plan "<plan_id>"
-python skills/teachme/scripts/vault_cli.py audit "/path/to/MyObsidianVault"
+python skills/teachme/scripts/vault_cli.py connect "/path/to/MyObsidianVault" --name main
+python skills/teachme/scripts/vault_cli.py vaults
+python skills/teachme/scripts/vault_cli.py use-vault main
+python skills/teachme/scripts/vault_cli.py resolve-sources --topic "Gradient Descent"
+python skills/teachme/scripts/vault_cli.py search "/path/to/MyObsidianVault" --query "Gradient Descent" --sections
+python skills/teachme/scripts/vault_cli.py reindex "/path/to/MyObsidianVault"
 ```
 
-- **State Isolation:** TeachMe stores `profile.json`, `index.json`, `managed-notes.json`, backups, and session logs inside `<vault>/.teachme/` (or a custom `--state-dir`).
-- **Non-Destructive Guarantee:** Legacy `fix` and `verify` never alter or complain about existing user-authored notes in Vault-Native Mode; `--extend` creates a timestamped backup before appending.
-- **Slash Commands in Antigravity:** Use `/teachme-vault connect <path>`, `/teachme-vault plan --topic "<topic>"`, or `/teachme <topic>` after connecting your vault.
+## Legacy Session & Migration Compatibility
+
+- Legacy vaults (`topics/*.md`, `00-MOC-INDEX.md`, v1 `00-GRAPH.json` / `curriculum.json`, and legacy `tick`/`flush` calls) continue to work and can be migrated idempotently via `migrate` or `import-legacy`.
+- Migration backs up existing operational state files under `scratchpad/backups/`, validates references and DAG acyclicity before replacing files, preserves unrelated metadata, and never touches user study notes.
+- Legacy `4/4` / `mastered` flags without explicit independent evidence are marked `legacy_unverified` with `retention: "untested"` and `transfer: "untested"` — missing historical evidence is never fabricated.
 
 ## Installation
 
-Clone this repository and copy all `skills/teachme*` folders into your AI tool's skills directory (so `/teachme` and all `/teachme-*` subcommands appear in slash-command autocomplete), and create your central `~/notes` vault folder:
+Clone this repository and copy all `skills/teachme*` folders into your AI tool's skills directory:
 
 ```bash
 git clone https://github.com/AayushPandey2/teachme-skill.git
@@ -87,26 +79,140 @@ mkdir -p ~/notes
 | **Cline** | `~/.cline/skills/` | `.cline/skills/` | `mkdir -p ~/.cline/skills && cp -r skills/teachme* ~/.cline/skills/` |
 | **Codex / Generic** | `~/.agents/skills/` | `.agents/skills/` | `mkdir -p ~/.agents/skills && cp -r skills/teachme* ~/.agents/skills/` |
 
-## Usage & Lifecycle Commands
+### Optional External Note-Skill Interoperability
 
-Open a new session in your agent and type `/teachme` to see all subcommands in your slash-command autocomplete dropdown *(space-separated aliases like `/teachme expand <topic>` also work)*:
+TeachMe works completely standalone without any note-generation skill. If you explicitly request persistent reusable study notes, TeachMe can discover a compatible installed note-writing skill and pass a compact instruction-level context envelope (`vault_cli.py handoff`). If none is installed or configured, TeachMe preserves your learning state and reports the handoff as blocked/unavailable with the context summary instead of creating study notes itself.
+
+## Usage & Lifecycle Commands
 
 | Autocomplete Command | Space-Separated Alias | What It Does |
 | :--- | :--- | :--- |
-| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs Phase 1 Frontier Grilling (or `--auto` defaults), builds the full vault at `<VAULT_ROOT>/<topic-slug>/` (default `~/notes/`), and teaches interactively via the 7-Component Mastery Loop. |
-| `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `discover`, `profile`, `search`, `plan`, `generate`, `audit`, `mode`, `reindex`) in **Vault-Native Mode**, adapting placement, templates, metadata, tags, links, and style without restructuring your vault. |
-| `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views the active `<VAULT_ROOT>`, redirects vault storage to a custom folder (`~/.teachme-config.json`), or resets back to `~/notes`. |
-| `/teachme-expand <topic>` | `/teachme expand <topic>` | Deepens pre-existing notes in place to the 7-Section Standard, creates `.md` files for missing related subtopics, and runs the 7-Point Critic Audit. |
-| `/teachme-verify <topic>` | `/teachme verify <topic>` *(or `audit`)* | Multi-pass audit & auto-repair of broken `[[wikilinks]]`, typed YAML edges, orphaned files, `00-SESSION-STATE.md`, `<details>` blocks, and malformed LaTeX across the vault. |
-| `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs new PDFs, URLs, lecture notes, or raw dumps into an existing vault, flags contradictions, and syncs `00-SESSION-STATE.md` without overwriting mastered checkpoints. |
-| `/teachme-distill <topic>` | `/teachme distill <topic>` | Compresses a vault into a high-density 1-page `09-CHEAT-SHEET.md` and refreshes the `08-FLASHCARDS.md` spaced-repetition deck. |
-| `/teachme-review <topic>` | `/teachme review <topic>` | Launches an interleaved spaced-repetition Socratic coaching session targeting weak spots logged in `00-SESSION-STATE.md` and `learning-records/`. |
-| `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching mastery audit: explain a concept and its formulas back in plain English with zero unstated jargon under Socratic probing. |
-| `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates and grades Tier 1 (recall), Tier 2 (multi-step), or Tier 3 (adversarial edge-case) practice problems into `07-PRACTICE-PROBLEMS.md`. |
-| `/teachme-compare <A> vs <B>` | `/teachme compare <A> vs <B>` | Builds a primary-source structural trade-off matrix at `<VAULT_ROOT>/comparisons/<a-vs-b>.md` contrasting two concepts, algorithms, or architectures. |
-| `wait what` / `simplify` | `/wait-what` | Pauses quizzing during Phase 6, re-explains the sticking point from absolute zero using a scalar trace, and saves the clearer analogy to `05-MENTAL-MODELS.md`. |
+| `/teachme <topic>` | *(or `/teachme <topic> --auto`)* | Runs lightweight calibration & adaptive diagnostics, builds an acyclic objective curriculum, and teaches adaptively using evidence-based assessments. |
+| `/teachme-review <topic>` | `/teachme review <topic>` | Runs delayed spaced review (`due`) starting with unaided retrieval on due demonstrated, legacy-unverified, and lapsed objectives. |
+| `/teachme-feynman <concept>` | `/teachme feynman <concept>` | Reverse-teaching check: explain a concept and its assumptions in plain English with zero unstated jargon. |
+| `/teachme-drill <topic> [1\|2\|3]` | `/teachme drill <topic> [--tier 1\|2\|3]` | Generates, verifies, and grades adaptive Tier 1–3 tasks with graduated support and assistance-aware logging. |
+| `/teachme-code <lang/topic> [flags]` | `/teachme code <lang/topic> [flags]` | Interactive coding tutor (`learn`, `practice`, `debug`, `trace`, `challenge`, `interview`) with progressive hints and safe verification. |
+| `/teachme-rapid <topic> [flags]` | `/teachme rapid <topic> [flags]` | Fast, notes-first active recall (`recall`, `mcq`, `mixed`, `weak`, `qa`, `exam`) grounded strictly in existing vault notes. |
+| `/teachme-ingest <topic> <source>` | `/teachme ingest <topic> <source>` | Absorbs PDFs, URLs, transcripts, or repos into lesson context without modifying study notes or overwriting demonstrated evidence. |
+| `/teachme-vault <subcommand>` | `/teachme vault <subcommand>` | Connects an existing Obsidian vault (`connect`, `mode`, `search`, `reindex`, `state`) for isolated `.teachme/` state and read-only source lookup. |
+| `/teachme-notes-path [path\|reset]` | `/teachme notes-path [path\|reset]` | Views, changes, or resets TeachMe's standalone learning-state root in `~/.teachme-config.json`. |
 
-*(If your agent does not support `/slash` skill commands natively, prompt: `"Use the teachme skill to research and teach me <topic>."`)*
+### Removed Note Commands & Replacements
+
+| Removed TeachMe Command | Replacement |
+| :--- | :--- |
+| `/teachme-distill <topic>` | Optional external note-writing skill via `NOTE-SKILL-HANDOFF.md` |
+| `/teachme-expand <topic>` | Optional external note-writing skill via `NOTE-SKILL-HANDOFF.md` |
+| `/teachme-compare <A> vs <B>` | Interactive contrast in `/teachme`, or optional external note-writing skill for a persistent comparison artifact |
+| `/teachme-verify <topic>` | `vault_cli.py validate-state` for TeachMe operational state; external note skill for study-note formatting verification |
+
+### Operational State CLI (`scripts/vault_cli.py`)
+
+```bash
+# Initialize session and record lightweight calibration/diagnostic prerequisites
+python skills/teachme/scripts/vault_cli.py init <session_or_vault> --topic "<Topic>" --subtopics subtopics.json --goal "<Goal>"
+python skills/teachme/scripts/vault_cli.py calibrate <session_or_vault> --background "<bg>" --time-budget 20 --prereq "chain_rule=demonstrated:Solved composite example"
+
+# Per-turn bounded context and objective-level assessment logging
+python skills/teachme/scripts/vault_cli.py context <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py assess <session_or_vault> --topic 01 --objective obj-01-01 --assessment-type independent_application --result pass --assistance none --rationale "Solved without hints"
+
+# Inspect coverage/gaps, honest progress, and due delayed reviews (read-only)
+python skills/teachme/scripts/vault_cli.py coverage <session_or_vault>
+python skills/teachme/scripts/vault_cli.py progress <session_or_vault>
+python skills/teachme/scripts/vault_cli.py due <session_or_vault>
+
+# Revise curriculum when a missing prerequisite is discovered, or record media provenance
+python skills/teachme/scripts/vault_cli.py revise-curriculum <session_or_vault> --slug 00-slopes --title "Slope Intuition" --unlocks topic-01 --before-topic 01
+python skills/teachme/scripts/vault_cli.py record-media <session_or_vault> --objective obj-01-01 --kind generated_plot --local-path scratchpad/media/loss.png --verification generated_plot
+
+# Validate, migrate, import legacy vaults, or generate an optional note-skill handoff envelope
+python skills/teachme/scripts/vault_cli.py validate-state <session_or_vault>
+python skills/teachme/scripts/vault_cli.py migrate <session_or_vault>
+python skills/teachme/scripts/vault_cli.py import-legacy <legacy_vault> [--target <state_dir>]
+python skills/teachme/scripts/vault_cli.py handoff <session_or_vault> --topic 01 --request "revision notes"
+
+# Terminal-first intelligent teaching engine (modality router, graphs, simulations, adaptive quizzes, image planning)
+python skills/teachme/scripts/vault_cli.py capabilities
+python skills/teachme/scripts/vault_cli.py route-modality <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py graph-render --kind function --expr "x^2 - 2*x" --x-min -2 --x-max 4 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template gradient_descent --param lr=0.2 --param w0=4 --predict decrease --steps 5 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template sorting --param algorithm=selection --param array=5,2,8,1,4 --steps 4 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template c_pointers --param scenario=basic_deref --steps 3 --format text
+python skills/teachme/scripts/vault_cli.py simulate --template probability --param p=0.5 --param batch_size=50 --steps 4 --format text
+python skills/teachme/scripts/vault_cli.py quiz-plan <session_or_vault> --topic 01
+python skills/teachme/scripts/vault_cli.py evaluate-answer --kind numeric --expected 4.5 --answer "4.5"
+python skills/teachme/scripts/vault_cli.py image-plan --topic-name "Human Heart" --desc "Identify left ventricle anatomy" --no-tty
+
+# Interactive coding tutor & notes-first rapid revision
+python skills/teachme/scripts/vault_cli.py code-plan <session_or_vault> --args "C pointers --mode practice"
+python skills/teachme/scripts/vault_cli.py code-check <session_or_vault> --language python --code "print(42)" --authorize-exec
+python skills/teachme/scripts/vault_cli.py rapid-plan <session_or_vault> --args "C pointers --mode weak --questions 10"
+python skills/teachme/scripts/vault_cli.py rapid-record <session_or_vault> --item-key "C/Pointers.md::Pointer Arithmetic::recall" --concept "Pointer Arithmetic" --result pass --assistance none --topic 02 --objective obj-02-01
+python skills/teachme/scripts/vault_cli.py rapid-status <session_or_vault>
+```
+
+## `/teachme-code` & `/teachme-rapid`
+
+### How `/teachme-code` Works
+
+- **Invocation & Modes:** Supports `/teachme-code C pointers`, `/teachme-code Python recursion`, `/teachme-code C arrays --mode practice`, `/teachme-code Python two pointers --mode challenge`, `/teachme-code C --mode debug`, `/teachme-code DSA binary search --level intermediate`, `/teachme-code C functions --minutes 20`, and `/teachme-code --resume`. Modes: `learn`, `practice`, `debug`, `trace`, `challenge`, `interview`.
+- **Language Support:** `python` and `c` are first-class targets; `cpp`, `java` (requires both `javac` and `java`), and `javascript` (`node`) run via adapters when detected on `PATH`. Undetected runtimes are never claimed as supported.
+- **Safe Verification & Host Limitations:** Local code execution is never assumed to be sandboxed. Without an explicit trusted sandbox (`TEACHME_TRUSTED_SANDBOX=1`) or explicit learner/host authorization (`--authorize-exec`), `code-check` performs static inspection only (Python AST syntax/logic checks + C beginner diagnostics for bounds, `scanf`, uninitialized variables, pointer `&`/`*`, string `'\0'`, `malloc`/`free`, and recursion base cases). When authorized, code compiles and runs inside an isolated temporary directory with bounded timeouts (`<= 10s`) and output caps (`<= 8192` chars), without `shell=True` and without writing build artifacts into your repository or notes. OS-level process/memory isolation depends on the host environment. Passing sample tests is distinguished from edge-case verification (`partial_sample_only` vs `verified_with_edge_cases`).
+- **Progressive Hints (0–4):** `0` independent -> `1` small hint -> `2` concept/invariant -> `3` partial scaffold -> `4` worked solution on request. Assisted passes log `practiced_with_support` and require a fresh independent problem before recording `demonstrated_independently`.
+
+```text
+> /teachme-code C pointers --mode debug
+
+Loaded shared state: C Pointers (prior struggle on obj-02-01: Pointer Arithmetic).
+Challenge [Foundation]: Fix the pointer initialization and scanf bug below, or trace what happens first:
+
+    int x;
+    int *p = x;
+    scanf("%d", x);
+
+> user submits fix or asks for hint level 1
+
+Static check + verified run (in isolated temp dir):
+First issue resolved (`int *p = &x;` and `scanf("%d", &x);`).
+Next challenge: write a loop summing `arr` via pointer arithmetic without stepping past `arr + n`.
+```
+
+### How `/teachme-rapid` Works
+
+- **Notes-First & Notes-Grounded:** Uses `resolve-sources` read-only on your connected Obsidian vault, retrieving bounded sections with exact `rel_path` and heading citations while treating note contents as untrusted data. Even if `resolve-sources` returns `hybrid`, `/teachme-rapid` **never silently supplements** missing note coverage with general knowledge or web results—it quizzes only concepts backed by your notes unless you explicitly opt in (`--allow-web` or `--allow-general`). If no usable notes exist, it reports that honestly and offers vault selection or explicit opt-in.
+- **Invocation & Modes:** Supports `/teachme-rapid calculus`, `/teachme-rapid C pointers --minutes 10`, `/teachme-rapid machine learning --questions 20`, `/teachme-rapid matrices --mode recall`, `/teachme-rapid probability --mode mcq`, `/teachme-rapid DSA --mode mixed`, `/teachme-rapid --mode weak`, `/teachme-rapid --mode qa`, `/teachme-rapid --mode exam`, and `/teachme-rapid --resume`.
+- **Q&A & Exam Honesty:** `--mode qa` answers directly from retrieved notes without forcing a quiz or recording artificial test results. `--mode exam` prioritizes agreed `mission.json` scope and question budgets without inventing exam probabilities.
+- **Fast 1-Question Flow & Honest Summary:** Uses question-count budgets (never fabricating active study time in conversational mode), asks one crisp question per turn, queues fresh follow-up variants on misses, and ends with an observed-only report (`answered`, `unanswered`, `correct`, `partial`, `incorrect`, `strong`, `needs_practice`).
+
+```text
+> /teachme-rapid C pointers --mode weak --questions 5
+
+RAPID REVISION — C POINTERS
+Source: C/Pointers.md | Mode: Weak | Questions: 5
+
+Q1/5 [Pointer Arithmetic]
+If `int *p` points to `a[0]` on a system with 4-byte `int`, by how many bytes does `p + 1` advance?
+
+> 1 byte
+
+Correction: `p + 1` advances by `sizeof(int)` (4 bytes here), not 1 byte.
+Misconception note: pointer arithmetic scales by the pointed-to type size. (Queued fresh follow-up.)
+```
+
+### Shared Memory & How Subskills Differ
+
+- **One Shared Learning Memory:** `/teachme`, `/teachme-code`, `/teachme-rapid`, `/teachme-drill`, `/teachme-feynman`, and `/teachme-review` all read and write the same operational files (`00-SESSION-STATE.md`, `00-GRAPH.json`, `scratchpad/curriculum.json`, `scratchpad/events.jsonl`, `scratchpad/review-state.json`, and `learning-records/`). Neither new subskill creates a second mastery database or modifies study notes. Same-session rapid recall passes `session_run_id` so it never fabricates delayed retention.
+- **Subskill Roles:**
+  - `/teachme-drill`: Adaptive Tier 1–3 concept & reasoning drills across any source mode (`vault`, `hybrid`, or `web`).
+  - `/teachme-code`: Hands-on programming mentorship (writing, tracing, debugging, edge-case testing, complexity discussion).
+  - `/teachme-rapid`: High-speed, strictly notes-grounded active recall, gap detection, and note-cited Q&A under tight time/question budgets.
+  - `/teachme-review`: Delayed spaced-repetition coaching (`>= 12h`, new session) that verifies long-term retention on due objectives.
+
+## Policy Scenarios & Tests
+
+- Documented adaptive teaching policy scenarios (`A`–`J`): [docs/TEACHING-SCENARIOS.md](docs/TEACHING-SCENARIOS.md)
+- Run unit tests: `python -m unittest discover -s tests -v`
 
 ## Repository Structure
 
@@ -114,33 +220,49 @@ Open a new session in your agent and type `/teachme` to see all subcommands in y
 teachme-skill/
 ├── README.md
 ├── LICENSE
+├── docs/
+│   └── TEACHING-SCENARIOS.md              # Documented policy scenarios A–J
+├── tests/
 └── skills/
-    ├── teachme/                           # Single source of truth: master router, operating laws, CLI & references
-    │   ├── SKILL.md
+    ├── teachme/
+    │   ├── SKILL.md                       # Master router, core invariants & intent routing
     │   ├── scripts/
-    │   │   └── vault_cli.py               # Zero-token CLI: init, context, state, graph, slice, tick, flush, fix & verify
+    │   │   ├── vault_cli.py               # Operational state CLI
+    │   │   └── teachme_vault/
+    │   │       ├── __init__.py
+    │       ├── adaptive_quiz.py   # Level 1-3 question selection & deterministic checking
+    │   │       ├── cli_commands.py        # connect, vaults, use-vault, resolve-sources, search, reindex
+    │   │       ├── coding_practice.py     # Interactive coding session planner & safe verification
+    │   │       ├── engine_commands.py # capabilities, route-modality, graph-render, simulate, quiz-plan, evaluate-answer, image-plan, code-*, rapid-*
+    │       ├── evidence.py            # Objective coverage, proficiency & media provenance
+    │       ├── indexer.py             # Read-only incremental vault index & source resolution
+    │       ├── markdown_utils.py      # Read-only Markdown/YAML parser
+    │   │       ├── media_retrieval.py # Credible web image filtering, caching & terminal fallbacks
+    │   │       ├── modality_router.py # Explainable teaching modality selection policy
+    │       ├── models.py              # Config, multi-vault registry, mode detection, safety guards
+    │   │       ├── rapid_revision.py      # Notes-first rapid revision & active recall engine
+    │       ├── scheduler.py           # Deterministic delayed-review scheduler & ranking
+    │   │       ├── simulations.py     # Bounded portable simulations (GD, sorting, C pointers, probability)
+    │       ├── state_store.py         # Curriculum state, migration, revision & handoff
+    │   │       ├── terminal_caps.py   # Cross-platform TTY, NO_COLOR, Unicode & image protocol detection
+    │   │       └── terminal_graph.py  # Stdlib ASCII/Unicode/Braille plotter & safe math AST evaluator
     │   └── references/
-    │       ├── MISSION-AND-GRILL.md       # Phases 1–3: Frontier grilling, Mission Lock & CLI vault scaffold
-    │       ├── RESEARCH-TOOLCHAIN.md      # Phase 2: Knowledge vs. Wisdom sourcing, deep-linking & scratchpad isolation
-    │       ├── STUDY-AND-GLOSSARY.md      # Phases 4–5: 7-Section Blueprint, 7-Point Critic Gate, templates & atomic cards
-    │       ├── RETENTION-AND-RECORDS.md   # Phase 6: 4-Turn pacing, ONE-question law, Anti-Spoiler & ADR records
-    │       ├── VAULT-NATIVE.md            # Vault-Native Mode workflow, plugin awareness & non-destructive writes
-    │       └── cmd-*.md                   # Atomic per-command workflows (notes-path, vault, expand, verify, ingest, distill, review, feynman, drill, compare)
-    ├── teachme-vault/SKILL.md             # Wrapper -> /teachme-vault <subcommand> [args]
-    ├── teachme-notes-path/SKILL.md        # Wrapper -> /teachme-notes-path [path|reset]
-    ├── teachme-expand/SKILL.md            # Wrapper -> /teachme-expand <topic>
-    ├── teachme-verify/SKILL.md            # Wrapper -> /teachme-verify <topic>
-    ├── teachme-ingest/SKILL.md            # Wrapper -> /teachme-ingest <topic> <source>
-    ├── teachme-distill/SKILL.md           # Wrapper -> /teachme-distill <topic>
-    ├── teachme-review/SKILL.md            # Wrapper -> /teachme-review <topic>
-    ├── teachme-feynman/SKILL.md           # Wrapper -> /teachme-feynman <concept>
-    ├── teachme-drill/SKILL.md             # Wrapper -> /teachme-drill <topic> [1|2|3]
-    └── teachme-compare/SKILL.md           # Wrapper -> /teachme-compare <A> vs <B>
+    │       ├── MISSION-AND-GRILL.md       # Source resolution, fast calibration, diagnostics & init
+    │       ├── RESEARCH-TOOLCHAIN.md      # Source-mode-aware retrieval & untrusted content rules
+    │       ├── RETENTION-AND-RECORDS.md   # Adaptive teaching policy, graduated support & records
+    │       ├── VISUALS-AND-EXPERIMENTS.md # Visual selection, capability contract & image provenance
+    │       ├── NOTE-SKILL-HANDOFF.md      # Lazy-loaded provider-independent note-skill contract
+    │       ├── VAULT-NATIVE.md            # Multi-vault registry, isolated state & read-only lookup
+    │       └── cmd-*.md                   # Per-command workflows (code, drill, feynman, ingest, notes-path, rapid, review, vault)
+    ├── teachme-code/SKILL.md
+    ├── teachme-drill/SKILL.md
+    ├── teachme-feynman/SKILL.md
+    ├── teachme-ingest/SKILL.md
+    ├── teachme-notes-path/SKILL.md
+    ├── teachme-rapid/SKILL.md
+    ├── teachme-review/SKILL.md
+    └── teachme-vault/SKILL.md
 ```
-
-## Acknowledgments
-
-Inspired by workflow patterns from [`mattpocock/skills`](https://github.com/mattpocock/skills), [`rohankgeorge/the-researcher`](https://github.com/rohankgeorge/the-researcher), and [`rohankgeorge/thinking-tools`](https://github.com/rohankgeorge/thinking-tools).
 
 ## License
 

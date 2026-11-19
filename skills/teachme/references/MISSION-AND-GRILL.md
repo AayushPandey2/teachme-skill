@@ -1,74 +1,80 @@
-# Phases 1–3: Frontier Grilling, Research Workflow & Vault Scaffold
+# Source Resolution, Fast Calibration, Diagnostics & Minimal Curriculum Init
 
-Formatting, linking, and CLI laws live in `SKILL.md §B–§C` only.
+Core routing, source-independence, and state laws live in `SKILL.md §A–§D`. Start teaching quickly — avoid mandatory exhaustive upfront research, oversized curriculum planning, and unnecessary intake questions.
 
-## Phase 1 — Frontier Grilling & Mission Lock
-- **Facts are yours, decisions are the user's.** Never ask about specs, history, or benchmarks — research them in Phase 2. Never dump a long form.
-- Unless `--auto` / `defaults` / `go` was passed, ask exactly these 4 questions in ONE turn and wait:
+## Phase 0 — Load Existing State & Resolve Permitted Sources
+1. **Check existing learning state first:** Run `vault_cli.py state` (or with `--session <slug>`) to detect an active/resumable session before asking questions.
+2. **Resolve permitted sources automatically:** Run:
 
-```markdown
-Before I research and build your vault at `<VAULT_ROOT>/<topic-slug>/`, let's lock the mission (reply e.g. `1 working familiarity, 2 defaults`, or `defaults` / `go`):
-
-1. ❓ **Prior Knowledge:** How much background do you have in `<topic>`?
-   ➡️ *Default:* **No prior knowledge** *(build from absolute zero; define every symbol and term).*
-   *Alternatives:* Basic intuition | Working familiarity | Advanced (skip fundamentals).
-2. ❓ **Depth & Coverage:** How thoroughly should we cover it?
-   ➡️ *Default:* **Absolute mastery covering all topics** *(zero-omission syllabus, one file per subtopic, full derivations).*
-   *Alternatives:* Core fundamentals | Exam / interview prep | Practical implementation.
-3. ❓ **Mastery Goal:** What defines success?
-   ➡️ *Default:* **Complete first-principles mastery** *(derive every formula, explain without jargon, solve Tier 3 drills).*
-4. ❓ **Seed Notes / Scope (Optional):** Any syllabus, textbook, notes, or exclusions?
-   ➡️ *Default:* **None** *(full syllabus anchored on canonical primary sources).*
+```bash
+python vault_cli.py resolve-sources --topic "<Topic>" [--session <slug>] [--no-web]
 ```
 
-Write `00-MISSION.md` (record defaults verbatim so Phase 6 calibrates Turn 1 to a beginner-safe scalar trace):
+3. **Act on the selected mode (`vault` | `hybrid` | `web`):**
+   - `vault`: Existing Obsidian note sections sufficiently cover the topic/objectives. Teach directly from `matched_sections` and `related_notes` without unnecessary web research (verify consequential claims or contradictions if needed).
+   - `hybrid`: Existing notes partially cover the topic. Teach covered areas from `matched_sections` and load `references/RESEARCH-TOOLCHAIN.md` ONLY to selectively research `missing_coverage`.
+   - `web`: No suitable notes or no accessible vault. Load `references/RESEARCH-TOOLCHAIN.md` (if web/browser/docs tools exist) for lightweight fast-start research, or begin with available knowledge and explicit limitations if browsing tools are unavailable.
 
-```markdown
-# Mission: <Topic Title>
+## Phase 1 — Lightweight Calibration (Only When Material)
+1. **Use known context first:** Inspect `state`, `scratchpad/mission.json`, retrieved vault context, and the user's prompt before asking anything.
+2. **Ask only for missing info that materially changes the path** (never a rigid 4-question form):
+   - **Goal & agreed scope** (what is in scope vs excluded; never promise "zero gaps" across an unbounded domain).
+   - **Background** (relevant prior concepts or tools).
+   - **Time budget / deadline** or **explanation constraints** (only when relevant, e.g. exam in 20 minutes, code-first).
+3. **`--auto` / `defaults` / `go`:** Skip intake immediately with explicit baseline assumptions and refine from diagnostic/teaching evidence.
+4. **Persist calibration:** Record into `scratchpad/mission.json` via `vault_cli.py calibrate`:
 
-- **Vault Path:** `<VAULT_ROOT>/<topic-slug>/` | **Created:** <YYYY-MM-DD> | **Status:** Active
-- **Prior Knowledge Baseline:** No prior knowledge (Zero-baseline first principles)
-- **Coverage & Depth Mode:** Absolute mastery covering all topics (Zero-omission syllabus)
-
-## 1. Target Outcome
-<Complete first-principles mastery of <Topic>, or the user's custom outcome.>
-
-## 2. Success Criteria
-- [ ] Explain every core mechanism from first principles without jargon.
-- [ ] Derive every governing equation step-by-step from base axioms.
-- [ ] Compare against the top 2–3 alternatives (complexity, trade-offs, failure modes).
-- [ ] Diagnose Tier 3 edge cases and boundary failures.
-
-## 3. Curriculum Milestones
-1. <Prerequisites, Origin & Core Mental Model> 2. <Internal Mechanics> 3. <Derivations, Trade-offs & Edge Cases> 4. <Comparative Landscape & Applied Mastery>
-
-## 4. Scope Boundaries
-- **In Scope:** <Full syllabus or custom scope> | **Out of Scope:** <None or exclusions>
-
-## 5. User Seed Inputs
-- <Syllabus / textbook / questions provided, or "None provided.">
+```bash
+python vault_cli.py calibrate "<SESSION_OR_VAULT>" --goal "<goal>" --in-scope "<a,b>" --out-of-scope "<c>" --background "<bg>" [--time-budget 20] [--language "<lang>"]
 ```
 
-## Phase 2 — Primary-Source Research
-1. Load `references/RESEARCH-TOOLCHAIN.md` (retrieval rules + `01-RESOURCES.md` / `02-DEEP-RESEARCH.md` templates).
-2. Write a falsifiable Research Brief (4–6 questions tied to mission milestones).
-3. Decompose the topic into an **exhaustive numbered syllabus** (`01`…`NN`) in topological prerequisite order — every subtopic becomes one `topics/<nn>-<slug>.md`.
-4. Keep raw notes in `scratchpad/raw-research.md`; write `01-RESOURCES.md` then `02-DEEP-RESEARCH.md`.
+## Phase 2 — Brief Adaptive Diagnostic (Only When Useful)
+For substantial new topics (unless skipped, already evidenced, or the learner asks a narrow direct question):
+- Deliver **2–4 small diagnostic tasks**, **one at a time**, stopping early as soon as the starting level is clear.
+- If the learner skips or adjusts, skip immediately and mark unassessed prerequisites `unknown` — **never** `demonstrated`.
+- Self-reported confidence is calibration input only, never mastery evidence.
+- Persist prerequisite evidence via:
 
-## Phase 3 — Deterministic Vault Scaffold (Zero LLM Boilerplate)
-**Check Operating Mode (`SKILL.md §A`):**
-- **Vault-Native Mode (`.obsidian/` or `mode: vault-native`):** Do NOT scaffold `topics/`, `00-MOC-INDEX.md`, or `01`–`09` at the Obsidian vault root. Instead run `vault_cli.py discover`, `search --query "<topic>"`, and `plan --topic "<topic>"` (which resolves placement, tags, MOC selection/creation, and Mermaid diagrams with `plan_id` + `expected_hashes`), preview via `--dry-run`, execute `apply --plan <plan_id>` (or `generate --apply`), keep `scratchpad/` inside `<vault>/.teachme/sessions/<topic-slug>/`, and finish with `vault_cli.py audit` (`references/VAULT-NATIVE.md`).
-- **Standalone Mode:** Save the syllabus as `scratchpad/subtopics.json`, then run `vault_cli.py init`:
+```bash
+python vault_cli.py calibrate "<SESSION_OR_VAULT>" --diagnostic-status completed --diagnostic-tasks 2 --prereq "variables=demonstrated:Predicted mutation"
+```
+
+## Phase 3 — Compact Acyclic Curriculum & Minimal Operational Init
+1. Build a **compact, right-sized acyclic DAG** in `scratchpad/subtopics.json` with assessable `objectives` per topic node (no bloated upfront syllabi):
 
 ```json
 [
-  {"slug": "01-<slug>", "title": "<Title>", "depends_on": [], "contrasts_with": []},
-  {"slug": "02-<slug>", "title": "<Title>", "depends_on": ["topic-01"], "contrasts_with": []}
+  {
+    "slug": "01-<slug>",
+    "title": "<Title>",
+    "required": true,
+    "in_scope": true,
+    "depends_on": [],
+    "contrasts_with": [],
+    "objective": "<summary objective>",
+    "anchor": "<2-3 sentence mental hook>",
+    "key_concepts": ["<concept>"],
+    "key_equations": ["<LaTeX equation>"],
+    "objectives": [
+      {
+        "id": "obj-01-01",
+        "description": "<assessable objective>",
+        "required": true,
+        "in_scope": true,
+        "prerequisite_refs": [],
+        "assumptions": ["<valid domain/assumption>"],
+        "expected_assessments": ["explain_concept", "apply_procedure"]
+      }
+    ]
+  }
 ]
 ```
 
+2. Initialize operational state only (never study-note scaffolds and never `raw-research.md` by default):
+
 ```bash
-python vault_cli.py init "<VAULT_ROOT>/<topic-slug>" --topic "<Topic Title>" --subtopics "<VAULT_ROOT>/<topic-slug>/scratchpad/subtopics.json"
+python vault_cli.py init "<SESSION_OR_VAULT_PATH>" --topic "<Topic Title>" --subtopics "<SESSION_DIR>/scratchpad/subtopics.json" --goal "<Goal>"
 ```
 
-This creates `topics/`, `atomic/`, `learning-records/`, `scratchpad/`, `00-SESSION-STATE.md` (`<60` lines), `00-MOC-INDEX.md`, `00-GRAPH.json`, and YAML-valid topic stubs (existing files are never overwritten). Then continue with Phase 4 (`references/STUDY-AND-GLOSSARY.md`).
+- **Dynamic curriculum revision:** Insert discovered prerequisites anytime with `vault_cli.py revise-curriculum` (validates DAG acyclicity and preserves IDs, evidence, and resume state).
+- **Validate & Teach:** Run `vault_cli.py validate-state "<SESSION_OR_VAULT_PATH>"` and immediately start live adaptive teaching (`references/RETENTION-AND-RECORDS.md`).

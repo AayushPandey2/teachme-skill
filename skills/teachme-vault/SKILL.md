@@ -1,19 +1,19 @@
 ---
 name: teachme-vault
-description: "Connect, discover, profile, search, plan, generate, and audit notes inside an existing Obsidian vault in Vault-Native Mode. Usage: /teachme-vault <subcommand> [args]"
+description: "Connect and manage registered Obsidian vaults for isolated TeachMe learning state in .teachme/ and read-only source retrieval (no note creation). Usage: /teachme-vault <connect|vaults|use-vault|remove-vault|resolve-sources|mode|search|reindex|state> [args]"
 ---
 
-# `/teachme-vault` — Obsidian Vault-Native Integration
+# `/teachme-vault` — Multi-Vault Registry, Isolated State & Read-Only Lookup
 
 ## Arguments
-- Parse subcommand (`connect`, `discover`, `profile`, `search`, `plan`, `generate`, `apply`, `audit`, `mode`, `reindex`) and arguments from `$ARGUMENTS`.
-- If no subcommand is given, run `vault_cli.py mode` and `vault_cli.py profile` (if connected) or ask ONE clarifying question for the Obsidian vault path.
+- Parse subcommand (`connect`, `vaults`, `use-vault`, `remove-vault`, `resolve-sources`, `mode`, `search`, `reindex`, `state`) and arguments from `$ARGUMENTS`.
+- If no subcommand is given, run `vault_cli.py vaults`, `vault_cli.py mode`, and `vault_cli.py state` (if connected) or ask ONE clarifying question for the Obsidian vault path.
 
 ## Load (Minimal)
 Resolve `teachme/` at `../teachme/` first, then `~/.gemini/antigravity/skills/teachme/`:
 1. `teachme/SKILL.md` (laws §A–§D)
 2. `teachme/references/cmd-vault.md`
-3. `teachme/references/VAULT-NATIVE.md` when generating or planning notes.
+3. On demand only: `teachme/references/VAULT-NATIVE.md`
 
 ## Execute
-Run the corresponding `vault_cli.py` subcommand (`connect`, `discover`, `profile`, `reindex`, `search`, `plan`, `generate`, `apply`, `audit`, `mode`). Use `--dry-run` / `plan` to preview tags, MOC updates, and Mermaid diagrams, then `apply --plan <id>` or `generate --apply`. Never modify user-authored notes outside explicit `--extend --apply` or targeted MOC insertions with backup. Finish vault-native writes with `vault_cli.py audit`.
+Run the corresponding `vault_cli.py` subcommand. Never create, modify, reorganize, format, or validate study notes; if the user explicitly asks to create or edit persistent study notes, follow `teachme/references/NOTE-SKILL-HANDOFF.md`.
